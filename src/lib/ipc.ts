@@ -111,6 +111,8 @@ export const phxTray = {
 export type PhxIssueHandling = 'ask' | 'fix' | 'ignore'
 
 export interface PhxSettings {
+  /** 启动时静默检查更新（手动检查不受此开关限制；对齐 Rust Settings checkUpdates） */
+  checkUpdates: boolean
   /** 自动补全缺失的武器精通/专精等级（对齐 Rust Settings autoAddMasterings） */
   autoAddMasterings: boolean
   /** 自动补全缺失的 Scav 技能等级（对齐 Rust Settings autoAddScavSkills） */
@@ -556,4 +558,30 @@ export const phxPresets = {
     invoke('build_export', { id, kind, target, path }),
   exportAll: (id: string, kind: 'weapon' | 'equipment', dir: string): Promise<number> =>
     invoke('builds_export_all', { id, kind, dir })
+}
+
+// —— 应用更新（17-update 薄窗 + 设置页手动检查）——
+
+/** 更新状态机；tag = phase，字段名对齐 Rust UpdateStatus serde camelCase 输出 */
+export type PhxUpdateStatus =
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'available'; version: string; notes: string }
+  | { phase: 'notAvailable' }
+  | { phase: 'downloading'; received: number; total: number | null }
+  | { phase: 'downloaded'; version: string }
+  | { phase: 'error'; message: string }
+
+/** 全局状态广播事件名（Rust app.emit；薄窗挂载先 getStatus 取快照再 listen） */
+export const PHX_UPDATE_EVENT = 'update://status'
+
+/** 更新链：检查（manual 时有结果即开薄窗）/ 下载（后台任务，关窗不打断）/ 安装（退出跑安装器） */
+export const phxUpdate = {
+  getStatus: (): Promise<PhxUpdateStatus> => invoke('update_get_status'),
+  check: (manual?: boolean): Promise<PhxUpdateStatus> =>
+    invoke('update_check', { manual: manual ?? false }),
+  download: (): Promise<void> => invoke('update_download'),
+  install: (): Promise<void> => invoke('update_install'),
+  openWindow: (): Promise<void> => invoke('update_open_window'),
+  dismiss: (): Promise<void> => invoke('update_dismiss')
 }

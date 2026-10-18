@@ -21,6 +21,7 @@ mod skills;
 mod stash;
 mod traders;
 mod tray;
+mod updater;
 
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
@@ -450,22 +451,77 @@ async fn announcement_fetch(app: AppHandle) -> Result<AnnouncementPayload, Strin
     Ok(announcement::fetch_announcement(&app).await)
 }
 
+// ----- 应用更新 -----
+
+/// 检查更新（manual=true 为设置页手动检查；返回终态供设置页 toast）
+#[tauri::command]
+async fn update_check(
+    app: AppHandle,
+    manual: Option<bool>,
+) -> Result<updater::UpdateStatus, String> {
+    updater::check(app, manual.unwrap_or(false)).await
+}
+
+/// 开始下载新版本（关窗不中断，「后台下载」语义）
+#[tauri::command]
+async fn update_download(app: AppHandle) -> Result<(), String> {
+    updater::download(app)
+}
+
+/// 立即重启安装（退出应用并运行安装器）
+#[tauri::command]
+async fn update_install(app: AppHandle) -> Result<(), String> {
+    updater::install(app)
+}
+
+/// 打开更新薄窗（单例）
+#[tauri::command]
+async fn update_open_window(app: AppHandle) -> Result<(), String> {
+    updater::open_window(&app)
+}
+
+/// 「稍后提醒」：本会话不再打扰，真关薄窗
+#[tauri::command]
+async fn update_dismiss(app: AppHandle) -> Result<(), String> {
+    updater::dismiss(app)
+}
+
+/// 当前更新状态快照（薄窗挂载时先取快照再听广播）
+#[tauri::command]
+async fn update_get_status() -> updater::UpdateStatus {
+    updater::current_status()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             apply_window_rounding(app.handle());
             tray::init(app.handle()).expect("托盘初始化失败");
+            // 启动静默检查更新：延迟 3 秒避开启动高峰，受设置开关控制，
+            // 失败/无更新零 UI（manual=false 静默语义在 updater::check 内）
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                if !settings::get(&handle).check_updates {
+                    return;
+                }
+                let _ = tauri::async_runtime::block_on(updater::check(handle, false));
+            });
             Ok(())
         })
         .on_window_event(|window, event| {
             match event {
-                // 主窗点 X 隐藏到托盘常驻；面板「退出」为唯一真实出口
+                // 主窗点 X 隐藏到托盘常驻；面板「退出」为唯一真实出口。
+                // 更新薄窗除外：真关窗（「后台下载」= 关窗继续下载）
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    api.prevent_close();
-                    let _ = window.hide();
+                    if window.label() != updater::UPDATE_WIN {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
                 }
                 // 自绘托盘面板失焦即收起（贴边弹层标准行为）
                 tauri::WindowEvent::Focused(false) => {
@@ -492,7 +548,9 @@ pub fn run() {
             build_import, build_export, builds_export_all,
             app_flags, mark_splash_seen, mark_onboarded, announcement_fetch,
             settings_get, settings_set, settings_open_data_dir, settings_reset, settings_restart,
-            app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height
+            app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,
+            update_check, update_download, update_install, update_open_window, update_dismiss,
+            update_get_status
         ])
         .run(tauri::generate_context!())
         .expect("Phoenix-DRX 启动失败");

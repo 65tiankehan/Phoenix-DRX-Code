@@ -23,6 +23,8 @@ pub struct Settings {
     pub auto_add_scav_skills: bool,
     /// 问题处理三态：ask / fix / ignore
     pub issue_handling: String,
+    /// 启动时静默检查更新（手动检查不受此开关限制）
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -31,6 +33,7 @@ impl Default for Settings {
             auto_add_masterings: false,
             auto_add_scav_skills: false,
             issue_handling: ISSUE_ASK.to_string(),
+            check_updates: true,
         }
     }
 }

@@ -2,7 +2,10 @@ export type ToastKind = 'success' | 'warning' | 'error' | 'info'
 
 export interface ToastAction {
   label: string
+  /** 外链（与 onClick 二选一；onClick 优先） */
   url: string
+  /** 命令回调（如「立即重启」调 update_install），设置后忽略 url */
+  onClick?: () => void
 }
 
 export interface ToastItem {

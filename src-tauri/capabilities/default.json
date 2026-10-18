@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "主窗口 + 自绘托盘面板默认能力：窗口控制 + 文件对话框",
-  "windows": ["main", "tray"],
+  "windows": ["main", "tray", "update"],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",

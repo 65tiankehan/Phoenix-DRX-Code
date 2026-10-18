@@ -9,9 +9,13 @@
   const dur = 150
   const easing = cubicOut
 
-  /** 点动作：开外链并即清该条 toast */
-  function openAction(id: number, url: string): void {
-    void openUrl(url).catch(() => {})
+  /** 点动作：有 onClick 走命令回调，否则开外链；均即清该条 toast */
+  function openAction(id: number, url: string, onClick?: () => void): void {
+    if (onClick) {
+      onClick()
+    } else {
+      void openUrl(url).catch(() => {})
+    }
     dismissToast(id)
   }
 </script>
@@ -26,7 +30,11 @@
       <span class="dot"></span>{item.text}
       {#if item.action}
         {@const act = item.action}
-        <button class="act" type="button" onclick={() => openAction(item.id, act.url)}>
+        <button
+          class="act"
+          type="button"
+          onclick={() => openAction(item.id, act.url, act.onClick)}
+        >
           {act.label}
         </button>
       {/if}

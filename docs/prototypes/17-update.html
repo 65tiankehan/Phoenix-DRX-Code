@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>17 · 更新薄窗</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 48px 0 40px;
+  }
+  .stage { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap; justify-content: center; max-width: 1520px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; }
+  /* ===== 更新薄窗（独立 WebviewWindow，实心底，禁玻璃拟态） ===== */
+  .upwin {
+    width: 420px;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .up-titlebar { height: 38px; display: flex; align-items: center; padding: 0 8px 0 16px; flex: none; }
+  .up-tb-label { font-size: 12px; font-weight: 600; color: var(--phx-text-3); }
+  .up-body { padding: 6px 20px 20px; display: flex; flex-direction: column; }
+  .up-head { display: flex; align-items: center; gap: 14px; }
+  .up-logo {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 23px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .up-h-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+  .up-h-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+  .up-vers { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+  .ver-chip {
+    height: 26px; padding: 0 10px; border-radius: 7px; flex: none;
+    display: inline-flex; align-items: center;
+    font-family: var(--phx-font-mono); font-size: 12.5px; font-weight: 600;
+  }
+  .ver-old { background: var(--phx-fill-tertiary); color: var(--phx-text-2); }
+  .ver-new { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .ver-arrow { width: 14px; height: 14px; color: var(--phx-text-3); flex: none; }
+  /* 更新说明卡 */
+  .notes-card {
+    margin-top: 14px; background: var(--phx-surface); border-radius: var(--phx-r-card);
+    max-height: 150px; overflow-y: auto; padding: 12px 14px;
+  }
+  .notes-card::-webkit-scrollbar { width: 4px; }
+  .notes-card::-webkit-scrollbar-thumb { background: var(--phx-sep-strong); border-radius: 2px; }
+  .nc-h { font-size: 11.5px; font-weight: 700; color: var(--phx-text-3); letter-spacing: .06em; margin-bottom: 8px; }
+  .nc-li { display: flex; gap: 8px; font-size: 12.5px; color: var(--phx-text-2); line-height: 1.7; }
+  .nc-li + .nc-li { margin-top: 5px; }
+  .nc-dot { width: 4px; height: 4px; border-radius: 2px; background: var(--phx-accent); margin-top: 8px; flex: none; }
+  /* 按钮行 */
+  .up-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn {
+    height: 34px; padding: 0 16px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: filter .12s, background .12s;
+  }
+  .btn-primary { background: var(--phx-accent); color: #fff; flex: 1; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-ghost:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  /* ===== 状态二：下载中 ===== */
+  .prog { margin-top: 18px; }
+  .prog-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .prog-pct { font-family: var(--phx-font-mono); font-size: 15px; font-weight: 700; }
+  .prog-speed { font-size: 11.5px; color: var(--phx-text-3); font-family: var(--phx-font-mono); }
+  .prog-track { height: 5px; border-radius: 3px; background: var(--phx-fill-tertiary); overflow: hidden; }
+  .prog-fill { height: 100%; width: 37%; border-radius: 3px; background: var(--phx-accent); }
+  .prog-sub { margin-top: 8px; font-size: 11.5px; color: var(--phx-text-3); }
+  /* ===== 状态三：待重启 ===== */
+  .done-ring {
+    width: 46px; height: 46px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--phx-green-dim);
+  }
+  .done-ring svg { width: 22px; height: 22px; color: var(--phx-green); }
+  .done-note {
+    margin-top: 14px; padding: 10px 12px; border-radius: 10px;
+    background: var(--phx-warn-bg); box-shadow: inset 0 0 0 .5px var(--phx-warn-bd);
+    font-size: 12px; color: var(--phx-text-2); line-height: 1.6;
+  }
+  .done-note b { color: var(--phx-warn); font-weight: 600; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 1420px; max-width: calc(100vw - 48px); margin-top: 40px; font-size: 13px; line-height: 1.8; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <!-- ===== 状态一：发现新版本 ===== -->
+    <div class="col">
+      <div class="upwin">
+        <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+        <div class="up-body">
+          <div class="up-head">
+            <div class="up-logo">P</div>
+            <div>
+              <div class="up-h-title">发现新版本</div>
+              <div class="up-h-sub">当前运行 0.1.0，建议尽快更新</div>
+            </div>
+          </div>
+          <div class="up-vers">
+            <span class="ver-chip ver-old">0.1.0</span>
+            <svg class="ver-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <span class="ver-chip ver-new">0.2.0</span>
+          </div>
+          <div class="notes-card">
+            <div class="nc-h">更新内容</div>
+            <div class="nc-li"><span class="nc-dot"></span><span>新增：预设页检视功能轻提示</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>修复：问题处理三态在个别存档上不生效</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>优化：大量物品场景下藏身页面加载更快</span></div>
+          </div>
+          <div class="up-actions">
+            <button class="btn btn-ghost" type="button">稍后提醒</button>
+            <button class="btn btn-primary" type="button">立即更新</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-cap">① 发现新版本</div>
+    </div>
+
+    <!-- ===== 状态二：下载中 ===== -->
+    <div class="col">
+      <div class="upwin">
+        <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+        <div class="up-body">
+          <div class="up-head">
+            <div class="up-logo">P</div>
+            <div>
+              <div class="up-h-title">正在下载更新</div>
+              <div class="up-h-sub">下载完成后将自动准备安装</div>
+            </div>
+          </div>
+          <div class="prog">
+            <div class="prog-meta">
+              <span class="prog-pct">37%</span>
+              <span class="prog-speed">1.8 MB/s</span>
+            </div>
+            <div class="prog-track"><div class="prog-fill"></div></div>
+            <div class="prog-sub">12.4 MB / 33.6 MB · 剩余约 12 秒</div>
+          </div>
+          <div class="up-actions">
+            <button class="btn btn-ghost" type="button" style="flex:1">后台下载</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-cap">② 下载中（可收起后台继续）</div>
+    </div>
+
+    <!-- ===== 状态三：下载完成，待重启 ===== -->
+    <div class="col">
+      <div class="upwin">
+        <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+        <div class="up-body">
+          <div class="up-head">
+            <div class="done-ring">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+            </div>
+            <div>
+              <div class="up-h-title">更新已就绪</div>
+              <div class="up-h-sub">0.2.0 下载完成，重启后生效</div>
+            </div>
+          </div>
+          <div class="done-note"><b>提示</b>：重启会关闭当前编辑中的存档，请先确认没有未保存的修改。</div>
+          <div class="up-actions">
+            <button class="btn btn-ghost" type="button">稍后自行重启</button>
+            <button class="btn btn-primary" type="button">立即重启安装</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-cap">③ 下载完成，待重启</div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>17 · 更新薄窗设计说明</b><br>
+    · <b>独立薄窗</b>：非主窗内页面，独立 WebviewWindow（约 420px 宽，按内容自适应高）。标题栏文案「Phoenix 更新」，无窗口缩放按钮。<br>
+    · <b>实心底</b>：透明小窗禁用玻璃拟态，一律 <code>--phx-win-bg</code> 实心 + CSS 圆角 + <code>--phx-shadow-win</code>（章程铁律）。<br>
+    · <b>三态流转</b>：① 发现新版本（版本对比 + 更新内容 + 立即更新/稍后提醒）→ ② 下载中（进度 + 速度，可收起后台继续）→ ③ 下载完成（重启安装，带未保存提醒）。<br>
+    · <b>启动静默检查</b>：应用启动后静默查询更新源，无更新时<b>零 UI</b>（不弹窗、不 toast）；有更新才弹此薄窗。「稍后提醒」本次会话不再打扰，下次启动重新提示。<br>
+    · <b>更新内容来源</b>：发布 Release 的 changelog 文本，纯文本逐行渲染为要点（无富文本解析）。<br>
+    · <b>失败兜底</b>：检查/下载失败均静默（仅日志），不打扰用户；用户亦可不设手动入口（一期不做「检查更新」按钮，见下）。<br>
+    · <b>未落地项（待拍板）</b>：设置页是否加「检查更新」手动入口——一期建议不加，保持最小实现。
+  </div>
+</body>
+</html>

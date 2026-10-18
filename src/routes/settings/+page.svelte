@@ -1,6 +1,6 @@
 <script lang="ts">
   // 15-settings 设置页（稿图 docs/prototypes/15-settings.html）
-  // 2026-10-18 拍板：砍「检查更新」开关（诚实原则，无真实更新源不画）；组1 补音效/动效开关（感官层基线义务）。
+  // 组1 含「检查更新」开关 + 手动检查入口（2026-10-19 更新链落地，推翻 10-18 的「砍开关」裁决）。
   // 保存语义（稿图 note7，对齐参考 NotifyPropertyChangedAndSave）：改动即时落盘 + 轻提示，页头无「保存」按钮。
   import { onMount, tick } from 'svelte'
   import { resolve } from '$app/paths'
@@ -11,6 +11,7 @@
     phxSettings,
     phxServer,
     phxProfile,
+    phxUpdate,
     type PhxIssueHandling,
     type PhxProfileMeta,
     type PhxServerRow
@@ -29,9 +30,10 @@
   $effect(() => setSoundEnabled(soundOn))
   $effect(() => setReducedMotion(motionOn))
 
-  // —— 存档编辑行为（settings.json 通道，Rust 侧整对象写入；消费端待 13 屏接入）——
-  // 字段名对齐 Rust Settings 序列化（autoAddMasterings / autoAddScavSkills），
+  // —— 行为偏好（settings.json 通道，Rust 侧整对象写入；自动补全消费端待 13 屏接入）——
+  // 字段名对齐 Rust Settings 序列化（checkUpdates / autoAddMasterings / autoAddScavSkills），
   // 名字对不上会读到 undefined，Svelte 5 会因 bind 到 undefined 直接炸渲染。
+  let checkUpdates = $state(true)
   let autoAddMasterings = $state(false)
   let autoAddScavSkills = $state(false)
   let issueHandling = $state<PhxIssueHandling>('ask')
@@ -40,12 +42,13 @@
   // armed 刻意不用 $state —— 回填后置 true 不应反过来再触发本 effect。
   let armed = false
   $effect(() => {
+    const c = checkUpdates
     const a = autoAddMasterings
     const s = autoAddScavSkills
     const h = issueHandling
     if (!armed) return
     void phxSettings
-      .set({ autoAddMasterings: a, autoAddScavSkills: s, issueHandling: h })
+      .set({ checkUpdates: c, autoAddMasterings: a, autoAddScavSkills: s, issueHandling: h })
       .then(() => toast.success(t('settings.toast.saved')))
   })
 
@@ -69,6 +72,7 @@
         phxProfile.current(),
         phxProfile.list()
       ])
+      checkUpdates = settings.checkUpdates
       autoAddMasterings = settings.autoAddMasterings
       autoAddScavSkills = settings.autoAddScavSkills
       issueHandling = settings.issueHandling
@@ -100,6 +104,21 @@
 
   function onIssueChange(v: string): void {
     issueHandling = v as PhxIssueHandling
+  }
+
+  // 手动检查更新：notAvailable / error 用 toast 提示；available 时 Rust 侧已自动开薄窗
+  let checking = $state(false)
+  function checkNow(): void {
+    if (checking) return
+    checking = true
+    void phxUpdate
+      .check(true)
+      .then((s) => {
+        if (s.phase === 'notAvailable') toast.success(t('update.noUpdate'))
+        else if (s.phase === 'error') toast.error(t('update.checkFail'))
+      })
+      .catch(() => toast.error(t('update.checkFail')))
+      .finally(() => (checking = false))
   }
 
   function openDataDir(): void {
@@ -151,6 +170,22 @@
                 <div class="sdesc">{t('settings.reducedMotion.desc')}</div>
               </div>
               <PhxSwitch bind:checked={motionOn} label={t('settings.reducedMotion')} />
+            </div>
+            <div class="srow">
+              <div class="stext">
+                <div class="slabel">{t('settings.checkUpdates')}</div>
+                <div class="sdesc">{t('settings.checkUpdates.desc')}</div>
+              </div>
+              <PhxSwitch bind:checked={checkUpdates} label={t('settings.checkUpdates')} />
+            </div>
+            <div class="srow">
+              <div class="stext">
+                <div class="slabel">{t('settings.checkNow')}</div>
+                <div class="sdesc">{t('settings.checkNow.desc')}</div>
+              </div>
+              <button class="mbtn" type="button" disabled={checking} onclick={checkNow}>
+                {checking ? t('update.checking') : t('settings.checkNow.btn')}
+              </button>
             </div>
           </section>
 
