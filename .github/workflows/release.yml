@@ -57,6 +57,30 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
 
+      - name: 生成更新清单 latest.json
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $nsisSig = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter '*-setup.exe.sig' | Select-Object -First 1
+          if (-not $nsisSig) { Write-Error '缺少 nsis 签名文件' }
+          $exeName = $nsisSig.Name -replace '\.sig$', ''
+          $json = [ordered]@{
+            version   = $conf.version
+            notes     = "Phoenix-DRX $tag 发布，详情见发布页。"
+            pub_date  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            platforms = [ordered]@{
+              'windows-x86_64' = [ordered]@{
+                signature = (Get-Content $nsisSig.FullName -Raw).Trim()
+                url       = "https://github.com/$env:RELEASE_REPO/releases/download/$tag/$exeName"
+              }
+            }
+          }
+          $out = 'src-tauri/target/release/bundle/latest.json'
+          ConvertTo-Json -InputObject $json -Depth 5 | Set-Content $out -Encoding utf8NoBOM
+          Write-Host "latest.json 已生成 → $out"
+          Get-Content $out
+
       - name: 校验产物齐全
         shell: pwsh
         run: |
