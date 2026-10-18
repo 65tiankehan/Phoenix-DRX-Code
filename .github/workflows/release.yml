@@ -100,7 +100,7 @@ jobs:
           $tag = '${{ github.ref_name }}'
           $files = Get-ChildItem src-tauri/target/release/bundle -Recurse -Include *.msi,*.exe,*.sig,latest.json |
             ForEach-Object { $_.FullName }
-          gh release create $tag --repo $env:RELEASE_REPO --title $tag --generate-notes @files
+          gh release create $tag --repo $env:RELEASE_REPO --title $tag --notes "Phoenix-DRX $tag，由发布流水线自动构建发布；latest.json 供应用内更新使用。" @files
           if ($LASTEXITCODE -ne 0) {
             Write-Host 'release 已存在，回退为覆盖上传'
             gh release upload $tag --repo $env:RELEASE_REPO --clobber @files
