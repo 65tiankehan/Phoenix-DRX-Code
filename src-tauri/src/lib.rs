@@ -5,6 +5,7 @@
 //! （IPC 通道冒号改为命令名下划线，前端由 src/lib/ipc.ts 屏蔽差异）。
 //! 任何写档案命令执行前必须先落备份（领域铁律：备份先行）。
 
+mod announcement;
 mod backup;
 mod character;
 mod health;
@@ -24,6 +25,7 @@ mod tray;
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
+use announcement::AnnouncementPayload;
 use character::{CharData, CharOptions, CharSaveData};
 use health::{HealthData, HealthSaveData};
 use hideout::{HideoutData, HideoutSaveData};
@@ -442,6 +444,12 @@ async fn settings_restart(app: AppHandle) {
     settings::restart(&app);
 }
 
+/// 拉取公告：三镜像（raw → 反代 → jsDelivr）→ 本地缓存回退；killSwitch 视为空公告
+#[tauri::command]
+async fn announcement_fetch(app: AppHandle) -> Result<AnnouncementPayload, String> {
+    Ok(announcement::fetch_announcement(&app).await)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -482,7 +490,7 @@ pub fn run() {
             inspect_weapon, builds_global, preset_add, preset_export, weapon_export,
             presets_load, build_remove, builds_remove_all, build_to_stash,
             build_import, build_export, builds_export_all,
-            app_flags, mark_splash_seen, mark_onboarded,
+            app_flags, mark_splash_seen, mark_onboarded, announcement_fetch,
             settings_get, settings_set, settings_open_data_dir, settings_reset, settings_restart,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height
         ])

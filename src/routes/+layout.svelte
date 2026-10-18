@@ -9,8 +9,10 @@
   import ToastHost from '$lib/components/ToastHost.svelte'
   import Splash from '$lib/components/Splash.svelte'
   import Onboarding from '$lib/components/Onboarding.svelte'
-  import { phxApp } from '$lib/ipc'
-import { applyMotionClass } from '$lib/motion'
+  import { phxApp, phxAnnouncement } from '$lib/ipc'
+  import { applyMotionClass } from '$lib/motion'
+  import { toast } from '$lib/toast.svelte'
+  import { t } from '$lib/i18n/i18n.svelte'
 
   let { children }: { children: Snippet } = $props()
 
@@ -57,6 +59,15 @@ import { applyMotionClass } from '$lib/motion'
     void phxApp.flags().then((flags) => {
       splashMode = flags.splashSeen ? 'short' : 'full'
       onboardVisible = !flags.onboarded
+    })
+    // 公告：启动拉取（三镜像/缓存回退/急停均在 Rust 侧），逐条 toast 展示
+    void phxAnnouncement.fetch().then((payload) => {
+      for (const a of payload.announcements) {
+        const action = a.actionUrl
+          ? { label: a.actionLabel || t('announce.viewDetail'), url: a.actionUrl }
+          : undefined
+        toast.announce(`${a.title}：${a.body}`, action)
+      }
     })
   })
 

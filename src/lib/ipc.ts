@@ -74,6 +74,28 @@ export const phxApp = {
   markOnboarded: (): Promise<void> => invoke('mark_onboarded')
 }
 
+// —— 公告（Opendata 公开仓；启动 toast 消费）——
+
+/** 单条公告；字段名对齐 Rust AnnouncementItem serde camelCase 输出 */
+export interface PhxAnnouncement {
+  id: string
+  title: string
+  body: string
+  actionLabel: string | null
+  actionUrl: string | null
+}
+
+export interface PhxAnnouncementPayload {
+  announcements: PhxAnnouncement[]
+  /** remote 远端 / cache 本地缓存 / none 无数据（仅诊断用，展示不按来源分支） */
+  source: string
+}
+
+/** 公告拉取：三镜像 → 缓存回退 → killSwitch 均在 Rust 侧完成 */
+export const phxAnnouncement = {
+  fetch: (): Promise<PhxAnnouncementPayload> => invoke('announcement_fetch')
+}
+
 /** 托盘面板（自绘弹窗，/tray 路由）；几何定位与收起均由 Rust 侧裁决 */
 export const phxTray = {
   showMain: (): Promise<void> => invoke('app_show_main'),

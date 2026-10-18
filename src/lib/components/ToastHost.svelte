@@ -2,11 +2,18 @@
   import { fly } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
-  import { toastItems } from '$lib/toast.svelte'
+  import { openUrl } from '@tauri-apps/plugin-opener'
+  import { dismissToast, toastItems } from '$lib/toast.svelte'
 
   // 进出场时长/缓动对齐 token：--phx-dur-fast: 150ms + --phx-ease-out
   const dur = 150
   const easing = cubicOut
+
+  /** 点动作：开外链并即清该条 toast */
+  function openAction(id: number, url: string): void {
+    void openUrl(url).catch(() => {})
+    dismissToast(id)
+  }
 </script>
 
 <div class="toast-region" aria-live="polite">
@@ -17,6 +24,12 @@
       animate:flip={{ duration: dur }}
     >
       <span class="dot"></span>{item.text}
+      {#if item.action}
+        {@const act = item.action}
+        <button class="act" type="button" onclick={() => openAction(item.id, act.url)}>
+          {act.label}
+        </button>
+      {/if}
     </div>
   {/each}
 </div>
@@ -38,6 +51,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    /* region 整体穿透，但卡片内动作按钮要可点 */
+    pointer-events: auto;
     background: var(--phx-glass);
     backdrop-filter: blur(20px);
     border: 0.5px solid var(--phx-sep-strong);
@@ -61,5 +76,21 @@
   }
   .toast.error .dot {
     background: var(--phx-danger);
+  }
+  .toast.info .dot {
+    background: var(--phx-accent);
+  }
+  .act {
+    flex: none;
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--phx-accent);
+    cursor: pointer;
+  }
+  .act:hover {
+    text-decoration: underline;
   }
 </style>
