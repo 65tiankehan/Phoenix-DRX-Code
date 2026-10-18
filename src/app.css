@@ -1,0 +1,721 @@
+/**
+ * Phoenix-DRX 视觉 Token 单一来源
+ * 依据：docs/design/视觉基线.md（§三 token 清单、§四 组件行为基线）+ docs/design/感官层基线.md（§二 motion tokens）
+ * 规则：全站 UI 一律引用这里的 --phx-* token，禁止硬编码色值/尺寸；
+ *       新增 token 必须先在视觉基线登记，再进本文件（顺序不能反）。
+ * 机器卡点：tests/tokens.test.ts 校验 token 名完备且无重复定义。
+ * 换版记录：2026-10-17 随 16 屏稿图收官整体换版（Gen B 液态玻璃深灰系为唯一基座，旧薄荷绿系全淘汰）。
+ *          2026-10-17 随 Tauri 2 + Svelte 迁移平移至 src/app.css（原 Electron/Vue 版 tokens.css 归档）。
+ */
+
+:root {
+  /* ---- 颜色（26，视觉基线 §三） ---- */
+  --phx-win-bg: #09090b;
+  --phx-surface: #101013;
+  --phx-surface-2: #16161a;
+  --phx-fill-tertiary: rgba(255, 255, 255, 0.05);
+  --phx-fill-quaternary: rgba(255, 255, 255, 0.08);
+  --phx-fill-secondary: rgba(255, 255, 255, 0.14);
+  --phx-glass: rgba(22, 22, 26, 0.72);
+  --phx-sep: rgba(255, 255, 255, 0.08);
+  --phx-sep-strong: rgba(255, 255, 255, 0.14);
+  --phx-text: rgba(255, 255, 255, 0.92);
+  --phx-text-2: rgba(235, 235, 245, 0.6);
+  --phx-text-3: rgba(235, 235, 245, 0.3);
+  --phx-accent: #0091ff;
+  --phx-accent-dim: rgba(0, 145, 255, 0.16);
+  --phx-warn: #ffc860;
+  --phx-warn-bg: rgba(255, 159, 10, 0.1);
+  --phx-warn-bd: rgba(255, 159, 10, 0.32);
+  --phx-danger: #ff6961;
+  --phx-danger-bg: rgba(196, 43, 28, 0.18);
+  --phx-green: #30d158;
+  --phx-green-dim: rgba(48, 209, 88, 0.16);
+  --phx-red: #ff453a;
+  --phx-red-dim: rgba(255, 69, 58, 0.15);
+  /* 品牌紫（历史名 orange/yellow 保留，避免全仓重命名连锁） */
+  --phx-orange: #a78bfa;
+  --phx-orange-dim: rgba(167, 139, 250, 0.16);
+  --phx-yellow: #c4b5fd;
+
+  /* ---- 形状 / 阴影 / 布局（5） ---- */
+  --phx-r-win: 12px;
+  --phx-r-card: 12px;
+  --phx-r-btn: 8px;
+  --phx-shadow-win: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  --phx-scrollbar-w: 4px;
+
+  /* ---- 字体（3） ---- */
+  --phx-font-sans: -apple-system, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+  --phx-font-mono: ui-monospace, Consolas, monospace;
+  --phx-font-brand: fantasy;
+
+  /* ---- 动效（感官层基线 §二） ---- */
+  --phx-dur-fast: 150ms;
+  --phx-dur-norm: 300ms;
+  --phx-dur-slow: 500ms;
+  --phx-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --phx-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --phx-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- 层级带（视觉基线 §四） ---- */
+  --phx-z-header: 10;
+  --phx-z-overlay: 100;
+  --phx-z-modal: 200;
+  --phx-z-toast: 300;
+}
+
+/* ---- 全局基座（仅暗色主题，见视觉基线 §三；字号 13px 跟随稿图定稿值，不立 token） ----
+   body 背景必须透明：透明窗口下圆角外的四个角由系统透出，铺色会填死圆角 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--phx-text);
+  font-family: var(--phx-font-sans);
+  font-size: 13px;
+}
+
+/* 文本选区：强调色半透明（视觉基线 §一 文本选区行） */
+::selection {
+  background: rgba(0, 145, 255, 0.45);
+  color: #ffffff;
+}
+
+/* 焦点环：强调色 2px，替代系统默认蓝框（视觉基线 §四 键盘可达） */
+:focus-visible {
+  outline: 2px solid var(--phx-accent);
+  outline-offset: 1px;
+}
+
+/* 按钮按压反馈：全站单一规则（感官层基线 §二 通用交互动效）；
+   组件内自定义 transition 时需并写 transform 一项，避免覆盖丢失回弹 */
+button {
+  transition: transform var(--phx-dur-fast) var(--phx-ease-out);
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+/* ---- 滚动条：默认 4px 细滚动条（表格/仓库网格区） ---- */
+::-webkit-scrollbar {
+  width: var(--phx-scrollbar-w);
+  height: var(--phx-scrollbar-w);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: calc(var(--phx-scrollbar-w) / 2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* 卡片列表区：隐藏滚动条但保留滚动（旧 Phoenix 行为） */
+.phx-hide-scroll {
+  scrollbar-width: none;
+}
+
+.phx-hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---- 动效关停双通道之一：系统偏好 ----
+   （另一通道：设置页「减少动态效果」→ html 根类 .phx-reduced-motion，随设置页实现接入） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.phx-reduced-motion *,
+.phx-reduced-motion *::before,
+.phx-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ---- 启动页 Splash（样板 tengri-qingli 同模式：样式全局承载，组件不带 style 块） ---- */
+.sp {
+  position: fixed;
+  inset: 0;
+  z-index: var(--phx-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--phx-win-bg);
+  /* fixed 层包含块是视口，逃出 .shell 圆角裁剪，须自备同款圆角（样板 v2.6 教训） */
+  border-radius: var(--phx-r-win);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    opacity 520ms var(--phx-ease-out),
+    transform 520ms var(--phx-ease-out);
+}
+
+.sp.exiting {
+  opacity: 0;
+  transform: scale(1.012);
+}
+
+/* 最大化窗口去圆角（联动 +layout.svelte 的 .shell.maximized） */
+.shell.maximized,
+.shell.maximized .sp,
+.shell.maximized .ob {
+  border-radius: 0;
+}
+
+/* 网格底纹：双向细线，缓慢呼吸 */
+.sp-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 48px);
+  animation: sp-breathe 7s ease-in-out infinite;
+}
+
+/* 四周暗角 */
+.sp-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 120px rgba(0, 0, 0, 0.55),
+    inset 0 0 48px rgba(0, 0, 0, 0.35);
+}
+
+/* 胶片噪点（feTurbulence data-uri，极低透明度） */
+.sp-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.038;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.sp-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sp-logo {
+  width: 120px;
+  height: 120px;
+}
+
+/* 渐变环 / 对勾颜色走 token，由 CSS 供给 SVG stop */
+.sp-stop-a {
+  stop-color: var(--phx-orange);
+}
+
+.sp-stop-b {
+  stop-color: var(--phx-yellow);
+}
+
+.sp-stroke {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: sp-draw 1400ms var(--phx-ease-out) 120ms forwards;
+}
+
+.sp-stroke.late {
+  animation-delay: 800ms;
+}
+
+.sp-name {
+  margin: 18px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--phx-text);
+  opacity: 0;
+  animation: sp-fade-in 600ms var(--phx-ease-out) 1050ms forwards;
+}
+
+.sp-signal {
+  position: relative;
+  width: 300px;
+  height: 1px;
+  margin-top: 16px;
+  background: linear-gradient(90deg, transparent, var(--phx-orange), transparent);
+  opacity: 0;
+  animation: sp-fade-in 600ms var(--phx-ease-out) 1300ms forwards;
+}
+
+.sp-signal-dot {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--phx-yellow);
+  box-shadow: 0 0 8px var(--phx-orange);
+  animation: sp-blip 3600ms linear 1300ms infinite;
+}
+
+.sp-sub {
+  margin: 14px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: var(--phx-text-3);
+  opacity: 0;
+  animation: sp-fade-in 600ms var(--phx-ease-out) 1500ms forwards;
+}
+
+.sp-enter {
+  position: absolute;
+  bottom: 36px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--phx-text-3);
+  animation: sp-enter-pulse 1800ms ease-in-out infinite;
+}
+
+/* 回访短版：动画时长约 ×0.4，与 totalMs=1500 对齐 */
+.sp.short .sp-stroke {
+  animation-duration: 560ms;
+  animation-delay: 48ms;
+}
+
+.sp.short .sp-stroke.late {
+  animation-delay: 320ms;
+}
+
+.sp.short .sp-name {
+  animation-delay: 420ms;
+}
+
+.sp.short .sp-signal {
+  animation-delay: 520ms;
+}
+
+.sp.short .sp-signal-dot {
+  animation-delay: 520ms;
+}
+
+.sp.short .sp-sub {
+  animation-delay: 600ms;
+}
+
+@keyframes sp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes sp-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sp-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes sp-blip {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  50% {
+    left: calc(100% - 5px);
+    opacity: 1;
+  }
+
+  58% {
+    left: calc(100% - 5px);
+    opacity: 0;
+  }
+
+  100% {
+    left: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes sp-enter-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* ---- 引导页 Onboarding（3 页沉浸舞台：欢迎 / 安全三条件 / 就绪） ---- */
+.ob {
+  position: fixed;
+  inset: 0;
+  z-index: var(--phx-z-modal);
+  background: #070708;
+  /* 同 .sp：fixed 层自备同款圆角，逃出 .shell 裁剪 */
+  border-radius: var(--phx-r-win);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 双椭圆氛围光，缓慢呼吸 */
+.ob-atmo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(560px 320px at 18% 12%, rgba(167, 139, 250, 0.07), transparent 70%),
+    radial-gradient(640px 380px at 84% 88%, rgba(0, 145, 255, 0.06), transparent 70%);
+  animation: ob-breathe 6s ease-in-out infinite;
+}
+
+.ob-brand {
+  position: absolute;
+  top: 22px;
+  left: 26px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--phx-text-2);
+}
+
+.ob-brand i {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--phx-orange), var(--phx-yellow));
+}
+
+.ob-skip {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  padding: 6px 16px;
+  border: 1px solid var(--phx-sep);
+  border-radius: 999px;
+  background: var(--phx-fill-tertiary);
+  color: var(--phx-text-2);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color var(--phx-dur-fast) var(--phx-ease-out),
+    border-color var(--phx-dur-fast) var(--phx-ease-out),
+    background var(--phx-dur-fast) var(--phx-ease-out);
+}
+
+.ob-skip:hover {
+  color: var(--phx-text);
+  border-color: var(--phx-sep-strong);
+  background: var(--phx-fill-quaternary);
+}
+
+.ob-pagenum {
+  position: absolute;
+  bottom: 26px;
+  left: 28px;
+  font-family: var(--phx-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--phx-text-3);
+}
+
+.ob-slide {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32px 130px;
+  text-align: center;
+  animation: ob-in 500ms var(--phx-ease-out) both;
+}
+
+.ob-hero {
+  position: relative;
+  margin-bottom: 34px;
+}
+
+/* 主视觉砖：凤凰橙金渐变 + 光晕 */
+.ob-tile {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 36px;
+  background: linear-gradient(135deg, var(--phx-orange), var(--phx-yellow));
+  color: #2e1065;
+}
+
+.ob-tile svg {
+  width: 56px;
+  height: 56px;
+}
+
+.ob-tile::after {
+  content: '';
+  position: absolute;
+  inset: -18px;
+  z-index: -1;
+  border-radius: 48px;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.35), rgba(196, 181, 253, 0.2));
+  filter: blur(40px);
+}
+
+/* 浮动小徽章（左右各一，交错相位） */
+.ob-badge {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: var(--phx-surface-2);
+  border: 1px solid var(--phx-sep);
+  color: var(--phx-text-2);
+  animation: ob-float 5s ease-in-out infinite;
+}
+
+.ob-badge svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ob-badge-a {
+  top: -18px;
+  right: -52px;
+}
+
+.ob-badge-b {
+  bottom: -14px;
+  left: -52px;
+  animation-delay: 2.5s;
+}
+
+/* 渐变文字标题（白→半透明白裁剪） */
+.ob-title {
+  margin: 0 0 12px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #fff 30%, rgba(255, 255, 255, 0.55));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.ob-kicker {
+  margin-bottom: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--phx-orange);
+}
+
+.ob-lead {
+  margin: 0;
+  max-width: 560px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--phx-text-2);
+}
+
+/* 第二页条件列表 */
+.ob-caps {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 460px;
+  text-align: left;
+}
+
+.ob-cap {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ob-cap i {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--phx-orange);
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.8);
+}
+
+.ob-cap b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--phx-text);
+}
+
+.ob-cap small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--phx-text-2);
+}
+
+.ob-foot {
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.ob-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ob-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--phx-fill-quaternary);
+  cursor: pointer;
+  transition:
+    width var(--phx-dur-norm) var(--phx-ease-out),
+    background var(--phx-dur-norm) var(--phx-ease-out);
+}
+
+.ob-dot.on {
+  width: 28px;
+  background: var(--phx-orange);
+}
+
+.ob-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ob-ghost,
+.ob-primary {
+  height: 36px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    filter var(--phx-dur-fast) var(--phx-ease-out),
+    transform var(--phx-dur-fast) var(--phx-ease-out),
+    border-color var(--phx-dur-fast) var(--phx-ease-out);
+}
+
+.ob-ghost {
+  border: 1px solid var(--phx-sep);
+  background: transparent;
+  color: var(--phx-text-2);
+}
+
+.ob-ghost:hover {
+  border-color: var(--phx-sep-strong);
+  color: var(--phx-text);
+}
+
+.ob-primary {
+  border: none;
+  background: linear-gradient(135deg, var(--phx-orange), var(--phx-yellow));
+  color: #2e1065;
+}
+
+.ob-primary:hover {
+  filter: brightness(1.08);
+}
+
+.ob-ghost:active,
+.ob-primary:active {
+  transform: scale(0.97);
+}
+
+@keyframes ob-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ob-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ob-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}

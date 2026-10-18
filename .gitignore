@@ -1,0 +1,13 @@
+node_modules/
+.svelte-kit/
+build/
+out/
+dist/
+src-tauri/target/
+src-tauri/gen/
+*.local
+*.tsbuildinfo
+.legacy/
+.fixtures/
+.DS_Store
+.trae-html-share-packages/

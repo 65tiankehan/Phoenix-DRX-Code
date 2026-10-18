@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 08 · 藏身处（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：区域 / 配方 / 进行中生产均为示意，生产端实读 characters.pmc.Hideout + 服务器 database hideout/areas.json 与 productions.json -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock（与 02–07 一致） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== 按钮（iOS 26：填充胶囊主键 + 着色次键） ===== */
+  .btn { height: 32px; padding: 0 14px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: var(--phx-accent); color: #fff; font-weight: 600; }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-ghost:hover { background: var(--phx-fill-quaternary); }
+  /* ===== 工具行：子页分段 + 过滤框 ===== */
+  .toolbar { margin: 12px 24px 0; display: flex; align-items: center; gap: 10px; }
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--phx-fill-tertiary); }
+  .seg button { border: none; background: transparent; color: var(--phx-text-2); font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 7px; cursor: pointer; transition: background .15s, color .15s; }
+  .seg button.on { background: rgba(255,255,255,.16); color: var(--phx-text); font-weight: 600; }
+  .sfield {
+    height: 28px; display: flex; align-items: center; gap: 6px;
+    padding: 0 10px; border-radius: 8px; background: var(--phx-fill-tertiary);
+  }
+  .sfield svg { width: 12px; height: 12px; color: var(--phx-text-3); flex: none; }
+  .sfield input {
+    border: none; outline: none; background: transparent;
+    font-family: inherit; font-size: 12px; color: var(--phx-text);
+    width: 108px;
+  }
+  .sfield input::placeholder { color: var(--phx-text-3); }
+  .fspacer { flex: 1; }
+  /* ===== 分组（iOS grouped list：组头在卡外） ===== */
+  .qgroup { margin-top: 16px; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; }
+  .gtitle { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .02em; }
+  .gcount { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); background: var(--phx-fill-tertiary); border-radius: 8px; padding: 1px 7px; }
+  .gcap { font-size: 11px; color: var(--phx-text-3); }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  /* ===== 区域卡：区域名 + 等级比例条 + 等级步进器 + 自绘滑条（对齐参考双控件） ===== */
+  .zgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; }
+  .zcard { background: var(--phx-surface-2); border-radius: 9px; padding: 12px 14px; }
+  .zhead { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  .zname { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .zkey { font-size: 11px; color: var(--phx-text-3); font-family: "SF Mono", ui-monospace, Consolas, monospace; white-space: nowrap; }
+  .zlv { margin-left: auto; flex: none; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-2); background: var(--phx-fill-tertiary); border-radius: 8px; padding: 1px 7px; }
+  .zbar { height: 4px; border-radius: 2px; background: var(--phx-fill-quaternary); margin: 11px 0 13px; overflow: hidden; }
+  .zbar i { display: block; height: 100%; border-radius: 2px; background: var(--phx-accent); }
+  .zctl { display: flex; align-items: center; gap: 10px; }
+  .stepper { display: flex; align-items: center; height: 28px; flex: none; border-radius: 8px; background: var(--phx-fill-tertiary); overflow: hidden; }
+  .stepper button { width: 28px; height: 100%; border: none; background: transparent; color: var(--phx-accent); font-size: 16px; font-weight: 600; cursor: pointer; }
+  .stepper button:hover { background: var(--phx-fill-quaternary); }
+  .stepper .val { min-width: 34px; text-align: center; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12px; color: var(--phx-text); }
+  .range { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: var(--phx-fill-quaternary); outline: none; cursor: pointer; }
+  .range::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  }
+  .range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: none; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  /* ===== 配方 / 进行中生产：行式列表 ===== */
+  .crow { display: flex; align-items: center; gap: 10px; padding: 9px 14px; }
+  .crow + .crow { border-top: .5px solid var(--phx-sep); }
+  .icon-b {
+    width: 30px; height: 30px; border-radius: 7px; flex: none;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cinfo { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 7px; }
+  .cname { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ckey { font-size: 10.5px; color: var(--phx-text-3); font-family: "SF Mono", ui-monospace, Consolas, monospace; white-space: nowrap; }
+  .itag { flex: none; font-size: 10.5px; color: var(--phx-text-2); background: var(--phx-fill-tertiary); border-radius: 7px; padding: 2px 8px; }
+  .ck { margin-left: auto; flex: none; width: 20px; height: 20px; border-radius: 6px; border: .5px solid var(--phx-sep-strong); background: transparent; position: relative; cursor: pointer; }
+  .ck.on { background: var(--phx-accent); border-color: var(--phx-accent); }
+  .ck.on::after {
+    content: ''; position: absolute; left: 6px; top: 2.5px;
+    width: 5px; height: 9px;
+    border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+    transform: rotate(45deg);
+  }
+  .cklab { flex: none; font-size: 11px; color: var(--phx-text-3); }
+  .ckwrap { margin-left: auto; flex: none; display: flex; align-items: center; gap: 7px; }
+  /* ===== 进行中生产：状态标签 / 进度 / 行内操作 / 实验性警告横幅 ===== */
+  .stat { flex: none; font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 8px; }
+  .stat.run { color: var(--phx-accent); background: var(--phx-accent-dim); }
+  .stat.fin { color: var(--phx-text-2); background: var(--phx-fill-tertiary); }
+  .wpct { flex: none; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); }
+  .minibtn {
+    flex: none; height: 24px; padding: 0 10px; border: none; border-radius: 7px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    font-family: inherit; font-size: 11.5px; font-weight: 500; cursor: pointer;
+  }
+  .minibtn:hover { background: rgba(0,145,255,.28); }
+  .del {
+    flex: none; width: 26px; height: 26px; border: none; border-radius: 8px;
+    background: transparent; color: var(--phx-text-3); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .del svg { width: 13px; height: 13px; }
+  .del:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .warn {
+    margin: 16px 24px 0; padding: 10px 14px; border-radius: 10px;
+    background: var(--phx-warn-bg); border: .5px solid var(--phx-warn-bd);
+    color: var(--phx-warn); font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .warn svg { width: 14px; height: 14px; flex: none; }
+  .empty { padding: 44px 0; text-align: center; color: var(--phx-text-3); font-size: 13px; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock：藏身处为提案新增的第 5 项（待拍板），此处高亮 -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a class="on" href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">藏身处</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载 · 仅 PMC</div>
+          </div>
+          <!-- 批量操作随子页切换（参考编辑器将同类按钮置于各子页底部，Phoenix 收进页头动作区） -->
+          <div class="head-actions" id="act-areas">
+            <button class="btn btn-primary" type="button" id="btn-areas-max">全部拉满</button>
+          </div>
+          <div class="head-actions" id="act-recipes" style="display:none">
+            <button class="btn btn-primary" type="button" id="btn-recipes-add">添加全部配方</button>
+          </div>
+          <div class="head-actions" id="act-crafts" style="display:none">
+            <button class="btn btn-primary" type="button" id="btn-crafts-finish">全部完成</button>
+            <button class="btn btn-ghost" type="button" id="btn-crafts-remove">移除全部</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="seg" id="hSeg">
+            <button class="on" type="button">区域</button>
+            <button type="button">生产配方</button>
+            <button type="button">进行中生产</button>
+          </div>
+          <div class="fspacer"></div>
+          <!-- 过滤框组随子页切换：区域页 1 框，配方 / 进行中页各 2 框（产品名 + 区域） -->
+          <div class="sfield" id="f-areas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="搜索区域" data-f="areas-name">
+          </div>
+          <div class="sfield" id="f-recipes" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="搜索产品" data-f="recipes-name">
+          </div>
+          <div class="sfield" id="f-recipes-area" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="筛选区域" data-f="recipes-area">
+          </div>
+          <div class="sfield" id="f-crafts" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="搜索产品" data-f="crafts-name">
+          </div>
+          <div class="sfield" id="f-crafts-area" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="筛选区域" data-f="crafts-area">
+          </div>
+        </div>
+
+        <div class="scroll" id="scroll">
+          <!-- 三个子页签，内容由脚本按示意数据渲染 -->
+          <div class="pane" id="pane-areas"></div>
+          <div class="pane" id="pane-recipes" style="display:none"></div>
+          <div class="pane" id="pane-crafts" style="display:none">
+            <!-- 实验性警示横幅：对齐参考编辑器进行中生产子页顶部的 Warning 区 -->
+            <div class="warn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".4" fill="currentColor"/></svg>
+              <span>进行中生产为实验性功能：时间按小时计，改动可能与游戏内进度存在出入，操作前请确认已备份。</span>
+            </div>
+            <section class="qgroup">
+              <div class="ghead"><span class="gtitle">进行中生产</span><span class="gcount" id="crafts-count">3</span></div>
+              <div class="qcard" id="crafts-card"></div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>08 · 藏身处</b><br>
+    1. <b>单页三子页签</b>：参考编辑器「藏身处」为顶级页签内的右侧页签组（区域 / 解锁生产配方 / 进行中生产），且数据只读 PMC——<b>Scav 无藏身处，本屏不做阵营分段</b>（页头标注「仅 PMC」）。Phoenix 将右侧页签改为顶部三段分段。存档路径 characters.pmc.Hideout：Areas（区域等级数组）与 Production（进行中生产字典）；配方解锁清单存于 PMC.HideoutProductions。<br>
+    2. <b>区域编辑口径</b>：对齐参考「数字步进 + 滑条双控件同绑一个等级值」——稿图用 ±1 步进器与自绘滑条（生产端为数字框 + 滑条）。等级上限 MaxLevel = 服务器 database hideout/areas.json 该区域 stages 数 − 1（稿图数值为示意）；改某区域等级时<b>父子区域联动</b>（参考 HideoutArea.Level setter 行为：等级卡控后再同步父 / 子区域）。<br>
+    3. <b>等级比例条为提案增补</b>（延续 07 已批准的方案语言）：按 当前等级 ÷ 上限 填充，纯展示；参考编辑器无此视觉。<br>
+    4. <b>生产配方清单</b>：行 = 最终产品图标 + 名称 + 所属区域 + 「已获得」勾选（对应参考 Added 布尔，勾选即把该配方写入存档解锁清单）；「添加全部配方」对应参考 AddAllCrafts。<br>
+    5. <b>进行中生产（实验性）</b>：顶部警示横幅对齐参考编辑器的 Warning 区。行内「设为已完成」仅在未完成时可用（参考 SetCraftFinished：把剩余小时折算回开始时间戳后置满）；状态两态「进行中 / 已完成」；进度百分比为提案增补（参考无进度列，但存档有进度与总时长字段）。<br>
+    6. <b>批量与确认</b>：「全部完成」仅当存在未完成生产时可用；「移除全部」与行内删除均弹确认框（参考编辑器行为），生产端走统一确认弹窗组件。<br>
+    7. <b>dock 第 5 项为提案，待拍板</b>：藏身处不属于现有 4 项（首页 / 角色 / 任务 / 商人）任何一域，本稿新增第 5 项并高亮——此前「dock 超 5 项再裁决」的挂起事项提前触发，请拍板是否接受 5 项 dock。<br>
+    8. <b>导航与示意</b>：中文名取本地化表 hideout_area_&#123;type&#125;_name 词条，英文小字为区域 / 物品 key，便于对照原始数据；区域、配方、生产条目与数值均为示意，生产端实读真实 profile 与服务器 database；橙色警示 / 红色删除悬停为状态色示意，待 orange / danger token 入册后由视觉基线补声明；窗口 chrome 与 02–07 一致，缩放脚本仅预览用，卡片列表区隐藏滚动条保留滚动。
+  </div>
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    // ===== 示意数据：生产端实读 characters.pmc.Hideout(.Areas / .Production) + PMC.HideoutProductions
+    // + 服务器 database hideout/areas.json（stages 数定 MaxLevel）与 hideout/productions.json（配方清单）=====
+    var AREAS = [
+      { name: '生成器', en: 'Generator', type: 0, lv: 2, max: 3 },
+      { name: '集水器', en: 'WaterCollector', type: 1, lv: 2, max: 3 },
+      { name: '情报中心', en: 'IntelligenceCenter', type: 2, lv: 1, max: 3 },
+      { name: '医疗站', en: 'MedStation', type: 3, lv: 3, max: 3 },
+      { name: '太阳能发电', en: 'SolarPower', type: 4, lv: 1, max: 1 },
+      { name: '清扫者箱', en: 'ScavCase', type: 5, lv: 0, max: 1 },
+      { name: '淋浴间', en: 'Bathroom', type: 6, lv: 1, max: 2 },
+      { name: '健身房', en: 'Gym', type: 7, lv: 2, max: 3 }
+    ];
+    var RECIPES = [
+      { name: '物理比特币', en: 'PhysicalBitcoin', area: '情报中心', got: true },
+      { name: '滤净水', en: 'PurifiedWater', area: '集水器', got: true },
+      { name: '肾上腺素', en: 'Adrenaline', area: '医疗站', got: true },
+      { name: 'Propital', en: 'Propital', area: '医疗站', got: false },
+      { name: '沙勒瓦急救包', en: 'Salewa', area: '医疗站', got: false }
+    ];
+    var CRAFTS = [
+      { name: '物理比特币', en: 'PhysicalBitcoin', area: '情报中心', fin: false, pct: 62 },
+      { name: '滤净水', en: 'PurifiedWater', area: '集水器', fin: false, pct: 17 },
+      { name: 'IFAK 急救包', en: 'IFAK', area: '医疗站', fin: true, pct: 100 }
+    ];
+
+    // ===== 渲染：区域卡（比例条 + 步进器 + 自绘滑条双控件） =====
+    function zcardHTML(d) {
+      var pct = d.max ? Math.round(d.lv / d.max * 100) : 0;
+      return '<div class="zcard" data-max="' + d.max + '">' +
+        '<div class="zhead"><span class="zname">' + d.name + '</span><span class="zkey">' + d.en + ' · type ' + d.type + '</span><span class="zlv">' + d.lv + ' / ' + d.max + ' 级</span></div>' +
+        '<div class="zbar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="zctl"><div class="stepper"><button type="button" data-op="dec" aria-label="降低等级">−</button><span class="val">' + d.lv + '</span><button type="button" data-op="inc" aria-label="升高等级">+</button></div>' +
+        '<input class="range" type="range" min="0" max="' + d.max + '" step="1" value="' + d.lv + '" aria-label="调整等级"></div>' +
+      '</div>';
+    }
+    function crowHTML(d) {
+      return '<div class="crow" data-name="' + d.name + '" data-area="' + d.area + '">' +
+        '<div class="icon-b">' + d.name.charAt(0) + '</div>' +
+        '<div class="cinfo"><span class="cname">' + d.name + '</span><span class="ckey">' + d.en + '</span></div>' +
+        '<span class="itag">' + d.area + '</span>' +
+        '<div class="ckwrap"><span class="cklab">已获得</span><span class="ck' + (d.got ? ' on' : '') + '" role="checkbox" aria-checked="' + d.got + '" tabindex="0"></span></div>' +
+      '</div>';
+    }
+    function wrowHTML(d) {
+      return '<div class="wrow crow" data-name="' + d.name + '" data-area="' + d.area + '">' +
+        '<div class="icon-b">' + d.name.charAt(0) + '</div>' +
+        '<div class="cinfo"><span class="cname">' + d.name + '</span><span class="ckey">' + d.en + '</span></div>' +
+        '<span class="itag">' + d.area + '</span>' +
+        '<span class="stat ' + (d.fin ? 'fin' : 'run') + '">' + (d.fin ? '已完成' : '进行中') + '</span>' +
+        '<span class="wpct">' + d.pct + '%</span>' +
+        (d.fin ? '' : '<button class="minibtn" type="button" data-op="finish">设为已完成</button>') +
+        '<button class="del" type="button" data-op="del" aria-label="删除该生产"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6.5 7l1 13h9l1-13"/><path d="M10 11v6M14 11v6"/></svg></button>' +
+      '</div>';
+    }
+    function groupHTML(title, count, inner) {
+      return '<section class="qgroup"><div class="ghead"><span class="gtitle">' + title + '</span><span class="gcount">' + count + '</span></div>' +
+        '<div class="qcard">' + inner + '</div></section>';
+    }
+    document.getElementById('pane-areas').innerHTML = groupHTML('藏身处区域', AREAS.length, '<div class="zgrid">' + AREAS.map(zcardHTML).join('') + '</div>');
+    document.getElementById('pane-recipes').innerHTML = groupHTML('生产配方', RECIPES.length, RECIPES.map(crowHTML).join(''));
+    document.getElementById('crafts-card').innerHTML = CRAFTS.map(wrowHTML).join('');
+
+    // ===== 区域等级：步进器与滑条双控件同绑一个值，卡控 0..Max（对齐参考 Level setter） =====
+    function setArea(card, v) {
+      var max = parseInt(card.dataset.max, 10);
+      v = Math.max(0, Math.min(max, v));
+      card.querySelector('.val').textContent = v;
+      card.querySelector('.range').value = v;
+      card.querySelector('.zbar i').style.width = (max ? Math.round(v / max * 100) : 0) + '%';
+      card.querySelector('.zlv').textContent = v + ' / ' + max + ' 级';
+    }
+    var scroll = document.getElementById('scroll');
+    scroll.addEventListener('click', function (e) {
+      var op = e.target.closest('button[data-op]');
+      if (op) {
+        var row = op.closest('.zcard');
+        if (row) {
+          setArea(row, parseInt(row.querySelector('.val').textContent, 10) + (op.dataset.op === 'inc' ? 1 : -1));
+          return;
+        }
+        if (op.closest('.wrow')) {
+          var wr = op.closest('.wrow');
+          if (op.dataset.op === 'finish') finishCraft(wr); else removeCraft(wr);
+          return;
+        }
+      }
+      var ck = e.target.closest('.ck');
+      if (ck) {
+        ck.classList.toggle('on');
+        ck.setAttribute('aria-checked', ck.classList.contains('on'));
+      }
+    });
+    scroll.addEventListener('input', function (e) {
+      var rg = e.target.closest('.range');
+      if (rg) setArea(rg.closest('.zcard'), parseInt(rg.value, 10));
+    });
+
+    // ===== 进行中生产：完成 / 删除（生产端均带确认弹窗），空态与计数联动 =====
+    var craftsCard = document.getElementById('crafts-card');
+    function refreshCrafts() {
+      var n = craftsCard.querySelectorAll('.wrow').length;
+      document.getElementById('crafts-count').textContent = n;
+      if (!n) craftsCard.innerHTML = '<div class="empty">当前没有进行中的生产</div>';
+    }
+    function finishCraft(row) {
+      row.querySelector('.stat').className = 'stat fin';
+      row.querySelector('.stat').textContent = '已完成';
+      row.querySelector('.wpct').textContent = '100%';
+      var btn = row.querySelector('.minibtn');
+      if (btn) btn.remove();
+    }
+    function removeCraft(row) { row.remove(); refreshCrafts(); }
+
+    // ===== 子页切换：面板 / 页头动作区 / 过滤框三线联动 =====
+    var PANE = ['pane-areas', 'pane-recipes', 'pane-crafts'];
+    var ACTS = ['act-areas', 'act-recipes', 'act-crafts'];
+    var FILTERS = [['f-areas'], ['f-recipes', 'f-recipes-area'], ['f-crafts', 'f-crafts-area']];
+    document.getElementById('hSeg').querySelectorAll('button').forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('#hSeg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        PANE.forEach(function (id, k) { document.getElementById(id).style.display = k === i ? '' : 'none'; });
+        ACTS.forEach(function (id, k) { document.getElementById(id).style.display = k === i ? '' : 'none'; });
+        FILTERS.forEach(function (ids, k) { ids.forEach(function (id) { document.getElementById(id).style.display = k === i ? '' : 'none'; }); });
+      });
+    });
+
+    // ===== 过滤（对齐参考 ApplyFilter：按名称 / 区域包含匹配，不分大小写） =====
+    document.querySelectorAll('.sfield input').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var parts = inp.dataset.f.split('-');           // 如 recipes-name → 面板 pane-recipes
+        var pane = document.getElementById('pane-' + parts[0]);
+        var kind = parts[1];
+        var q = inp.value.trim().toLowerCase();
+        pane.querySelectorAll('.crow').forEach(function (row) {
+          var hay = (kind === 'name' ? row.dataset.name : row.dataset.area).toLowerCase();
+          row.style.display = !q || hay.indexOf(q) !== -1 ? '' : 'none';
+        });
+        pane.querySelectorAll('.zcard').forEach(function (card) {
+          var hay = card.querySelector('.zname').textContent.toLowerCase();
+          card.style.display = !q || hay.indexOf(q) !== -1 ? '' : 'none';
+        });
+      });
+    });
+
+    // ===== 页头批量操作（删除类生产端带确认弹窗，稿图直接演示结果） =====
+    document.getElementById('btn-areas-max').addEventListener('click', function () {
+      document.querySelectorAll('#pane-areas .zcard').forEach(function (card) {
+        setArea(card, parseInt(card.dataset.max, 10));
+      });
+    });
+    document.getElementById('btn-recipes-add').addEventListener('click', function () {
+      document.querySelectorAll('#pane-recipes .ck').forEach(function (ck) {
+        ck.classList.add('on');
+        ck.setAttribute('aria-checked', 'true');
+      });
+    });
+    document.getElementById('btn-crafts-finish').addEventListener('click', function () {
+      document.querySelectorAll('#pane-crafts .wrow').forEach(finishCraft);
+    });
+    document.getElementById('btn-crafts-remove').addEventListener('click', function () {
+      document.querySelectorAll('#pane-crafts .wrow').forEach(function (r) { r.remove(); });
+      refreshCrafts();
+    });
+  </script>
+</body>
+</html>
+

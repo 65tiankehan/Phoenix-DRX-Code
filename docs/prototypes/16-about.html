@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>16 · 关于</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Win11 窗口 chrome ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 底部 dock ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35;
+    display: flex; align-items: center; gap: 2px; padding: 6px;
+    background: var(--phx-glass); border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 19px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-width: 56px; height: 46px; border-radius: 10px; text-decoration: none;
+    transition: background .12s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  /* ===== 页头 ===== */
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  /* ===== 内容滚动区 ===== */
+  .scroll { flex: 1; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .pane { min-height: 100%; }
+  /* ===== 16：关于页信息卡（沿用 15 屏双列布局，右侧不留白） ===== */
+  .sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; }
+  .scol { min-width: 0; }
+  .sgroup { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; margin-top: 16px; }
+  .sgroup-h { padding: 14px 18px 2px; font-size: 14.5px; font-weight: 700; }
+  .sgroup-sub { padding: 0 18px 12px; font-size: 11.5px; color: var(--phx-text-3); }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 18px; }
+  .srow + .srow, .sgroup-sub + .srow { border-top: .5px solid var(--phx-sep); }
+  .slabel { font-size: 13px; font-weight: 600; }
+  .sdesc { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; line-height: 1.5; }
+  /* ===== 16：设置行右侧按钮（「打开发布页」用） ===== */
+  .mbtn {
+    height: 26px; padding: 0 12px; border: none; border-radius: var(--phx-r-btn); cursor: pointer;
+    font-size: 12px; font-weight: 600; background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: inline-flex; align-items: center; text-decoration: none; font-family: inherit;
+  }
+  .mbtn:hover { filter: brightness(1.15); }
+  /* ===== 16：文字链接（对应参考 LinkStyle；accent 色自绘，禁用默认蓝紫链接色） ===== */
+  .lnk { font-size: 12.5px; font-weight: 600; color: var(--phx-accent); text-decoration: none; flex: none; }
+  .lnk:hover { text-decoration: underline; }
+  /* ===== 16：许可徽标与版本号 ===== */
+  .lic-badge {
+    height: 22px; padding: 0 10px; border-radius: 6px; flex: none;
+    display: inline-flex; align-items: center;
+    font-size: 12px; font-weight: 700; letter-spacing: .02em;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .ver { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; color: var(--phx-text); flex: none; }
+  /* ===== 16：应用卡头部 ===== */
+  .appcard { display: flex; align-items: center; gap: 14px; padding: 18px 18px 12px; }
+  .app-logo {
+    width: 52px; height: 52px; border-radius: 14px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 28px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .app-name { font-size: 19px; font-weight: 700; letter-spacing: -.2px; }
+  .app-tag { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+  .app-desc { padding: 0 18px 14px; font-size: 12.5px; color: var(--phx-text-2); line-height: 1.65; }
+  .app-desc + .srow { border-top: .5px solid var(--phx-sep); }
+  /* ===== 16：免责声明（警示卡，全宽置底） ===== */
+  .disc { background: var(--phx-warn-bg); box-shadow: inset 0 0 0 .5px var(--phx-warn-bd); }
+  .disc .sgroup-h { color: var(--phx-warn); }
+  .disc-body { padding: 10px 18px 16px; font-size: 12.5px; color: var(--phx-text-2); line-height: 1.8; }
+  .disc-body p + p { margin-top: 6px; }
+  .disc-body b { color: var(--phx-text); font-weight: 600; }
+  /* ===== 16：轻反馈（占位链接点击提示） ===== */
+  .toast { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%) translateY(8px); z-index: 50;
+    background: var(--phx-glass); border: .5px solid var(--phx-sep-strong); border-radius: 10px;
+    padding: 8px 16px; font-size: 12.5px; color: var(--phx-text); opacity: 0; pointer-events: none;
+    transition: opacity .18s, transform .18s; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock：第 10 项「关于」为本屏（拍板：接力清单外新增屏，对齐参考把「关于」放顶级页签的先例） -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+        <a href="09-stash.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+          <span class="lbl">仓库</span>
+        </a>
+        <a href="12-presets.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg>
+          <span class="lbl">预设</span>
+        </a>
+        <a href="14-backup.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          <span class="lbl">备份</span>
+        </a>
+        <a href="15-settings.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="lbl">设置</span>
+        </a>
+        <a class="on" href="16-about.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="lbl">关于</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">关于</div>
+            <div class="head-meta">版本信息、开源许可与免责声明</div>
+          </div>
+          <!-- 纯信息页，无操作项；定位语（对应参考 tab_about_text）放应用卡内 -->
+        </div>
+
+        <div class="scroll">
+          <div class="pane sgrid">
+            <div class="scol">
+
+            <!-- 卡 1 · 应用（参考 tab_about_text 定位语 + tab_about_developer 开发者行） -->
+            <section class="sgroup">
+              <div class="appcard">
+                <div class="app-logo">P</div>
+                <div>
+                  <div class="app-name">Phoenix</div>
+                  <div class="app-tag">SPT 存档编辑器</div>
+                </div>
+              </div>
+              <div class="app-desc">本工具用于查看和编辑 SPT 服务器的玩家存档，免费开源，无任何付费或广告。</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">开发者</div>
+                </div>
+                <a class="lnk" href="#" data-pending>GitHub 主页</a>
+              </div>
+            </section>
+
+            <!-- 卡 2 · 版本（参考 tab_about_latest_version；v0.1.0 为示意值，生产从应用信息读取；启动时自动检查由 15 屏「检查更新」开关控制） -->
+            <section class="sgroup">
+              <div class="sgroup-h">版本</div>
+              <div class="sgroup-sub">当前安装的版本与新版本查看</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">当前版本</div>
+                </div>
+                <span class="ver">v0.1.0</span>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">检查最新版本</div>
+                  <div class="sdesc">打开发布页查看新版本与更新日志</div>
+                </div>
+                <button class="mbtn" type="button" data-pending>打开发布页</button>
+              </div>
+            </section>
+            </div>
+            <div class="scol">
+
+            <!-- 卡 3 · 开源许可（参考没有；铁律「免费开源」配套，MIT） -->
+            <section class="sgroup">
+              <div class="sgroup-h">开源许可</div>
+              <div class="sgroup-sub">免费开源，任何人可使用、修改与分发</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">许可协议</div>
+                </div>
+                <span class="lic-badge">MIT</span>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">许可全文与源码</div>
+                </div>
+                <a class="lnk" href="#" data-pending>项目仓库</a>
+              </div>
+            </section>
+
+            <!-- 卡 4 · 问题反馈（替代参考 Discord 群组：本项目无社区群组渠道，用 GitHub Issues 承接） -->
+            <section class="sgroup">
+              <div class="sgroup-h">问题反馈</div>
+              <div class="sgroup-sub">遇到问题或有想法？</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">问题反馈</div>
+                  <div class="sdesc">报告问题或提出功能建议</div>
+                </div>
+                <a class="lnk" href="#" data-pending>GitHub Issues</a>
+              </div>
+            </section>
+
+            <!-- 卡 5 · 致谢（参考没有；SPT 项目对应 tab_about_spt_project_url，两条链接均为真实地址） -->
+            <section class="sgroup">
+              <div class="sgroup-h">致谢</div>
+              <div class="sgroup-sub">本项目受益于以下开源项目</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">SPT 项目</div>
+                  <div class="sdesc">官方网站与社区</div>
+                </div>
+                <a class="lnk" href="https://sp-tarkov.com" target="_blank" rel="noopener">前往官网</a>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">SPT-AKI Profile Editor</div>
+                  <div class="sdesc">SkiTles55 · 功能设计与数据结构参考</div>
+                </div>
+                <a class="lnk" href="https://github.com/SkiTles55/SPT-AKI-Profile-Editor" target="_blank" rel="noopener">GitHub</a>
+              </div>
+            </section>
+            </div>
+          </div>
+
+          <!-- 卡 6 · 免责声明（参考没有；全宽警示卡置底，与 13 屏问题处理、14 屏备份联动） -->
+          <section class="sgroup disc">
+            <div class="sgroup-h">免责声明</div>
+            <div class="disc-body">
+              <p>1. 本工具为<b>非官方工具</b>，与 Battlestate Games 及 SPT 项目团队均无关联。</p>
+              <p>2. 修改存档前请先在<b>「备份」</b>页创建备份；未备份导致的存档丢失无法恢复。</p>
+              <p>3. 不当修改可能导致存档损坏或无法进入游戏，请自行承担使用风险。</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- 占位链接的轻反馈（自绘 toast，禁用原生 alert） -->
+        <div class="toast" id="toast"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>16 · 关于 — 设计说明</b><br>
+    1. <b>形态与入口</b>：参考编辑器的「关于」是主窗口最后一个顶级页签（AboutTab）。已拍板作 dock 第 10 项「关于」整页，与前 15 屏页签导航统一；参考七块内容重组为本屏五卡 + 一张全宽免责卡。<br>
+    2. <b>文案对应</b>：参考 tab_about_text（「此程序为编辑 SPT 服务器的存档程序」）→ 应用卡定位语；tab_about_developer（「开发者：」+ 作者 GitHub 链接）→ 应用卡开发者行；tab_about_latest_version（「最新版本：」+ 仓库链接）→ 版本卡；tab_about_spt_project_url（「SPT Project 网站」）→ 致谢卡官网链接。<br>
+    3. <b>捐赠区块砍掉</b>（拍板）：参考「支持开发者」含 Yoomoney 捐赠链接、Steam 交易链接、LTC 钱包地址与二维码；本项目免费开源、无收款渠道，关于页保持纯信息。<br>
+    4. <b>Discord 替代</b>：参考提供 Discord 群组链接（加群讨论 / 提问 / 赞助）；本项目无社区群组，用 GitHub Issues 作为问题反馈入口承接讨论与提问职能。<br>
+    5. <b>参考没有、我方新增</b>：开源许可卡（MIT，铁律「免费开源」配套）、免责声明卡（非官方 / 与 Battlestate Games 及 SPT 团队无关 / 改档先备份——与 13 屏问题处理、14 屏备份联动）、致谢卡（SPT 项目 + SkiTles55 参考编辑器）。<br>
+    6. <b>链接占位待确认</b>：本应用的仓库 / 发布页 / Issues / 开发者主页地址均未定，稿图以占位链接示意（点击给轻反馈「链接地址确定后开放」，诚实原则显式标注，不放假链接）；致谢卡两条为真实外部链接（sp-tarkov.com、SkiTles55 仓库）。<br>
+    7. <b>版本号</b>：v0.1.0 为示意值，生产阶段从应用信息（构建配置）读取，不硬编码；「检查最新版本」是手动打开发布页，启动时的自动检查由 15 屏「检查更新」开关控制，两者互补不重复。<br>
+    8. <b>布局</b>：沿用 15 屏双列防留白布局——左列「应用 + 版本」、右列「开源许可 + 问题反馈 + 致谢」，顶部对齐各自成组；免责声明全宽置底作警示收尾（warn 色系，非危险红）。<br>
+    9. <b>原生件禁用</b>：文字链接为自绘样式（accent 色自绘 .lnk，禁用浏览器默认蓝紫链接色）；占位反馈用自绘 toast；本页无表单控件。<br>
+    10. <b>dock 收尾待办</b>：其余 8 屏稿图的 dock 统一补「设置 + 关于」两个入口（15 屏 notes 第 10 条的「补设置」扩为两项，收尾统一处理）。
+  </div>
+
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+
+    // 轻反馈：占位链接与占位按钮（仓库地址未定，诚实原则不放假链接）
+    var toastTimer = null;
+    function toast(msg) {
+      $('toast').textContent = msg;
+      $('toast').classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 1800);
+    }
+    document.querySelectorAll('[data-pending]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        if (el.tagName === 'A') e.preventDefault();
+        toast('链接地址确定后开放');
+      });
+    });
+  </script>
+</body>
+</html>

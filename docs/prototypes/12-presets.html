@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>12 · 预设</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Win11 窗口 chrome ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 底部 dock ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  /* ===== 页头与工具栏 ===== */
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .btn {
+    height: 32px; padding: 0 16px; border-radius: var(--phx-r-btn); border: none; cursor: pointer;
+    font-size: 12.5px; font-family: inherit; font-weight: 600;
+    background: var(--phx-accent); color: #fff;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .btn-ghost-danger { background: transparent; color: var(--phx-danger); box-shadow: inset 0 0 0 .5px rgba(255,105,97,.4); }
+  .btn-ghost-danger:hover { background: var(--phx-danger-bg); }
+  .btn svg { width: 14px; height: 14px; }
+  .toolbar { margin: 12px 24px 0; display: flex; align-items: center; gap: 8px; }
+  .seg { display: flex; background: var(--phx-surface-2); border-radius: 9px; padding: 3px;
+    box-shadow: inset 0 0 0 .5px var(--phx-sep); }
+  .seg button {
+    height: 28px; padding: 0 16px; border: none; border-radius: 7px; background: transparent;
+    color: var(--phx-text-2); font-size: 12.5px; font-family: inherit; cursor: pointer;
+  }
+  .seg button.on { background: var(--phx-fill-quaternary); color: var(--phx-text); font-weight: 600; }
+  .fspacer { flex: 1; }
+  .sfield {
+    height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+    background: var(--phx-surface-2); border-radius: 8px; box-shadow: inset 0 0 0 .5px var(--phx-sep);
+  }
+  .sfield svg { width: 12px; height: 12px; color: var(--phx-text-3); flex: none; }
+  .sfield input { background: transparent; border: none; outline: none; color: var(--phx-text);
+    font-size: 12px; font-family: inherit; width: 108px; }
+  .sfield input::placeholder { color: var(--phx-text-3); }
+  /* ===== 内容滚动区（隐藏滚动条，保留滚动） ===== */
+  .scroll { flex: 1; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .pane { min-height: 100%; }
+  .qgroup { margin-top: 16px; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; }
+  .gtitle { font-size: 12px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .3px; }
+  .gcount { font-size: 11px; color: var(--phx-text-3);
+    background: var(--phx-fill-tertiary); padding: 1px 8px; border-radius: 999px; }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .warn {
+    margin: 16px 0 0; padding: 10px 14px; border-radius: 10px;
+    background: var(--phx-warn-bg); border: .5px solid var(--phx-warn-bd);
+    color: var(--phx-warn); font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .warn svg { width: 14px; height: 14px; flex: none; }
+  .empty { padding: 44px 0; text-align: center; color: var(--phx-text-3); font-size: 13px; }
+  .icon-b { width: 30px; height: 30px; border-radius: 7px; background: var(--phx-accent-dim);
+    color: var(--phx-accent); display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex: none; }
+  .iname { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .iid { font-family: "SF Mono", "Cascadia Mono", Consolas, monospace; font-size: 11px; color: var(--phx-text-3);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mmod { display: flex; align-items: center; justify-content: center; color: var(--phx-danger); }
+  .mmod svg { width: 14px; height: 14px; }
+  .acts { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .abtn { width: 26px; height: 26px; border: none; border-radius: 7px; cursor: pointer;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center; }
+  .abtn:hover { filter: brightness(1.2); }
+  .abtn svg { width: 13px; height: 13px; }
+  .abtn.del { width: 26px; background: transparent; color: var(--phx-text-3); }
+  .abtn.del:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .tfoot { padding: 12px 14px; text-align: center; font-size: 11px; color: var(--phx-text-3); }
+  /* ===== 11：装备槽（同 09 口径） ===== */
+  .srow { display: grid; grid-template-columns: 92px 30px minmax(0,1.1fr) 18px minmax(0,1fr) auto;
+    align-items: center; gap: 10px; padding: 9px 14px; }
+  .srow + .srow, .pitem + .pitem { border-top: .5px solid var(--phx-sep); }
+  .slotname { font-size: 12px; font-weight: 600; color: var(--phx-text-2); }
+  .pwrap { grid-column: 1 / -1; padding: 0 0 0 14px; }
+  .pitem { display: grid; grid-template-columns: 26px minmax(0,1fr) minmax(0,1fr) auto;
+    align-items: center; gap: 10px; padding: 7px 0 7px 26px; }
+  .pitem .icon-b { width: 26px; height: 26px; font-size: 11px; border-radius: 6px; }
+  .pempty { grid-column: 1 / -1; font-size: 12px; color: var(--phx-text-3); }
+  /* ===== 12：武器预设卡 ===== */
+  .wcard { margin-top: 16px; background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .whead { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: .5px solid var(--phx-sep); }
+  .wname { font-size: 13.5px; font-weight: 700; }
+  .wmod { display: flex; align-items: center; color: var(--phx-danger); }
+  .wmod svg { width: 14px; height: 14px; }
+  .wbtns { margin-left: auto; display: flex; gap: 6px; }
+  .wbtn { height: 26px; padding: 0 12px; border: none; border-radius: 7px; cursor: pointer;
+    background: var(--phx-accent-dim); color: var(--phx-accent); font-size: 12px; font-family: inherit; font-weight: 600; }
+  .wbtn:hover { filter: brightness(1.2); }
+  .wbtn.danger { background: transparent; color: var(--phx-text-3); }
+  .wbtn.danger:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .wbody { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); }
+  .wweapon { padding: 14px 16px; border-right: .5px solid var(--phx-sep); }
+  .wgun { display: flex; align-items: center; gap: 10px; }
+  .wgun .icon-b { width: 38px; height: 38px; font-size: 14px; }
+  .wgun-n { font-size: 13px; font-weight: 600; }
+  .wgun-s { font-size: 11px; color: var(--phx-text-3); margin-top: 2px; }
+  .attrs { display: flex; gap: 26px; margin-top: 16px; }
+  .attr { font-size: 11px; color: var(--phx-text-3); }
+  .attr .av { font-size: 15px; font-weight: 700; color: var(--phx-text); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .ptitle { font-size: 12px; font-weight: 600; color: var(--phx-text-2); padding: 12px 16px 4px; }
+  .part { display: flex; align-items: center; gap: 8px; margin: 0 16px; padding: 7px 0; font-size: 12px; color: var(--phx-text-2); }
+  .part + .part { border-top: .5px solid var(--phx-sep); }
+  .part .dot { width: 20px; height: 20px; border-radius: 5px; background: var(--phx-fill-tertiary); color: var(--phx-text-3);
+    display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex: none; }
+  /* ===== 12：装备预设折叠卡 ===== */
+  .ecard { margin-top: 16px; background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .ehead { display: flex; align-items: center; gap: 8px; padding: 12px 16px; cursor: pointer; user-select: none; }
+  .ehead:hover { background: var(--phx-fill-tertiary); }
+  .ecaret { display: flex; align-items: center; color: var(--phx-text-3); transition: transform .15s; }
+  .ecaret svg { width: 14px; height: 14px; }
+  .ecard.open .ecaret { transform: rotate(90deg); }
+  .ename { font-size: 13.5px; font-weight: 700; }
+  .ebtns { margin-left: auto; display: flex; gap: 6px; }
+  .ebody { display: none; border-top: .5px solid var(--phx-sep); padding-bottom: 6px; }
+  .ecard.open .ebody { display: block; }
+  /* ===== 12：自绘确认弹层与轻反馈 ===== */
+  .mask { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: none;
+    align-items: center; justify-content: center; }
+  .mask.show { display: flex; }
+  .dlg { width: 360px; background: var(--phx-surface-2); border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 .5px var(--phx-sep-strong); padding: 20px; }
+  .dlg-title { font-size: 15px; font-weight: 700; }
+  .dlg-text { font-size: 12.5px; color: var(--phx-text-2); margin-top: 8px; line-height: 1.6; }
+  .dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .toast { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%) translateY(8px); z-index: 50;
+    background: var(--phx-glass); border: .5px solid var(--phx-sep-strong); border-radius: 10px;
+    padding: 8px 16px; font-size: 12.5px; color: var(--phx-text); opacity: 0; pointer-events: none;
+    transition: opacity .18s, transform .18s; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock：预设场景；第 7 项「预设」为本屏提案（参考编辑器中 Presets 是独立顶级页签），待拍板，备选=并入仓库域子页签 -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+        <a href="09-stash.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+          <span class="lbl">仓库</span>
+        </a>
+        <a class="on" href="12-presets.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg>
+          <span class="lbl">预设</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">预设</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载 · 检视武器时点「加入预设」会存到这里</div>
+          </div>
+          <!-- 页头动作区作用于当前子页（对应参考三按钮：导入 / 全部导出 / 移除） -->
+          <div class="head-actions">
+            <button class="btn btn-ghost" type="button" id="btn-import">导入</button>
+            <button class="btn btn-ghost" type="button" id="btn-export-all">全部导出</button>
+            <button class="btn btn-ghost-danger" type="button" id="btn-remove-all">移除全部</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="seg" id="hSeg">
+            <button class="on" type="button">武器预设</button>
+            <button type="button">装备预设</button>
+          </div>
+          <div class="fspacer"></div>
+          <!-- 单框常显，实时过滤当前子页（参考口径为列表内嵌搜索框，Phoenix 收进工具栏） -->
+          <div class="sfield" id="f-kw">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="搜索预设">
+          </div>
+        </div>
+
+        <div class="scroll">
+          <div class="pane" id="pane-w">
+            <div class="ghead"><span>武器预设</span><span class="gcount" id="w-count"></span></div>
+            <div id="w-card"></div>
+            <div class="tfoot" id="w-foot" style="margin-top:12px">示意数据，正式版读取档案中的武器预设</div>
+          </div>
+
+          <div class="pane" id="pane-e" style="display:none">
+            <div class="warn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".4" fill="currentColor"/></svg>
+              <span>从 3.8.0 以下版本 SPT 存档导出的装备预设不兼容</span>
+            </div>
+            <div class="ghead"><span>装备预设</span><span class="gcount" id="e-count"></span></div>
+            <div id="e-card"></div>
+            <div class="tfoot" id="e-foot" style="margin-top:12px">示意数据，正式版读取档案中的装备预设</div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 自绘确认弹层：删除类动作使用（禁用原生 confirm/alert，对应参考 remove_preset_dialog） -->
+      <div class="mask" id="mask">
+        <div class="dlg">
+          <div class="dlg-title" id="dlg-title"></div>
+          <div class="dlg-text" id="dlg-text"></div>
+          <div class="dlg-btns">
+            <button class="btn btn-ghost" type="button" id="dlg-cancel">取消</button>
+            <button class="btn" type="button" id="dlg-ok" style="background:var(--phx-danger)">删除</button>
+          </div>
+        </div>
+      </div>
+      <!-- 轻反馈：非删除类动作（加入仓库 / 导出 / 导入）使用 toast，不放假开关 -->
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="notes">
+      <b>12 · 预设</b><br>
+      1. <b>单页两子页签</b>：参考编辑器中「预设」是顶级页签（Presets），内含三个右侧子页——武器（用户）/ 装备（用户）/ 武器（全局）。全局武器预设归第 10 屏图鉴浏览，本屏只做用户侧两个子页；数据源为档案的武器预设与装备预设两个列表（userbuilds.weaponBuilds / equipmentBuilds）。<br>
+      2. <b>导航归属待拍板</b>：参考中预设是独立顶级页签，故本稿提案在 dock 增设第 7 项「预设」（星形图标）并高亮；备选方案 = 并入「仓库」域子页签。请拍板后定稿。<br>
+      3. <b>武器预设卡</b>：卡头 = 预设名粗体 + 模组红三角（预设内任一零件不在物品库即整卡显示，提示该预设含模组添加的物品）+ 三动作【加入仓库 / 导出 / 移除】。卡体左半 = 图标 + 武器名 + 人机工效 / 后坐力向上 / 后坐力向后 三项数值（由预设零件自动算出，只读），右半 =「武器部件与配件」列表。加入仓库 = 把预设装配回仓库里的武器（对应参考 AddBuildToStash）。<br>
+      4. <b>装备预设折叠卡</b>：卡头 = 预设名 +【导出 / 移除】（参考口径没有「加入仓库」，装备一键穿回归角色页方案，如需可后续增补）；展开 = 完整 13 槽位行，样式与 09 / 11 屏装备槽同构（槽名 / 图标 + 物品名 / mod 红三角 / ID / 行内操作），口袋槽内嵌四格物品行，武器与容器槽带检视按钮（进第 10 屏检视视图）。装备子页顶部有兼容性警告条：从 3.8.0 以下版本 SPT 存档导出的装备预设不兼容（对应参考兼容性警告）。<br>
+      5. <b>删除确认与备份</b>：移除单条 / 移除全部均弹自绘确认弹层（文案对应参考「删除预设：确定要删除这个预设吗？/ 确定要删除所有预设吗？」，禁用原生弹窗）；所有写入动作执行前自动备份档案。导入 / 导出走系统文件选择（白名单例外）；导入自动校验文件内容（武器文件须含武器、装备文件须为自定型预设），重名自动加序号。<br>
+      6. <b>过滤与空态</b>：单框常显实时过滤当前子页（参考口径为各列表内嵌搜索框，Phoenix 收进工具栏）；两个空态均真实可达——过滤无结果显示「没有匹配的预设」，删空后显示「存档中没有任何武器/装备预设」。<br>
+      7. <b>与第 10 屏闭环</b>：第 10 屏检视弹窗底部「加入预设」即把当前装配写入本页武器预设列表，图鉴/检视的「加入仓库」反向把预设装回仓库，两屏共用同一份预设数据。<br>
+      8. <b>示意说明</b>：本稿为静态示意，预设与零件均为样例数据；正式版以真实档案为准，mod 三角、空槽、数值均按实际数据渲染。
+    </div>
+
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    var $ = function (id) { return document.getElementById(id); };
+    var TRI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".4" fill="currentColor"/></svg>';
+    var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+    // ===== 示意数据：生产端实读档案的武器预设 / 装备预设两个列表 + 服务器 database 物品库 =====
+    // 武器预设：预设名 / 武器名 / 分类 / 三项计算值（人机工效·后坐力向上·向后，由零件算出只读）/ 是否含模组物品 / 零件列表
+    var W_BUILDS = [
+      { name: 'AKS-74U · 近战速清', weapon: 'AKS-74U 5.45x39 短突击步枪', cat: '突击步枪',
+        ergo: 47, up: 87, back: 66, mod: false,
+        parts: ['OKP-7 光电瞄具', 'PT-1 "Kashtan" 护木', 'RK-3 后握把', 'Boye ATACS 后托'] },
+      { name: 'M4A1 · 远射精准', weapon: 'M4A1 5.56x45 突击步枪', cat: '突击步枪',
+        ergo: 58, up: 74, back: 59, mod: true,
+        parts: ['Vudu 1-6x24 瞄准镜', 'Honey Badger 消音器', 'M-LOK 15" 护木', 'Magpul CTR 枪托', '模组专用枪机'] },
+      { name: 'MP-443 · 备用副武器', weapon: 'MP-443 Grach 9x19 手枪', cat: '手枪',
+        ergo: 51, up: 92, back: 78, mod: false,
+        parts: ['RMR 红点瞄具', 'PP-19-01 握把'] }
+    ];
+
+    // 装备预设：折叠卡 + 完整 13 槽位（照 09 / 11 屏装备槽口径），口袋槽内嵌四格；k = weapon / container 出检视钮
+    var POCKET = [
+      { n: 'Salewa 急救包', id: '5449016a4bdc2d6f028b456f' },
+      { n: 'PM 弹匣 ×2', id: '5ab8e79e86f7742d8b357e27' },
+      null, null
+    ];
+    var E_BUILDS = [
+      { name: '标准战斗装 · 三级甲', open: true, slots: [
+        { slot: '头部装备', item: { n: 'SSH-94 猴年帽', id: '5aa2b9a8e5b5b000173c7a31' } },
+        { slot: '耳饰', item: null },
+        { slot: '面罩', item: null },
+        { slot: '臂章', item: null },
+        { slot: '防弹背心', item: { n: '6B43 战斗背心（三级甲）', id: '5c0e655586f774045612eeb2', k: 'container' } },
+        { slot: '眼镜', item: null },
+        { slot: '战术背心', item: { n: 'TRIZIP 胸挂', id: '5ab8e79e86f7742d8b357e28', k: 'container' } },
+        { slot: '背包', item: { n: '模组战术背包', id: 'a1b2c3d4e5f60718293a4b5d', mod: true, k: 'container' } },
+        { slot: '主武器一', item: { n: 'AKS-74U 5.45x39 短突击步枪', id: '5ab8e79e86f7742d8b357e29', k: 'weapon' } },
+        { slot: '主武器二', item: null },
+        { slot: '手枪套', item: { n: 'PM 9x18PM 手枪', id: '5ab8e79e86f7742d8b357e30', k: 'weapon' } },
+        { slot: '刀鞘', item: null },
+        { slot: '口袋', pocket: POCKET }
+      ] },
+      { name: '轻装速跑 · 一级甲', open: false, slots: [
+        { slot: '头部装备', item: { n: 'Kalash 苏维埃头盔', id: '5aa2b9a8e5b5b000140d8d05' } },
+        { slot: '耳饰', item: null },
+        { slot: '面罩', item: null },
+        { slot: '臂章', item: null },
+        { slot: '防弹背心', item: { n: 'PACA 软质背心（一级甲）', id: '5447a9cd4bdc2dbd208b4568', k: 'container' } },
+        { slot: '眼镜', item: null },
+        { slot: '战术背心', item: { n: 'AVALON 多地形胸挂', id: '5ab8e79e86f7742d8b357e31', k: 'container' } },
+        { slot: '背包', item: { n: '皮背包', id: '5ab8e79e86f7742d8b357e32' } },
+        { slot: '主武器一', item: null },
+        { slot: '主武器二', item: null },
+        { slot: '手枪套', item: { n: 'MP-443 Grach 9x19 手枪', id: '5ab8e79e86f7742d8b357e33', k: 'weapon' } },
+        { slot: '刀鞘', item: { n: '信徒小刀', id: '5ab8e79e86f7742d8b357e34', k: 'weapon' } },
+        { slot: '口袋', pocket: [null, null, null, null] }
+      ] }
+    ];
+
+    // ===== 武器预设卡（卡头三动作 + 左半武器属性 / 右半部件列表）=====
+    function renderW() {
+      var kw = ($('f-kw').querySelector('input').value || '').toLowerCase();
+      var rows = W_BUILDS.filter(function (b) {
+        return (b.name + ' ' + b.weapon).toLowerCase().indexOf(kw) >= 0;
+      });
+      $('w-card').innerHTML = rows.length ? rows.map(function (b) {
+        return '<div class="wcard" data-i="' + W_BUILDS.indexOf(b) + '">'
+          + '<div class="whead"><span class="wname">' + esc(b.name) + '</span>'
+          + '<span class="wmod">' + (b.mod ? TRI : '') + '</span>'
+          + '<div class="wbtns">'
+          + '<button class="wbtn" type="button" data-op="stash">加入仓库</button>'
+          + '<button class="wbtn" type="button" data-op="export">导出</button>'
+          + '<button class="wbtn danger" type="button" data-op="remove">移除</button>'
+          + '</div></div>'
+          + '<div class="wbody"><div class="wweapon">'
+          + '<div class="wgun"><div class="icon-b">' + esc(b.weapon.charAt(0)) + '</div>'
+          + '<div><div class="wgun-n">' + esc(b.weapon) + '</div><div class="wgun-s">' + esc(b.cat) + '</div></div></div>'
+          + '<div class="attrs">'
+          + '<div class="attr">人机工效<div class="av">' + b.ergo + '</div></div>'
+          + '<div class="attr">后坐力向上<div class="av">' + b.up + '</div></div>'
+          + '<div class="attr">后坐力向后<div class="av">' + b.back + '</div></div>'
+          + '</div></div>'
+          + '<div><div class="ptitle">武器部件与配件</div>'
+          + b.parts.map(function (p) { return '<div class="part"><span class="dot">' + esc(p.charAt(0)) + '</span>' + esc(p) + '</div>'; }).join('')
+          + '</div></div>'
+          + '</div>';
+      }).join('')
+        : (W_BUILDS.length ? '<div class="empty">没有匹配的预设</div>' : '<div class="empty">存档中没有任何武器预设</div>');
+      $('w-count').textContent = W_BUILDS.length !== rows.length ? rows.length + ' / ' + W_BUILDS.length : rows.length;
+    }
+
+    // ===== 装备预设折叠卡（展开 = 完整 13 槽位行，样式同 09 / 11 屏装备槽）=====
+    function slotRow(s) {
+      var inner;
+      if (s.pocket) {
+        inner = '<div class="pwrap">' + s.pocket.map(function (p) {
+          return p
+            ? '<div class="pitem"><div class="icon-b">' + esc(p.n.charAt(0)) + '</div><div class="iname">' + esc(p.n) + '</div><div class="iid">' + p.id + '</div></div>'
+            : '<div class="pitem"><div class="pempty">无物品</div></div>';
+        }).join('') + '</div>';
+      } else {
+        var eye = !s.item || !s.item.k ? ''
+          : '<button class="abtn" type="button" data-op="inspect" data-k="' + s.item.k + '" aria-label="' + (s.item.k === 'weapon' ? '检视武器' : '打开容器') + '">' + EYE + '</button>';
+        inner = s.item
+          ? '<div class="icon-b">' + esc(s.item.n.charAt(0)) + '</div><div class="iname">' + esc(s.item.n) + '</div><div class="mmod">' + (s.item.mod ? TRI : '') + '</div><div class="iid">' + s.item.id + '</div><div class="acts">' + eye + '</div>'
+          : '<div class="icon-b" style="background:var(--phx-fill-tertiary);color:var(--phx-text-3)">—</div><div class="iname" style="color:var(--phx-text-3)">空槽</div><div class="mmod"></div><div class="iid">—</div><div class="acts"></div>';
+      }
+      return '<div class="srow"><div class="slotname">' + s.slot + '</div>' + inner + '</div>';
+    }
+    function renderE() {
+      var kw = ($('f-kw').querySelector('input').value || '').toLowerCase();
+      var rows = E_BUILDS.filter(function (b) {
+        return b.name.toLowerCase().indexOf(kw) >= 0;
+      });
+      $('e-card').innerHTML = rows.length ? rows.map(function (b) {
+        return '<div class="ecard' + (b.open ? ' open' : '') + '" data-i="' + E_BUILDS.indexOf(b) + '">'
+          + '<div class="ehead" data-op="toggle">'
+          + '<span class="ecaret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>'
+          + '<span class="ename">' + esc(b.name) + '</span>'
+          + '<div class="ebtns">'
+          + '<button class="wbtn" type="button" data-op="export">导出</button>'
+          + '<button class="wbtn danger" type="button" data-op="remove">移除</button>'
+          + '</div></div>'
+          + '<div class="ebody">' + b.slots.map(slotRow).join('') + '</div>'
+          + '</div>';
+      }).join('')
+        : (E_BUILDS.length ? '<div class="empty">没有匹配的预设</div>' : '<div class="empty">存档中没有任何装备预设</div>');
+      $('e-count').textContent = E_BUILDS.length !== rows.length ? rows.length + ' / ' + E_BUILDS.length : rows.length;
+    }
+
+    // ===== 两段子页切换：pane 两线联动（页头动作区单组常显，作用于当前子页）=====
+    var SEG = [ { pane: 'pane-w' }, { pane: 'pane-e' } ];
+    var cur = 0;
+    var segBtns = $('hSeg').querySelectorAll('button');
+    segBtns.forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        segBtns.forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        cur = i;
+        SEG.forEach(function (s, j) { $(s.pane).style.display = i === j ? '' : 'none'; });
+      });
+    });
+    // 过滤（单框常显，实时过滤当前子页）
+    $('f-kw').querySelector('input').addEventListener('input', function () { renderW(); renderE(); });
+
+    // 自绘确认弹层与轻反馈（禁用原生 confirm/alert；删除类走弹层，其余走 toast）
+    var dlgOk = null;
+    function openDlg(title, text, onOk) {
+      $('dlg-title').textContent = title;
+      $('dlg-text').textContent = text;
+      $('mask').classList.add('show');
+      dlgOk = onOk;
+    }
+    $('dlg-cancel').addEventListener('click', function () { $('mask').classList.remove('show'); dlgOk = null; });
+    $('mask').addEventListener('click', function (e) { if (e.target === $('mask')) { $('mask').classList.remove('show'); dlgOk = null; } });
+    $('dlg-ok').addEventListener('click', function () {
+      $('mask').classList.remove('show');
+      var fn = dlgOk; dlgOk = null;
+      if (fn) fn();
+    });
+    var toastTimer = null;
+    function toast(msg) {
+      $('toast').textContent = msg;
+      $('toast').classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 1800);
+    }
+
+    // 武器预设卡委托（data-i 取对象，过滤后不错位）
+    $('w-card').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-op]');
+      if (!btn) return;
+      var card = btn.closest('.wcard');
+      var b = W_BUILDS[+card.dataset.i];
+      var op = btn.dataset.op;
+      if (op === 'stash') { toast('已加入仓库：正式版会把预设装配回仓库里的这把武器'); }
+      else if (op === 'export') { toast('已导出：正式版会保存为文件'); }
+      else if (op === 'remove') {
+        openDlg('删除预设', '确定要删除这个预设吗？（' + b.name + '）', function () {
+          W_BUILDS.splice(W_BUILDS.indexOf(b), 1); renderW();
+        });
+      }
+    });
+
+    // 装备预设卡委托：卡头开合 / 导出 / 移除 / 槽内检视
+    $('e-card').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-op]');
+      if (!btn) return;
+      var card = btn.closest('.ecard');
+      var b = E_BUILDS[+card.dataset.i];
+      var op = btn.dataset.op;
+      if (op === 'toggle') { b.open = !b.open; renderE(); }
+      else if (op === 'export') { toast('已导出：正式版会保存为文件'); }
+      else if (op === 'remove') {
+        openDlg('删除预设', '确定要删除这个预设吗？（' + b.name + '）', function () {
+          E_BUILDS.splice(E_BUILDS.indexOf(b), 1); renderE();
+        });
+      }
+      else if (op === 'inspect') { toast(btn.dataset.k === 'weapon' ? '检视弹窗同第 10 屏' : '打开容器同第 10 屏检视视图'); }
+    });
+
+    // 页头三钮（作用于当前子页，对应参考 IsEnabled 绑定：空数据先提示）
+    $('btn-import').addEventListener('click', function () {
+      toast('导入：正式版会打开系统文件选择，武器页收武器预设、装备页收装备预设');
+    });
+    $('btn-export-all').addEventListener('click', function () {
+      var arr = cur === 0 ? W_BUILDS : E_BUILDS;
+      if (!arr.length) { toast('没有可导出的预设'); return; }
+      toast('全部导出：正式版会保存为文件');
+    });
+    $('btn-remove-all').addEventListener('click', function () {
+      var arr = cur === 0 ? W_BUILDS : E_BUILDS;
+      if (!arr.length) { toast('没有可删除的预设'); return; }
+      openDlg('删除预设', cur === 0 ? '确定要删除所有武器预设吗？' : '确定要删除所有装备预设吗？', function () {
+        if (cur === 0) W_BUILDS.length = 0; else E_BUILDS.length = 0;
+        renderW(); renderE();
+      });
+    });
+
+    renderW(); renderE();
+  </script>
+</body>
+</html>
+</content>

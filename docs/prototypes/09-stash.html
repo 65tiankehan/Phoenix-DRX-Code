@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>09 · 仓库网格</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Win11 窗口 chrome ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 底部 dock ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  /* ===== 页头与工具栏 ===== */
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .btn {
+    height: 32px; padding: 0 16px; border-radius: var(--phx-r-btn); border: none; cursor: pointer;
+    font-size: 12.5px; font-family: inherit; font-weight: 600;
+    background: var(--phx-accent); color: #fff;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .btn-ghost-danger { background: transparent; color: var(--phx-danger); box-shadow: inset 0 0 0 .5px rgba(255,105,97,.4); }
+  .btn-ghost-danger:hover { background: var(--phx-danger-bg); }
+  .btn svg { width: 14px; height: 14px; }
+  .toolbar { margin: 12px 24px 0; display: flex; align-items: center; gap: 8px; }
+  .seg { display: flex; background: var(--phx-surface-2); border-radius: 9px; padding: 3px;
+    box-shadow: inset 0 0 0 .5px var(--phx-sep); }
+  .seg button {
+    height: 28px; padding: 0 16px; border: none; border-radius: 7px; background: transparent;
+    color: var(--phx-text-2); font-size: 12.5px; font-family: inherit; cursor: pointer;
+  }
+  .seg button.on { background: var(--phx-fill-quaternary); color: var(--phx-text); font-weight: 600; }
+  .fspacer { flex: 1; }
+  .sfield {
+    height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+    background: var(--phx-surface-2); border-radius: 8px; box-shadow: inset 0 0 0 .5px var(--phx-sep);
+  }
+  .sfield svg { width: 12px; height: 12px; color: var(--phx-text-3); flex: none; }
+  .sfield input { background: transparent; border: none; outline: none; color: var(--phx-text);
+    font-size: 12px; font-family: inherit; width: 108px; }
+  .sfield input::placeholder { color: var(--phx-text-3); }
+  /* ===== 内容滚动区（隐藏滚动条，保留滚动） ===== */
+  .scroll { flex: 1; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .pane { min-height: 100%; }
+  .qgroup { margin-top: 16px; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; }
+  .gtitle { font-size: 12px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .3px; }
+  .gcount { font-size: 11px; color: var(--phx-text-3);
+    background: var(--phx-fill-tertiary); padding: 1px 8px; border-radius: 999px; }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .warn {
+    margin: 16px 0 0; padding: 10px 14px; border-radius: 10px;
+    background: var(--phx-warn-bg); border: .5px solid var(--phx-warn-bd);
+    color: var(--phx-warn); font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .warn svg { width: 14px; height: 14px; flex: none; }
+  .empty { padding: 44px 0; text-align: center; color: var(--phx-text-3); font-size: 13px; }
+  /* ===== 09：货币条 + 附加行数 ===== */
+  .stashmeta { margin-top: 16px; display: flex; align-items: center; gap: 8px; }
+  .mcap {
+    display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 12px;
+    background: var(--phx-surface-2); border-radius: 999px; box-shadow: inset 0 0 0 .5px var(--phx-sep);
+  }
+  .mcap .sym { font-size: 12px; font-weight: 700; color: var(--phx-text-2); }
+  .mcap .val { font-family: "SF Mono", "Cascadia Mono", Consolas, monospace; font-size: 12px; color: var(--phx-text); }
+  .madd {
+    width: 20px; height: 20px; border: none; border-radius: 50%; cursor: pointer;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .madd:hover { filter: brightness(1.25); }
+  .madd svg { width: 10px; height: 10px; }
+  .bonus { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--phx-text-2); }
+  .step { display: flex; align-items: center; gap: 0; background: var(--phx-surface-2);
+    border-radius: 8px; box-shadow: inset 0 0 0 .5px var(--phx-sep); }
+  .step button { width: 26px; height: 26px; border: none; background: transparent; color: var(--phx-text-2);
+    cursor: pointer; font-size: 13px; font-family: inherit; border-radius: 8px; }
+  .step button:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .step .num { min-width: 30px; text-align: center; font-family: "SF Mono", Consolas, monospace; font-size: 12px; }
+  /* ===== 09：仓库表格行 ===== */
+  .mrow {
+    display: grid; grid-template-columns: 30px minmax(0,1.35fr) 18px minmax(0,1fr) auto;
+    align-items: center; gap: 10px; padding: 8px 14px;
+  }
+  .mrow + .mrow { border-top: .5px solid var(--phx-sep); }
+  .icon-b { width: 30px; height: 30px; border-radius: 7px; background: var(--phx-accent-dim);
+    color: var(--phx-accent); display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex: none; }
+  .iname { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .iid { font-family: "SF Mono", "Cascadia Mono", Consolas, monospace; font-size: 11px; color: var(--phx-text-3);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mmod { display: flex; align-items: center; justify-content: center; color: var(--phx-danger); }
+  .mmod svg { width: 14px; height: 14px; }
+  .acts { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .abtn { width: 26px; height: 26px; border: none; border-radius: 7px; cursor: pointer;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center; }
+  .abtn:hover { filter: brightness(1.2); }
+  .abtn svg { width: 13px; height: 13px; }
+  .abtn.del { width: 26px; background: transparent; color: var(--phx-text-3); }
+  .abtn.del:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .tfoot { padding: 12px 14px; text-align: center; font-size: 11px; color: var(--phx-text-3); }
+  /* ===== 09：添加物品 ===== */
+  .addwrap { margin-top: 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .tree { width: 236px; flex: none; background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 8px; }
+  .titem { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px;
+    font-size: 12.5px; color: var(--phx-text-2); cursor: pointer; }
+  .titem:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .titem.on { background: var(--phx-accent-dim); color: var(--phx-accent); font-weight: 600; }
+  .tico { width: 18px; height: 18px; border-radius: 5px; background: var(--phx-fill-quaternary); flex: none; }
+  .titem.on .tico { background: rgba(0,145,255,.3); }
+  .titem.sub { padding-left: 28px; font-size: 12px; }
+  .alist { flex: 1; }
+  .arow { display: grid; grid-template-columns: 30px minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 8px 14px; }
+  .arow + .arow { border-top: .5px solid var(--phx-sep); }
+  .addbtn { height: 26px; padding: 0 12px; border: none; border-radius: 7px; cursor: pointer;
+    background: var(--phx-accent); color: #fff; font-size: 12px; font-family: inherit; font-weight: 600; }
+  .addbtn:hover { filter: brightness(1.1); }
+  .ckdesc { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--phx-text-3); }
+  .ck { width: 16px; height: 16px; border-radius: 5px; box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    background: var(--phx-fill-tertiary); cursor: pointer; position: relative; flex: none; }
+  .ck.on { background: var(--phx-accent); box-shadow: none; }
+  .ck.on::after { content: ""; position: absolute; left: 4.5px; top: 1.5px; width: 5px; height: 9px;
+    border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+  /* ===== 09：装备槽 ===== */
+  .srow { display: grid; grid-template-columns: 92px 30px minmax(0,1.1fr) 18px minmax(0,1fr) auto;
+    align-items: center; gap: 10px; padding: 9px 14px; }
+  .srow + .srow, .pitem + .pitem { border-top: .5px solid var(--phx-sep); }
+  .slotname { font-size: 12px; font-weight: 600; color: var(--phx-text-2); }
+  .pwrap { grid-column: 1 / -1; padding: 0 0 0 14px; }
+  .pitem { display: grid; grid-template-columns: 26px minmax(0,1fr) minmax(0,1fr) auto;
+    align-items: center; gap: 10px; padding: 7px 0 7px 26px; }
+  .pitem .icon-b { width: 26px; height: 26px; font-size: 11px; border-radius: 6px; }
+  .pempty { grid-column: 1 / -1; font-size: 12px; color: var(--phx-text-3); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock：仓库为提案新增的第 6 项（待拍板），此处高亮 -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+        <a class="on" href="09-stash.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+          <span class="lbl">仓库</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">仓库</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载 · PMC 装备（Scav 装备与口袋见第 11 屏）</div>
+          </div>
+          <!-- 批量操作随子页切换（参考编辑器将「移除全部」置于列表底部，Phoenix 收进页头动作区；均弹确认） -->
+          <div class="head-actions" id="act-stash">
+            <button class="btn btn-ghost-danger" type="button" id="btn-stash-clear">清空仓库</button>
+          </div>
+          <div class="head-actions" id="act-add" style="display:none">
+            <button class="btn btn-ghost" type="button" id="btn-add-all">全部物品</button>
+          </div>
+          <div class="head-actions" id="act-equip" style="display:none">
+            <button class="btn btn-ghost-danger" type="button" id="btn-equip-clear">清空装备</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="seg" id="hSeg">
+            <button class="on" type="button">仓库</button>
+            <button type="button">添加物品</button>
+            <button type="button">装备</button>
+          </div>
+          <div class="fspacer"></div>
+          <!-- 过滤框组随子页切换：仓库页双框（名称 + ID，对应参考表头内嵌搜索），添加页单框 + 含描述勾选，装备页无 -->
+          <div class="sfield" id="f-stash-name">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="搜索物品" data-f="stash-name">
+          </div>
+          <div class="sfield" id="f-stash-id" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="筛选 ID" data-f="stash-id">
+          </div>
+          <div class="sfield" id="f-add" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+            <input type="text" placeholder="搜索物品" data-f="add-name">
+          </div>
+          <label class="ckdesc" id="ck-desc" style="display:none"><span class="ck on"></span>含描述</label>
+        </div>
+
+        <div class="scroll" id="scroll">
+          <!-- 三个子页签，内容由脚本按示意数据渲染 -->
+          <div class="pane" id="pane-stash">
+            <!-- 货币与附加行数：参考 MoneyPanel 三货币加钱 + Pmc.StashRowsBonusCount（步进 ±2，最小 0，参与仓库尺寸计算） -->
+            <div class="stashmeta">
+              <div class="mcap"><span class="sym">₽</span><span class="val" data-m="rub">7,482,300</span><button class="madd" type="button" aria-label="添加卢布"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div>
+              <div class="mcap"><span class="sym">€</span><span class="val" data-m="eur">12,400</span><button class="madd" type="button" aria-label="添加欧元"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div>
+              <div class="mcap"><span class="sym">$</span><span class="val" data-m="usd">35,600</span><button class="madd" type="button" aria-label="添加美元"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div>
+              <div class="bonus"><span>附加行数</span>
+                <div class="step"><button type="button" data-s="-">−</button><span class="num" id="bonus-num">8</span><button type="button" data-s="+">＋</button></div>
+              </div>
+            </div>
+            <section class="qgroup">
+              <div class="ghead"><span class="gtitle">仓库物品</span><span class="gcount" id="stash-count">0</span></div>
+              <div class="qcard" id="stash-card"></div>
+              <div class="tfoot" id="stash-foot"></div>
+            </section>
+          </div>
+          <div class="pane" id="pane-add" style="display:none">
+            <!-- 警示横幅：对齐参考 ItemsAdding 顶部 Warning（tab_stash_fully_equipped_weapons_and_gear） -->
+            <div class="warn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".4" fill="currentColor"/></svg>
+              <span>请使用【全局物品预设】来添加修改后的武器或装备。</span>
+            </div>
+            <div class="addwrap">
+              <aside class="tree" id="add-tree"></aside>
+              <section class="qgroup alist" style="margin-top:0">
+                <div class="ghead"><span class="gtitle">可添加物品</span><span class="gcount" id="add-count">0</span></div>
+                <div class="qcard" id="add-list"></div>
+              </section>
+            </div>
+          </div>
+          <div class="pane" id="pane-equip" style="display:none">
+            <section class="qgroup">
+              <div class="ghead"><span class="gtitle">装备槽</span><span class="gcount" id="equip-count">0</span></div>
+              <div class="qcard" id="equip-card"></div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>09 · 仓库网格</b><br>
+    1. <b>单页三子页签</b>：参考编辑器「仓库」为顶级页签（StashTab），内部右侧页签组含 4 子页——仓库 / 添加物品 / PMC 装备 / Scav 装备。<b>本屏做前三子页，Scav 装备与口袋划归第 11 屏「Scav / 口袋」</b>（页头已标注）；Phoenix 将右侧页签改为顶部三段分段。存档路径 characters.pmc.Inventory（stash / equipment / 口袋容器对象）。<br>
+    2. <b>表格口径，非游戏方格</b>：参考编辑器仓库主体是数据表格而非 Tarkov 方格——列 = 图标+物品名 / modded 标记 / 物品 ID / 操作。Phoenix 沿用表格口径；红三角 = 不在物品库的 modded 物品（IsInItemsDB = false）；名称与 ID 双过滤框对应参考表头内嵌搜索（StashItemName / Id，实时过滤）。<br>
+    3. <b>行内操作三钮</b>：检视（仅武器，IsWeapon）→ 进入第 10 屏检视视图；开容器（IsContainer）→ 容器内容为同款表格的二级窗口（参考 ContainerWindow 600×400，复用 ItemsGrid + ItemsAdding）；删除（参考条件：RemovingAllowed 且物品非空）。行内删除与页头「清空仓库」「清空装备」均弹确认框（对应 RemoveItem / RemoveAllItems / RemoveAllEquipment 均走 YesNo）。<br>
+    4. <b>货币与附加行数</b>：三货币 ₽ / € / $ 胶囊 + 圆形加号（参考 MoneyPanel，加钱参数 = 捆数 × 物品 Tpl）；参考在仓库含 modded 物品时显示警告并禁用加钱区（ContainsModdedItems → tab_stash_mod_items），生产端沿用。<b>附加行数 = Pmc.StashRowsBonusCount</b>，步进 ±2、最小 0，参与仓库尺寸计算（参考 NumericUpDownExt Interval=2）。<br>
+    5. <b>添加物品页</b>：左分类树（图标 + 名，层级，对应 ItemsAdding TreeView）+ 右可添加列表（AddItem 命令，行尾「添加」钮）；搜索框带「含描述」勾选（FilterName + FilterDescriptions）；顶部警示横幅原文取自参考本地化 tab_stash_fully_equipped_weapons_and_gear；「全部物品」对应 ShowAllItems——参考在添加被阻断（AddItemsBlocked）时把该钮显示于底部，Phoenix 统一收进页头动作区，恒显。<br>
+    6. <b>装备子页</b>：槽位行 = 槽名 / 图标+名（空槽灰字）/ modded 三角 / ID / 操作，对齐参考 EquipmentSlotsList 五列模板；口袋（Pockets）为特殊槽，内嵌物品列表（参考 EquipmentSlotPockets 模板），空槽显示「无物品」；装备页无过滤框（参考口径）。<br>
+    7. <b>dock 第 6 项为提案，待拍板</b>：仓库属高频功能，本稿在 08 已批准的 5 项 dock 之上新增第 6 项「仓库」并高亮；备选方案为不加 dock、由首页卡片进入仓库。请拍板取舍。<br>
+    8. <b>旋转不实现 + 示意说明</b>：交接卷功能清单提到的「旋转」经全仓核查参考编辑器无对应实现（StashTab / GridFilters 无 Rotate 相关代码），判定为清单誊写误差，不做；物品图标用首字占位，生产端用真实图标资源；物品名 / ID / 数值均为示意，生产端实读 profile 与服务器数据库；橙色警示 / 红色删除为状态色示意，待 orange / danger token 入册后由视觉基线补声明；窗口 chrome 与 02–08 一致，缩放脚本仅预览用，卡片列表区隐藏滚动条保留滚动。
+  </div>
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    // ===== 示意数据：生产端实读 characters.pmc.Inventory（stash / equipment / 口袋）+ 服务器 database 物品库 =====
+    var STASH = [
+      { n: 'M4A1 5.56x45 突击步枪', id: '66f2a3c4b1e8d9a0f7c3e201', mod: false, k: 'weapon' },
+      { n: '格洛克 17 9x19 手枪', id: '5cadc2d0ae5925029c5d5b03', mod: false, k: 'weapon' },
+      { n: '6B47 防弹头盔', id: '5a7c4850e899ef001a0c8b04', mod: false },
+      { n: '6B13 突击背心', id: '5ab8e79e86f7742d8b357e08', mod: false },
+      { n: 'LK-3F 突击背包', id: '5b44c29786f7742c2b5c7e12', mod: false },
+      { n: 'Epsilon 安全容器', id: '5ac624fb86f7742c8b5b7e33', mod: false, k: 'container' },
+      { n: 'Salewa 急救包', id: '5449016a4bdc2d6f028b456f', mod: false },
+      { n: '5.56x45 M855A1 弹药盒', id: '59e6905086f7746c9f86e29b', mod: false },
+      { n: '自定义改装武器包', id: 'a1b2c3d4e5f60718293a4b5c', mod: true },
+      { n: '压缩饼干 ×3', id: '5449016a4bdc2d6f028b457f', mod: false }
+    ];
+    // 分类树与可添加物品（参考 ItemsAdding TreeView + ItemsListBox；desc 用于「含描述」搜索演示）
+    var TREE = [
+      { n: '武器', subs: ['突击步枪', '手枪'] },
+      { n: '装备' }, { n: '弹药' }, { n: '医疗用品' }, { n: '食物与饮水' }, { n: '钥匙' }, { n: '容器' }, { n: '杂物' }
+    ];
+    var ADD = {
+      '突击步枪': [
+        { n: 'AK-74N 5.45x39 突击步枪', id: '5ab8e79e86f7742d8b357e01', d: '5.45x39 口径，可加装瞄具与消音' },
+        { n: 'AK-74M 5.45x39 突击步枪', id: '5ab8e79e86f7742d8b357e02', d: '现代化改进型' },
+        { n: 'M4A1 5.56x45 突击步枪', id: '5ab8e79e86f7742d8b357e03', d: '美系平台，扩展性强' },
+        { n: 'AKM 7.62x39 突击步枪', id: '5ab8e79e86f7742d8b357e04', d: '经典卡拉什尼科夫' },
+        { n: 'DT-MDR 5.56x45 突击步枪', id: '5ab8e79e86f7742d8b357e05', d: '无托结构' },
+        { n: 'HK-416A5 5.56x45 突击步枪', id: '5ab8e79e86f7742d8b357e06', d: '短行程活塞导气' }
+      ],
+      '手枪': [
+        { n: '格洛克 17 9x19 手枪', id: '5ab8e79e86f7742d8b357e11', d: '17 发弹容' },
+        { n: 'MP-443 格里雅兹手枪', id: '5ab8e79e86f7742d8b357e12', d: '俄军制式' },
+        { n: '西格绍尔 M17 9x19', id: '5ab8e79e86f7742d8b357e13', d: '模块化套筒座' },
+        { n: 'TT-33 7.62x25 手枪', id: '5ab8e79e86f7742d8b357e14', d: '老式单动手枪' }
+      ],
+      '装备': [
+        { n: '6B47 防弹头盔', id: '5ab8e79e86f7742d8b357e21', d: '三级头盔' },
+        { n: 'PACA 软甲背心', id: '5ab8e79e86f7742d8b357e22', d: '二级软甲' },
+        { n: 'HFt 战术墨镜', id: '5ab8e79e86f7742d8b357e23', d: '抗冲击镜片' }
+      ],
+      '弹药': [
+        { n: '5.56x45 M855A1 弹药盒', id: '5ab8e79e86f7742d8b357e31', d: '每盒 120 发' },
+        { n: '7.62x39 BP 弹药盒', id: '5ab8e79e86f7742d8b357e32', d: '穿甲弹' }
+      ],
+      '医疗用品': [
+        { n: 'Salewa 急救包', id: '5ab8e79e86f7742d8b357e41', d: '综合治疗' },
+        { n: 'Ibuprofen 止痛药', id: '5ab8e79e86f7742d8b357e42', d: '止痛' }
+      ],
+      '食物与饮水': [
+        { n: '压缩饼干', id: '5ab8e79e86f7742d8b357e51', d: '回复能量' },
+        { n: '矿泉水 0.6L', id: '5ab8e79e86f7742d8b357e52', d: '回复水分' }
+      ],
+      '钥匙': [
+        { n: '海关 宿舍 203 房钥匙', id: '5ab8e79e86f7742d8b357e61', d: '海关地图' },
+        { n: '工厂 办公室钥匙', id: '5ab8e79e86f7742d8b357e62', d: '工厂地图' }
+      ],
+      '容器': [
+        { n: 'Epsilon 安全容器', id: '5ab8e79e86f7742d8b357e71', d: '4×2 安全格' },
+        { n: 'Beta 安全容器', id: '5ab8e79e86f7742d8b357e72', d: '2×2 安全格' }
+      ],
+      '杂物': [
+        { n: '高压电线', id: '5ab8e79e86f7742d8b357e81', d: 'FindInRaids 物品' },
+        { n: '螺丝母', id: '5ab8e79e86f7742d8b357e82', d: 'FindInRaids 物品' }
+      ]
+    };
+    var EQUIP = [
+      { slot: '头部装备', en: 'Headgear', item: { n: '6B47 防弹头盔', id: '5a7c4850e899ef001a0c8b04' } },
+      { slot: '耳饰', en: 'Earrings', item: null },
+      { slot: '面罩', en: 'FaceCover', item: null },
+      { slot: '臂章', en: 'ArmBand', item: null },
+      { slot: '防弹背心', en: 'BodyArmor', item: { n: '6B13 突击背心', id: '5ab8e79e86f7742d8b357e08' } },
+      { slot: '眼镜', en: 'Eyewear', item: { n: 'HFt 战术墨镜', id: '5ab8e79e86f7742d8b357e23' } },
+      { slot: '战术背心', en: 'TacticalRig', item: { n: 'AVALON 三级胸挂', id: '5ab8e79e86f7742d8b357e24' } },
+      { slot: '背包', en: 'Backpack', item: { n: 'LK-3F 突击背包', id: '5b44c29786f7742c2b5c7e12' } },
+      { slot: '主武器一', en: 'FirstPrimaryWeapon', item: { n: 'M4A1 5.56x45 突击步枪', id: '66f2a3c4b1e8d9a0f7c3e201' } },
+      { slot: '主武器二', en: 'SecondPrimaryWeapon', item: { n: 'MP-153 霰弹枪', id: '5ab8e79e86f7742d8b357e25' } },
+      { slot: '手枪套', en: 'Holster', item: { n: '格洛克 17 9x19 手枪', id: '5cadc2d0ae5925029c5d5b03' } },
+      { slot: '刀鞘', en: 'Scabbard', item: { n: 'M-2 战术刀', id: '5ab8e79e86f7742d8b357e26' } },
+      { slot: '口袋', en: 'Pockets', pocket: [
+        { n: 'Salewa 急救包', id: '5449016a4bdc2d6f028b456f' },
+        { n: 'Ibuprofen 止痛药', id: '5449016a4bdc2d6f028b458f' },
+        null, null
+      ] }
+    ];
+
+    var $ = function (id) { return document.getElementById(id); };
+    var TRI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".4" fill="currentColor"/></svg>';
+    var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+    var TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l1 13h9l1-13"/></svg>';
+    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function delBtn(label) { return '<button class="abtn del" type="button" aria-label="' + label + '">' + TRASH + '</button>'; }
+
+    // ===== 仓库表 =====
+    function renderStash() {
+      var kw = ($('f-stash-name').querySelector('input').value || '').toLowerCase();
+      var kid = ($('f-stash-id').querySelector('input').value || '').toLowerCase();
+      var rows = STASH.filter(function (it) {
+        return it.n.toLowerCase().indexOf(kw) >= 0 && it.id.toLowerCase().indexOf(kid) >= 0;
+      });
+      $('stash-card').innerHTML = rows.length ? rows.map(function (it) {
+        return '<div class="mrow">'
+          + '<div class="icon-b">' + esc(it.n.charAt(0)) + '</div>'
+          + '<div class="iname">' + esc(it.n) + '</div>'
+          + '<div class="mmod">' + (it.mod ? TRI : '') + '</div>'
+          + '<div class="iid">' + it.id + '</div>'
+          + '<div class="acts">'
+          + (it.k === 'weapon' ? '<button class="abtn" type="button" aria-label="检视武器">' + EYE + '</button>' : '')
+          + (it.k === 'container' ? '<button class="abtn" type="button" aria-label="打开容器">' + EYE + '</button>' : '')
+          + delBtn('删除物品')
+          + '</div></div>';
+      }).join('') : '<div class="empty">无匹配物品</div>';
+      $('stash-count').textContent = rows.length;
+      $('stash-foot').textContent = rows.length
+        ? '共 ' + rows.length + ' 件 · 含 ' + rows.filter(function (i) { return i.mod; }).length + ' 件 modded 物品 · 示意数据'
+        : '';
+    }
+    // ===== 添加物品：分类树 + 列表 =====
+    var curCat = '突击步枪';
+    function renderTree() {
+      $('add-tree').innerHTML = TREE.map(function (t) {
+        var top = '<div class="titem' + (t.n === curCat ? ' on' : '') + '" data-c="' + t.n + '"><span class="tico"></span>' + t.n + '</div>';
+        return top + (t.subs || []).map(function (s) {
+          return '<div class="titem sub' + (s === curCat ? ' on' : '') + '" data-c="' + s + '"><span class="tico"></span>' + s + '</div>';
+        }).join('');
+      }).join('');
+    }
+    function renderAdd() {
+      var kw = ($('f-add').querySelector('input').value || '').toLowerCase();
+      var desc = $('ck-desc').querySelector('.ck').classList.contains('on');
+      var rows = (ADD[curCat] || []).filter(function (it) {
+        return it.n.toLowerCase().indexOf(kw) >= 0 || (desc && it.d.toLowerCase().indexOf(kw) >= 0);
+      });
+      $('add-list').innerHTML = rows.length ? rows.map(function (it) {
+        return '<div class="arow">'
+          + '<div class="icon-b">' + esc(it.n.charAt(0)) + '</div>'
+          + '<div class="iname">' + esc(it.n) + '</div>'
+          + '<div class="iid">' + it.id + '</div>'
+          + '<button class="addbtn" type="button">添加</button>'
+          + '</div>';
+      }).join('') : '<div class="empty">无匹配物品</div>';
+      $('add-count').textContent = rows.length;
+    }
+    // ===== 装备槽 =====
+    function renderEquip() {
+      $('equip-card').innerHTML = EQUIP.map(function (s, i) {
+        var inner;
+        if (s.pocket) {
+          inner = '<div class="pwrap">' + s.pocket.map(function (p) {
+            return p
+              ? '<div class="pitem"><div class="icon-b">' + esc(p.n.charAt(0)) + '</div><div class="iname">' + esc(p.n) + '</div><div class="iid">' + p.id + '</div>' + delBtn('删除口袋物品') + '</div>'
+              : '<div class="pitem"><div class="pempty">无物品</div></div>';
+          }).join('') + '</div>';
+        } else {
+          inner = s.item
+            ? '<div class="icon-b">' + esc(s.item.n.charAt(0)) + '</div><div class="iname">' + esc(s.item.n) + '</div><div class="mmod"></div><div class="iid">' + s.item.id + '</div><div class="acts">' + delBtn('卸下物品') + '</div>'
+            : '<div class="icon-b" style="background:var(--phx-fill-tertiary);color:var(--phx-text-3)">—</div><div class="iname" style="color:var(--phx-text-3)">空槽</div><div class="mmod"></div><div class="iid">—</div><div class="acts"></div>';
+        }
+        return '<div class="srow"><div class="slotname">' + s.slot + '</div>' + inner + '</div>';
+      }).join('');
+      $('equip-count').textContent = EQUIP.length;
+    }
+
+    // ===== 三段子页切换：pane / 页头动作 / 过滤框三线联动 =====
+    var SEG = [
+      { pane: 'pane-stash', act: 'act-stash', fields: ['f-stash-name', 'f-stash-id'] },
+      { pane: 'pane-add', act: 'act-add', fields: ['f-add', 'ck-desc'] },
+      { pane: 'pane-equip', act: 'act-equip', fields: [] }
+    ];
+    var segBtns = $('hSeg').querySelectorAll('button');
+    segBtns.forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        segBtns.forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        SEG.forEach(function (s, j) {
+          $(s.pane).style.display = i === j ? '' : 'none';
+          $(s.act).style.display = i === j ? '' : 'none';
+          s.fields.forEach(function (f) { $(f).style.display = i === j ? '' : 'none'; });
+        });
+      });
+    });
+    // 过滤（参考表头内嵌搜索：实时过滤）
+    document.querySelectorAll('.sfield input').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        if (inp.dataset.f === 'add-name') renderAdd(); else renderStash();
+      });
+    });
+    $('ck-desc').addEventListener('click', function (e) {
+      e.preventDefault();
+      this.querySelector('.ck').classList.toggle('on');
+      renderAdd();
+    });
+    // 分类树点击
+    $('add-tree').addEventListener('click', function (e) {
+      var t = e.target.closest('.titem');
+      if (!t) return;
+      curCat = t.dataset.c;
+      renderTree(); renderAdd();
+    });
+    // 行内委托：删除 / 添加 / 加钱 / 步进（生产端删除与清空均弹确认框）
+    $('stash-card').addEventListener('click', function (e) {
+      var b = e.target.closest('.abtn.del');
+      if (!b) return;
+      var row = b.closest('.mrow'), idx = Array.prototype.indexOf.call($('stash-card').children, row);
+      var rows = STASH.filter(function (it) {
+        return it.n.toLowerCase().indexOf(($('f-stash-name').querySelector('input').value || '').toLowerCase()) >= 0
+          && it.id.toLowerCase().indexOf(($('f-stash-id').querySelector('input').value || '').toLowerCase()) >= 0;
+      });
+      STASH.splice(STASH.indexOf(rows[idx]), 1);
+      renderStash();
+    });
+    $('add-list').addEventListener('click', function (e) {
+      var b = e.target.closest('.addbtn');
+      if (!b) return;
+      var row = b.closest('.arow'), name = row.querySelector('.iname').textContent;
+      ADD[curCat] = ADD[curCat].filter(function (it) { return it.n !== name; });
+      renderAdd();
+    });
+    $('equip-card').addEventListener('click', function (e) {
+      var b = e.target.closest('.abtn.del');
+      if (!b) return;
+      var row = b.closest('.srow, .pitem');
+      var idx = Array.prototype.indexOf.call($('equip-card').querySelectorAll('.srow'), row.closest('.srow'));
+      if (row.classList.contains('pitem')) {
+        var pi = Array.prototype.indexOf.call(row.parentNode.children, row);
+        EQUIP[idx].pocket[pi] = null; renderEquip();
+      } else {
+        EQUIP[idx].item = null; renderEquip();
+      }
+    });
+    document.querySelectorAll('.madd').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.parentNode.querySelector('.val');
+        v.textContent = (parseInt(v.textContent.replace(/,/g, ''), 10) + 100000).toLocaleString('en-US');
+      });
+    });
+    var bonus = 8;
+    $('bonus-num').parentNode.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        bonus = Math.max(0, Math.min(30, bonus + (b.dataset.s === '+' ? 2 : -2)));
+        $('bonus-num').textContent = bonus;
+      });
+    });
+    // 页头批量按钮（生产端弹确认框）
+    $('btn-stash-clear').addEventListener('click', function () { STASH.length = 0; renderStash(); });
+    $('btn-equip-clear').addEventListener('click', function () {
+      EQUIP.forEach(function (s) { if (s.pocket) s.pocket = s.pocket.map(function () { return null; }); else s.item = null; });
+      renderEquip();
+    });
+    $('btn-add-all').addEventListener('click', function () {
+      $('f-add').querySelector('input').value = ''; renderAdd();
+    });
+
+    renderTree(); renderAdd(); renderStash(); renderEquip();
+  </script>
+</body>
+</html>

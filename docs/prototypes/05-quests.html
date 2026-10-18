@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 05 · 任务（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：任务名/商人/状态/计数均为示意，生产端实读存档 quests 模块 + 服务器 quests 数据库本地化 -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-red: #ff453a;
+    --phx-red-dim: rgba(255,69,58,.15);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-orange: #ff9f0a;
+    --phx-orange-dim: rgba(255,159,10,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock（与 02/03/04 一致） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== 按钮（iOS 26：填充胶囊主键 + 着色次键） ===== */
+  .btn { height: 32px; padding: 0 14px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: var(--phx-accent); color: #fff; font-weight: 600; }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-ghost:hover { background: var(--phx-fill-quaternary); }
+  /* ===== 概览条：进度 + 统计 ===== */
+  .statbar { margin: 16px 24px 0; display: flex; align-items: center; gap: 14px; }
+  .track { flex: 1; height: 6px; border-radius: 3px; background: var(--phx-fill-tertiary); overflow: hidden; }
+  .fill { height: 100%; border-radius: 3px; background: var(--phx-green); transition: width .25s; }
+  .stat { flex: none; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12px; color: var(--phx-text-2); }
+  /* ===== 工具行：搜索 + 状态分段 + 次操作 ===== */
+  .toolbar { margin: 12px 24px 0; display: flex; align-items: center; gap: 10px; }
+  .search {
+    flex: none; width: 240px; height: 32px; padding: 0 10px 0 30px;
+    border: none; outline: none; border-radius: 9px;
+    background: var(--phx-fill-tertiary); color: var(--phx-text);
+    font-family: inherit; font-size: 13px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,.5)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></svg>');
+    background-repeat: no-repeat; background-position: 9px center; background-size: 14px;
+  }
+  .search::placeholder { color: var(--phx-text-3); }
+  .search:focus { box-shadow: 0 0 0 3px var(--phx-accent-dim); }
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--phx-fill-tertiary); }
+  .seg button { border: none; background: transparent; color: var(--phx-text-2); font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 7px; cursor: pointer; transition: background .15s, color .15s; }
+  .seg button.on { background: rgba(255,255,255,.16); color: var(--phx-text); font-weight: 600; }
+  /* ===== 任务分组（iOS grouped list：组头在卡外，行为卡内列表） ===== */
+  .qgroup { margin-top: 16px; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; cursor: pointer; user-select: none; }
+  .gtitle { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .02em; }
+  .gcount { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); background: var(--phx-fill-tertiary); border-radius: 8px; padding: 1px 7px; }
+  .gchev { width: 12px; height: 12px; color: var(--phx-text-3); margin-left: auto; transition: transform .18s; }
+  .qgroup.folded .gchev { transform: rotate(-90deg); }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .qgroup.folded .qcard { display: none; }
+  .qrow { display: flex; align-items: center; gap: 12px; padding: 10px 14px; min-height: 54px; }
+  .qrow + .qrow { border-top: .5px solid var(--phx-sep); }
+  .tav {
+    width: 34px; height: 34px; flex: none; border-radius: 50%;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .qinfo { flex: 1; min-width: 0; }
+  .qname { font-size: 14px; font-weight: 600; color: var(--phx-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qmeta { font-size: 11px; color: var(--phx-text-3); margin-top: 2px; }
+  .qmeta .unlock { color: var(--phx-accent); }
+  /* ===== 状态胶囊（点击弹出 10 态菜单） ===== */
+  .pill { flex: none; height: 24px; padding: 0 10px; border: none; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: filter .12s; }
+  .pill:hover { filter: brightness(1.25); }
+  .st-success { background: var(--phx-green-dim); color: var(--phx-green); }
+  .st-progress { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .st-ready { background: var(--phx-orange-dim); color: var(--phx-orange); }
+  .st-open { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .st-locked { background: var(--phx-fill-tertiary); color: var(--phx-text-3); }
+  .st-fail { background: var(--phx-red-dim); color: var(--phx-red); }
+  /* 行删除（生产端走自绘确认弹层） */
+  .qdel { flex: none; width: 24px; height: 24px; border: none; border-radius: 7px; background: transparent; color: var(--phx-text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .qdel svg { width: 14px; height: 14px; }
+  .qdel:hover { background: var(--phx-red-dim); color: var(--phx-red); }
+  /* ===== 状态菜单（自绘下拉，10 态） ===== */
+  .qmenu {
+    position: fixed; z-index: 100; width: 160px; padding: 4px;
+    background: var(--phx-surface-2); border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 .5px rgba(255,255,255,.12);
+    display: none;
+  }
+  .qmenu.show { display: block; }
+  .qmenu button { display: block; width: 100%; text-align: left; border: none; background: transparent; color: var(--phx-text); font-family: inherit; font-size: 13px; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+  .qmenu button:hover { background: var(--phx-fill-tertiary); }
+  .qmenu button.cur { color: var(--phx-accent); font-weight: 600; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock（任务项高亮） -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a class="on" href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">任务</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载</div>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-primary" type="button" id="btn-mark">标记全部完成</button>
+          </div>
+        </div>
+
+        <div class="statbar">
+          <div class="track"><div class="fill" id="stFill" style="width:26%"></div></div>
+          <span class="stat" id="stText">已完成 12 / 47 · 26%</span>
+        </div>
+
+        <div class="toolbar">
+          <input class="search" id="qSearch" type="text" placeholder="搜索任务" aria-label="搜索任务">
+          <div class="seg" id="qSeg">
+            <button class="on" type="button">全部</button>
+            <button type="button">未完成</button>
+            <button type="button">已完成</button>
+          </div>
+          <button class="btn btn-ghost" type="button" id="btn-fill" style="margin-left:auto">补齐缺失</button>
+        </div>
+
+        <div class="scroll" id="qlist">
+          <!-- ===== 常规任务 ===== -->
+          <section class="qgroup">
+            <div class="ghead">
+              <span class="gtitle">常规任务</span>
+              <span class="gcount">24</span>
+              <svg class="gchev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25 6 7.75l3.5-3.5"/></svg>
+            </div>
+            <div class="qcard">
+              <div class="qrow" data-st="success">
+                <span class="tav">П</span>
+                <div class="qinfo"><div class="qname">供应商</div><div class="qmeta">帕拉普尔 Prapor</div></div>
+                <button class="pill st-success" type="button">已完成</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+              <div class="qrow" data-st="progress">
+                <span class="tav">П</span>
+                <div class="qinfo"><div class="qname">体检</div><div class="qmeta">帕拉普尔 Prapor<span class="unlock"> · 已解锁生产「纯净水」</span></div></div>
+                <button class="pill st-progress" type="button">进行中</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+              <div class="qrow" data-st="ready">
+                <span class="tav">Т</span>
+                <div class="qinfo"><div class="qname">药房</div><div class="qmeta">医师 Therapist</div></div>
+                <button class="pill st-ready" type="button">可交付</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+              <div class="qrow" data-st="available">
+                <span class="tav">С</span>
+                <div class="qinfo"><div class="qname">起跑器</div><div class="qmeta">滑雪者 Skier</div></div>
+                <button class="pill st-open" type="button">可开始</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+              <div class="qrow" data-st="locked">
+                <span class="tav">П</span>
+                <div class="qinfo"><div class="qname">昔日快递</div><div class="qmeta">帕拉普尔 Prapor</div></div>
+                <button class="pill st-locked" type="button">锁定</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== 每周任务 ===== -->
+          <section class="qgroup">
+            <div class="ghead">
+              <span class="gtitle">每周任务</span>
+              <span class="gcount">12</span>
+              <svg class="gchev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25 6 7.75l3.5-3.5"/></svg>
+            </div>
+            <div class="qcard">
+              <div class="qrow" data-st="progress">
+                <span class="tav">С</span>
+                <div class="qinfo"><div class="qname">猎杀 PMC ×15</div><div class="qmeta">滑雪者 Skier</div></div>
+                <button class="pill st-progress" type="button">进行中</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+              <div class="qrow" data-st="success">
+                <span class="tav">Т</span>
+                <div class="qinfo"><div class="qname">清剿 Scav ×30</div><div class="qmeta">医师 Therapist</div></div>
+                <button class="pill st-success" type="button">已完成</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== 每日任务 ===== -->
+          <section class="qgroup">
+            <div class="ghead">
+              <span class="gtitle">每日任务</span>
+              <span class="gcount">9</span>
+              <svg class="gchev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25 6 7.75l3.5-3.5"/></svg>
+            </div>
+            <div class="qcard">
+              <div class="qrow" data-st="available">
+                <span class="tav">М</span>
+                <div class="qinfo"><div class="qname">收集 5 块显卡</div><div class="qmeta">机械师 Mechanic</div></div>
+                <button class="pill st-open" type="button">可开始</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+              <div class="qrow" data-st="failretry">
+                <span class="tav">П</span>
+                <div class="qinfo"><div class="qname">击杀 12 名 Scav</div><div class="qmeta">帕拉普尔 Prapor</div></div>
+                <button class="pill st-fail" type="button">失败可重试</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== Scav 每日 ===== -->
+          <section class="qgroup">
+            <div class="ghead">
+              <span class="gtitle">Scav 每日</span>
+              <span class="gcount">2</span>
+              <svg class="gchev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25 6 7.75l3.5-3.5"/></svg>
+            </div>
+            <div class="qcard">
+              <div class="qrow" data-st="available">
+                <span class="tav">Ф</span>
+                <div class="qinfo"><div class="qname">消灭 5 名 PMC</div><div class="qmeta">边界人 Fence</div></div>
+                <button class="pill st-open" type="button">可开始</button>
+                <button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 状态菜单（10 态一键改写） -->
+  <div class="qmenu" id="qmenu">
+    <button type="button" data-k="locked">锁定</button>
+    <button type="button" data-k="available">可开始</button>
+    <button type="button" data-k="started">进行中</button>
+    <button type="button" data-k="ready">可交付</button>
+    <button type="button" data-k="success">已完成</button>
+    <button type="button" data-k="fail">失败</button>
+    <button type="button" data-k="failretry">失败可重试</button>
+    <button type="button" data-k="marked">标记失败</button>
+    <button type="button" data-k="expired">已过期</button>
+    <button type="button" data-k="after">之后可用</button>
+  </div>
+
+  <div class="notes">
+    <b>05 · 任务</b><br>
+    1. <b>数据分组</b>：任务按参考编辑器口径分四组——常规 / 每周 / 每日 / Scav 每日，组头可折叠（箭头旋转示意）；组内为行式列表：商人头像（首字母示意）· 任务名与商人 · 状态 · 删除。顶部为总进度（绿色进度条 + 等宽字统计）。<br>
+    2. <b>10 种状态一键改写</b>：点击状态胶囊弹菜单——锁定 / 可开始 / 进行中 / 可交付 / 已完成 / 失败 / 失败可重试 / 标记失败 / 已过期 / 之后可用，六种配色归并（三个失败态共用红、已过期并入锁定灰）。重复任务无「锁定」态，非法状态生产端自动就近修正（与参考编辑器一致）。<br>
+    3. <b>「标记全部完成」</b>：全部任务一键置为已完成并重算进度（参考编辑器默认即置 Success）；<b>「补齐缺失」</b>把档案缺失任务以锁定状态补入列表——演示为一次性在每组插入一条示意行。<br>
+    4. <b>完成联动</b>：完成任务自动解锁对应藏身处生产（如「体检」→ 纯净水）；<b>无</b>自动奖励、<b>无</b>声望联动，奖励物品仍需手动处理——与参考编辑器一致，不画没有的能力。前置条件冲突由「问题检测」页统一处理，不在此页重复。<br>
+    5. <b>筛选</b>：搜索按任务名 / 商人名实时过滤；分段三档（全部 / 未完成 / 已完成），失败与锁定等非完成态均归入「未完成」，与搜索叠加生效。<br>
+    6. <b>删除</b>：演示直删一行；生产端先弹自绘确认（不用 window.confirm）。<br>
+    7. <b>导航</b>：dock 增至四项（首页 / 角色 / 任务 / 商人），任务项高亮；dock 项目随屏增加，超过 5 项需再裁决收纳方式。窗口 chrome 为 Windows 11 标题栏 + 底部居中胶囊 dock，与 02 / 03 / 04 一致；缩放脚本仅预览用。
+  </div>
+
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    // 10 态 → 文案与配色（六色归并）
+    var ST = {
+      locked: { t: '锁定', c: 'st-locked' },
+      available: { t: '可开始', c: 'st-open' },
+      started: { t: '进行中', c: 'st-progress' },
+      ready: { t: '可交付', c: 'st-ready' },
+      success: { t: '已完成', c: 'st-success' },
+      fail: { t: '失败', c: 'st-fail' },
+      failretry: { t: '失败可重试', c: 'st-fail' },
+      marked: { t: '标记失败', c: 'st-fail' },
+      expired: { t: '已过期', c: 'st-locked' },
+      after: { t: '之后可用', c: 'st-open' }
+    };
+
+    // 顶部进度重算（演示用：只统计示意行）
+    function recount() {
+      var rows = document.querySelectorAll('.qrow');
+      var done = document.querySelectorAll('.qrow[data-st="success"]').length;
+      var n = rows.length;
+      var pct = n ? Math.round(done * 100 / n) : 0;
+      document.getElementById('stFill').style.width = pct + '%';
+      document.getElementById('stText').textContent = '已完成 ' + done + ' / ' + n + ' · ' + pct + '%';
+    }
+
+    // 分组折叠
+    document.querySelectorAll('.ghead').forEach(function (h) {
+      h.addEventListener('click', function () { h.parentElement.classList.toggle('folded'); });
+    });
+
+    // 统一过滤：分段三档 + 搜索叠加生效
+    var segIdx = 0, kw = '';
+    function applyFilter() {
+      document.querySelectorAll('.qrow').forEach(function (r) {
+        var done = r.dataset.st === 'success';
+        var okSeg = segIdx === 0 || (segIdx === 1 && !done) || (segIdx === 2 && done);
+        var okKw = !kw || r.textContent.toLowerCase().indexOf(kw) > -1;
+        r.style.display = (okSeg && okKw) ? '' : 'none';
+      });
+    }
+    document.getElementById('qSeg').querySelectorAll('button').forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        segIdx = i;
+        document.querySelectorAll('#qSeg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        applyFilter();
+      });
+    });
+    document.getElementById('qSearch').addEventListener('input', function () {
+      kw = this.value.trim().toLowerCase();
+      applyFilter();
+    });
+
+    // 状态菜单：点击胶囊弹 10 态菜单
+    var menu = document.getElementById('qmenu');
+    var curRow = null;
+    function openMenu(row, pill) {
+      curRow = row;
+      menu.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('cur', b.dataset.k === row.dataset.st);
+      });
+      var r = pill.getBoundingClientRect();
+      menu.style.left = Math.min(r.left, window.innerWidth - 172) + 'px';
+      menu.style.top = (r.bottom + 6) + 'px';
+      menu.classList.add('show');
+    }
+    function setRowState(row, k) {
+      row.dataset.st = k;
+      var pill = row.querySelector('.pill');
+      pill.className = 'pill ' + ST[k].c;
+      pill.textContent = ST[k].t;
+      recount();
+    }
+    function bindRow(row) {
+      row.querySelector('.pill').addEventListener('click', function (e) {
+        e.stopPropagation();
+        openMenu(row, this);
+      });
+      row.querySelector('.qdel').addEventListener('click', function () {
+        row.remove();
+        recount();
+      });
+    }
+    document.querySelectorAll('.qrow').forEach(bindRow);
+    menu.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (curRow) setRowState(curRow, b.dataset.k);
+        menu.classList.remove('show');
+      });
+    });
+    document.addEventListener('click', function () { menu.classList.remove('show'); });
+
+    // 标记全部完成：全部置为已完成并重算
+    document.getElementById('btn-mark').addEventListener('click', function () {
+      document.querySelectorAll('.qrow').forEach(function (r) { setRowState(r, 'success'); });
+    });
+
+    // 补齐缺失：每组插 1 条锁定行（演示一次性；生产端把档案缺失任务以锁定补入）
+    var filled = false;
+    document.getElementById('btn-fill').addEventListener('click', function () {
+      if (filled) return;
+      filled = true;
+      document.querySelectorAll('.qgroup').forEach(function (g) {
+        var row = document.createElement('div');
+        row.className = 'qrow';
+        row.dataset.st = 'locked';
+        row.innerHTML =
+          '<span class="tav">?</span>' +
+          '<div class="qinfo"><div class="qname">缺失任务（示意）</div><div class="qmeta">以锁定状态补入档案</div></div>' +
+          '<button class="pill st-locked" type="button">锁定</button>' +
+          '<button class="qdel" type="button" aria-label="删除任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>';
+        g.querySelector('.qcard').appendChild(row);
+        bindRow(row);
+      });
+      recount();
+    });
+  </script>
+</body>
+</html>

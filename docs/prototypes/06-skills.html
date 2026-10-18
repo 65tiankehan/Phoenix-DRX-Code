@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 06 · 技能 / 武器熟练（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：技能名 / 经验值 / 计数均为示意，生产端实读存档 characters.pmc.Skills.Common / .Mastering（Scav 同构）+ 本地化表 -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock（与 02/03/04/05 一致） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== 按钮（iOS 26：填充胶囊主键 + 着色次键） ===== */
+  .btn { height: 32px; padding: 0 14px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: var(--phx-accent); color: #fff; font-weight: 600; }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-ghost:hover { background: var(--phx-fill-quaternary); }
+  /* ===== 工具行：搜索 + 阵营分段 + 次操作 ===== */
+  .toolbar { margin: 12px 24px 0; display: flex; align-items: center; gap: 10px; }
+  .search {
+    flex: none; width: 240px; height: 32px; padding: 0 10px 0 30px;
+    border: none; outline: none; border-radius: 9px;
+    background: var(--phx-fill-tertiary); color: var(--phx-text);
+    font-family: inherit; font-size: 13px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,.5)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></svg>');
+    background-repeat: no-repeat; background-position: 9px center; background-size: 14px;
+  }
+  .search::placeholder { color: var(--phx-text-3); }
+  .search:focus { box-shadow: 0 0 0 3px var(--phx-accent-dim); }
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--phx-fill-tertiary); }
+  .seg button { border: none; background: transparent; color: var(--phx-text-2); font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 7px; cursor: pointer; transition: background .15s, color .15s; }
+  .seg button.on { background: rgba(255,255,255,.16); color: var(--phx-text); font-weight: 600; }
+  /* ===== 分组（iOS grouped list：组头在卡外，行为卡内列表） ===== */
+  .qgroup { margin-top: 16px; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; cursor: pointer; user-select: none; }
+  .gtitle { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .02em; }
+  .gcount { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); background: var(--phx-fill-tertiary); border-radius: 8px; padding: 1px 7px; }
+  .gcap { font-size: 11px; color: var(--phx-text-3); }
+  .gchev { width: 12px; height: 12px; color: var(--phx-text-3); margin-left: auto; transition: transform .18s; }
+  .qgroup.folded .gchev { transform: rotate(-90deg); }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .qgroup.folded .qcard { display: none; }
+  /* ===== 技能行：名称 + 经验值步进（±100）+ 滑杆，双向联动 ===== */
+  .srow { display: flex; align-items: center; gap: 14px; padding: 8px 14px; min-height: 44px; }
+  .srow + .srow { border-top: .5px solid var(--phx-sep); }
+  .sinfo { flex: 1; min-width: 0; }
+  .sname { font-size: 14px; font-weight: 600; color: var(--phx-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .smeta { font-size: 11px; color: var(--phx-text-3); margin-top: 1px; }
+  .smeta .lv { color: var(--phx-accent); font-weight: 600; }
+  .stepper { display: flex; align-items: center; height: 28px; flex: none; border-radius: 8px; background: var(--phx-fill-tertiary); overflow: hidden; }
+  .stepper button { width: 28px; height: 100%; border: none; background: transparent; color: var(--phx-accent); font-size: 16px; font-weight: 600; cursor: pointer; }
+  .stepper button:hover { background: var(--phx-fill-quaternary); }
+  .stepper .val { min-width: 46px; text-align: center; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12px; color: var(--phx-text); }
+  .srange {
+    flex: none; width: 240px; height: 4px;
+    -webkit-appearance: none; appearance: none;
+    border-radius: 2px; outline: none; cursor: pointer;
+    background: linear-gradient(to right, var(--phx-accent) 0%, var(--phx-accent) 50%, var(--phx-fill-quaternary) 50%);
+  }
+  .srange::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5), 0 0 0 .5px rgba(0,0,0,.1);
+  }
+  /* ===== 空态卡（档案无此分组数据时） ===== */
+  .empty { padding: 26px 16px; text-align: center; }
+  .empty .ico { width: 30px; height: 30px; color: var(--phx-text-3); opacity: .6; }
+  .empty .t { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .empty .d { font-size: 11px; color: var(--phx-text-3); margin-top: 2px; }
+  /* ===== 一键设置全部（自绘浮层面板） ===== */
+  .panel {
+    position: fixed; z-index: 100; width: 300px; padding: 16px;
+    background: var(--phx-surface-2); border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 .5px rgba(255,255,255,.12);
+    display: none;
+  }
+  .panel.show { display: block; }
+  .panel h4 { font-size: 13px; font-weight: 600; }
+  .panel .p-desc { font-size: 11px; color: var(--phx-text-3); margin: 3px 0 12px; }
+  .panel .p-valrow { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .panel .p-valrow .srange { flex: 1; width: auto; }
+  .panel .p-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock（技能属角色域，「角色」高亮） -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a class="on" href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">技能 / 武器熟练</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载</div>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-primary" type="button" id="btn-max">全部拉满</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input class="search" id="sSearch" type="text" placeholder="搜索技能" aria-label="搜索技能">
+          <div class="seg" id="fSeg">
+            <button class="on" type="button">PMC</button>
+            <button type="button">Scav</button>
+          </div>
+          <button class="btn btn-ghost" type="button" id="btn-all" style="margin-left:auto">一键设置全部</button>
+        </div>
+
+        <div class="scroll" id="scroll">
+          <!-- 两个阵营页签，内容由脚本按示意数据渲染 -->
+          <div class="pane" id="pane-pmc"></div>
+          <div class="pane" id="pane-scav" style="display:none"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 一键设置全部（自绘浮层面板，对齐参考编辑器底部统一设置面板） -->
+  <div class="panel" id="panel">
+    <h4>一键设置全部</h4>
+    <div class="p-desc">应用到当前阵营页签的全部技能与武器熟练</div>
+    <div class="p-valrow">
+      <div class="stepper">
+        <button type="button" data-p="dec" aria-label="减少">−</button>
+        <span class="val" id="pVal">1000</span>
+        <button type="button" data-p="inc" aria-label="增加">+</button>
+      </div>
+      <input type="range" class="srange" id="pRange" min="0" max="5100" step="100" value="1000" aria-label="统一经验值">
+    </div>
+    <div class="p-actions">
+      <button class="btn btn-ghost" type="button" id="pCancel">取消</button>
+      <button class="btn btn-primary" type="button" id="pApply">应用</button>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>06 · 技能 / 武器熟练</b><br>
+    1. <b>数据分组</b>：对应参考编辑器「技能（Skills）」与「武器熟练（Mastering）」两页，本稿合一屏两组卡，行式列表：技能名与英文名 · 经验值步进（±100，对齐参考编辑器 Interval=100）· 滑杆（步长 100），两控件双向联动。<b>PMC / Scav 顶层分段</b>切换两套独立数据（存档路径 characters.pmc.Skills.Common / .Mastering，Scav 同构）。<br>
+    2. <b>上限</b>：普通技能统一上限 <b>5100</b>（51 级 × 100 点，参考编辑器默认值）；武器熟练上限为各武器精通 Level2 + Level3 之和（每人不同，稿图以 4000 示意，组头注「上限随武器」）。<br>
+    3. <b>行内等级（Lv n）为提案增补</b>：经验值 ÷ 100 取整，纯展示换算，保存时不做任何等级重算联动——参考编辑器无逐行等级显示，此处为可读性提案，请拍板取舍。<br>
+    4. <b>一键设置全部</b>：点工具行按钮弹自绘浮层（步进 + 滑杆 + 应用），把统一值应用到当前页签的全部技能与武器熟练（对齐参考编辑器底部统一设置面板）；<b>「全部拉满」</b>把当前页签所有行置为各自上限，<b>跳过以 bot 开头的技能</b>（BotReload / BotSound，机器人内部技能，拉满无意义）——与参考编辑器口径一致。设为 0 即重置，无专用重置按钮。<br>
+    5. <b>名称解析</b>：优先取本地化表中文名；无映射时原样显示 Id（BotReload / BotSound 即演示此回退）；武器熟练在本地化缺失时回退拼接该武器模板列表（生产端行为，稿图未演示）。<br>
+    6. <b>空态</b>：Scav 页签武器熟练为空演示空态卡；生产端任何页签任一分组为空数组均显示同款空态。<br>
+    7. <b>搜索</b>：按名称 / 英文名实时过滤，与 PMC / Scav 分段叠加生效；分组卡头可折叠。<br>
+    8. <b>导航</b>：技能属角色域，dock 高亮「角色」；窗口 chrome 为 Windows 11 标题栏 + 底部居中胶囊 dock，与 02 / 03 / 04 / 05 一致；缩放脚本仅预览用。计数徽标为真实数据量（普通技能 54 项 / 武器熟练 13 类），行内容为示意抽样。
+  </div>
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    // ===== 示意数据：生产端实读 characters.pmc.Skills.Common / .Mastering（Scav 同构）+ 本地化表 =====
+    // cap：普通技能 5100（51 级 × 100 点，参考编辑器默认）；武器熟练示意 4000，实际为各武器 Level2+Level3
+    var DATA = {
+      pmc: [
+        { title: '普通技能', count: 54, capNote: '上限 5100', cap: 5100, rows: [
+          { name: '耐力', en: 'Endurance', v: 3400 },
+          { name: '力量', en: 'Strength', v: 2100 },
+          { name: '活力', en: 'Vitality', v: 800 },
+          { name: '健康', en: 'Health', v: 1450 },
+          { name: '新陈代谢', en: 'Metabolism', v: 4050 },
+          { name: '免疫', en: 'Immunity', v: 1250 },
+          { name: '感知', en: 'Perception', v: 2200 },
+          { name: '智力', en: 'Intellect', v: 900 },
+          { name: '魅力', en: 'Charisma', v: 1450 },
+          { name: '弹匣训练', en: 'Mag Drills', v: 450 },
+          { name: 'BotReload', en: '', v: 0, bot: true },
+          { name: 'BotSound', en: '', v: 0, bot: true }
+        ]},
+        { title: '武器熟练', count: 13, capNote: '上限随武器', cap: 4000, rows: [
+          { name: '手枪', en: 'Pistol', v: 1200 },
+          { name: '突击步枪', en: 'Assault rifle', v: 2400 },
+          { name: '冲锋枪', en: 'SMG', v: 1800 },
+          { name: '霰弹枪', en: 'Shotgun', v: 900 },
+          { name: '狙击枪', en: 'Sniper rifle', v: 1500 },
+          { name: '轻机枪', en: 'LMG', v: 300 },
+          { name: '投掷物', en: 'Thrown', v: 450 },
+          { name: '近战武器', en: 'Melee', v: 2100 }
+        ]}
+      ],
+      scav: [
+        { title: '普通技能', count: 54, capNote: '上限 5100', cap: 5100, rows: [
+          { name: '耐力', en: 'Endurance', v: 800 },
+          { name: '力量', en: 'Strength', v: 400 },
+          { name: '新陈代谢', en: 'Metabolism', v: 1100 },
+          { name: '免疫', en: 'Immunity', v: 300 },
+          { name: '搜刮', en: 'Search', v: 600 },
+          { name: '抗压', en: 'Stress Resistance', v: 200 }
+        ]},
+        { title: '武器熟练', count: 0, capNote: '该档案此分组为空', cap: 4000, rows: [] }
+      ]
+    };
+
+    // ===== 渲染 =====
+    function metaHTML(d, v) {
+      if (d.bot) return '本地化无映射 · 一键全满跳过';
+      return d.en + ' · <span class="lv">Lv ' + Math.floor(v / 100) + '</span>';
+    }
+    function rowHTML(d, cap) {
+      return '<div class="srow"' + (d.bot ? ' data-bot="1"' : '') + ' data-en="' + d.en + '">' +
+        '<div class="sinfo"><div class="sname">' + d.name + '</div><div class="smeta">' + metaHTML(d, d.v) + '</div></div>' +
+        '<div class="stepper"><button type="button" data-op="dec" aria-label="减少">−</button><span class="val">' + d.v + '</span><button type="button" data-op="inc" aria-label="增加">+</button></div>' +
+        '<input type="range" class="srange" min="0" max="' + cap + '" step="100" value="' + d.v + '" aria-label="' + d.name + ' 经验值">' +
+      '</div>';
+    }
+    function groupHTML(g) {
+      var head = '<div class="ghead"><span class="gtitle">' + g.title + '</span><span class="gcount">' + g.count + '</span><span class="gcap">' + g.capNote + '</span>' +
+        '<svg class="gchev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25 6 7.75l3.5-3.5"/></svg></div>';
+      var card;
+      if (!g.rows.length) {
+        card = '<div class="qcard"><div class="empty">' +
+          '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>' +
+          '<div class="t">此分组没有数据</div><div class="d">该档案在此分组为空</div></div></div>';
+      } else {
+        card = '<div class="qcard">' + g.rows.map(function (d) { return rowHTML(d, g.cap); }).join('') + '</div>';
+      }
+      return '<section class="qgroup">' + head + card + '</section>';
+    }
+    document.getElementById('pane-pmc').innerHTML = DATA.pmc.map(groupHTML).join('');
+    document.getElementById('pane-scav').innerHTML = DATA.scav.map(groupHTML).join('');
+
+    // ===== 行内联动：步进（±100）与滑杆双向 =====
+    function paint(slider) {
+      var p = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+      slider.style.background = 'linear-gradient(to right, var(--phx-accent) ' + p + '%, var(--phx-fill-quaternary) ' + p + '%)';
+    }
+    function setRowVal(row, v) {
+      var slider = row.querySelector('.srange');
+      v = Math.max(0, Math.min(parseInt(slider.max, 10), Math.round(v / 100) * 100));
+      row.querySelector('.val').textContent = v;
+      slider.value = v;
+      paint(slider);
+      if (!row.dataset.bot) {
+        row.querySelector('.smeta').innerHTML = row.dataset.en + ' · <span class="lv">Lv ' + Math.floor(v / 100) + '</span>';
+      }
+    }
+    var scroll = document.getElementById('scroll');
+    scroll.addEventListener('click', function (e) {
+      var op = e.target.closest('button[data-op]');
+      if (op) {
+        var row = op.closest('.srow');
+        setRowVal(row, parseInt(row.querySelector('.val').textContent, 10) + (op.dataset.op === 'inc' ? 100 : -100));
+        return;
+      }
+      var head = e.target.closest('.ghead');
+      if (head) head.parentElement.classList.toggle('folded');
+    });
+    scroll.addEventListener('input', function (e) {
+      if (e.target.classList.contains('srange')) {
+        var row = e.target.closest('.srow');
+        row.querySelector('.val').textContent = e.target.value;
+        paint(e.target);
+        if (!row.dataset.bot) {
+          row.querySelector('.smeta').innerHTML = row.dataset.en + ' · <span class="lv">Lv ' + Math.floor(e.target.value / 100) + '</span>';
+        }
+      }
+    });
+    document.querySelectorAll('.srange').forEach(paint);
+
+    // ===== 搜索 + PMC / Scav 分段（叠加生效） =====
+    var faction = 0;
+    function applyFilter() {
+      var kw = document.getElementById('sSearch').value.trim().toLowerCase();
+      document.querySelectorAll('.srow').forEach(function (r) {
+        r.style.display = (!kw || r.textContent.toLowerCase().indexOf(kw) > -1) ? '' : 'none';
+      });
+    }
+    document.getElementById('sSearch').addEventListener('input', applyFilter);
+    document.getElementById('fSeg').querySelectorAll('button').forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        faction = i;
+        document.querySelectorAll('#fSeg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        document.getElementById('pane-pmc').style.display = i === 0 ? '' : 'none';
+        document.getElementById('pane-scav').style.display = i === 1 ? '' : 'none';
+        applyFilter();
+      });
+    });
+
+    // ===== 全部拉满（跳过 bot 开头的技能）与一键设置全部 =====
+    function curPane() { return document.getElementById(faction === 0 ? 'pane-pmc' : 'pane-scav'); }
+    document.getElementById('btn-max').addEventListener('click', function () {
+      curPane().querySelectorAll('.srow').forEach(function (row) {
+        if (row.dataset.bot) return;
+        setRowVal(row, parseInt(row.querySelector('.srange').max, 10));
+      });
+    });
+
+    var panel = document.getElementById('panel');
+    var pVal = document.getElementById('pVal');
+    var pRange = document.getElementById('pRange');
+    document.getElementById('btn-all').addEventListener('click', function (e) {
+      e.stopPropagation();
+      var r = this.getBoundingClientRect();
+      panel.style.left = Math.min(r.left, window.innerWidth - 316) + 'px';
+      panel.style.top = (r.bottom + 8) + 'px';
+      panel.classList.add('show');
+    });
+    panel.querySelectorAll('button[data-p]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = Math.max(0, Math.min(5100, parseInt(pRange.value, 10) + (b.dataset.p === 'inc' ? 100 : -100)));
+        pRange.value = v; pVal.textContent = v; paint(pRange);
+      });
+    });
+    pRange.addEventListener('input', function () { pVal.textContent = pRange.value; paint(pRange); });
+    document.getElementById('pCancel').addEventListener('click', function () { panel.classList.remove('show'); });
+    document.getElementById('pApply').addEventListener('click', function () {
+      curPane().querySelectorAll('.srow').forEach(function (row) { setRowVal(row, parseInt(pRange.value, 10)); });
+      panel.classList.remove('show');
+    });
+    document.addEventListener('click', function (e) {
+      if (!panel.contains(e.target) && e.target.id !== 'btn-all') panel.classList.remove('show');
+    });
+  </script>
+</body>
+</html>

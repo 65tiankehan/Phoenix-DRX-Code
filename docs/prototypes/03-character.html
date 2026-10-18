@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 03 · 角色信息（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：昵称、等级、经验、健康数值等均为示意，生产端实读存档 profile.json -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-bar-h: 36px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== PMC / Scav 分段控件（iOS 26：32pt，容器 fill-tertiary，指示器白 .27） ===== */
+  .seg { display: flex; padding: 2px; background: var(--phx-fill-tertiary); border-radius: 9px; }
+  .seg button {
+    height: 28px; padding: 0 18px; border: none; background: transparent; border-radius: 7px;
+    color: var(--phx-text-2); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .seg button.on { background: rgba(255,255,255,.27); color: #fff; font-weight: 600; }
+  /* ===== 面板 ===== */
+  .panel { background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 2px 14px 12px; min-width: 0; }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 10px 0 8px; }
+  .panel-head .t { font-size: 13px; font-weight: 600; color: var(--phx-text-2); }
+  .panel-head .n { font-size: 12px; color: var(--phx-text-3); }
+  .frow { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  .frow + .frow { border-top: .5px solid var(--phx-sep); }
+  .frow .k { width: 60px; flex: none; font-size: 13px; color: var(--phx-text-2); }
+  .field {
+    flex: 1; min-width: 0; height: 32px; padding: 0 10px;
+    border: none; outline: none; border-radius: 8px;
+    background: var(--phx-fill-tertiary); color: var(--phx-text);
+    font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 14px;
+    transition: box-shadow .15s;
+  }
+  .field:focus { box-shadow: 0 0 0 3px var(--phx-accent-dim); }
+  .read { flex: 1; min-width: 0; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 13px; color: var(--phx-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ro-tag { flex: none; margin-left: auto; padding: 2px 6px; border: .5px solid var(--phx-sep-strong); border-radius: 5px; font-size: 11px; color: var(--phx-text-3); }
+  /* 阵营分段（自绘单选） */
+  .seg.mini { margin-left: auto; }
+  .seg.mini button { padding: 0 22px; }
+  /* 等级步进器（iOS 26：94×29，两段各半） */
+  .stepper { margin-left: auto; display: flex; width: 94px; height: 29px; background: var(--phx-fill-tertiary); border-radius: 8px; overflow: hidden; }
+  .stepper button { flex: 1; border: none; background: transparent; color: var(--phx-text); font-size: 16px; line-height: 1; cursor: pointer; }
+  .stepper button + button { border-left: .5px solid var(--phx-sep-strong); }
+  .stepper button:active { background: var(--phx-fill-quaternary); }
+  .range { flex: none; margin-left: 10px; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); }
+  /* 经验：输入 + 滑条 */
+  .exp .field { flex: none; width: 110px; text-align: center; }
+  .slider { position: relative; flex: 1; height: 20px; display: flex; align-items: center; }
+  .slider .track { width: 100%; height: 4px; border-radius: 2px; background: var(--phx-fill-quaternary); }
+  .slider .fill { position: absolute; left: 0; top: 8px; height: 4px; border-radius: 2px; background: var(--phx-accent); }
+  .slider .thumb { position: absolute; left: 62%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .hint { padding: 8px 0 4px; font-size: 11px; color: var(--phx-text-3); }
+  /* 下拉（自绘，选项来自服务器数据目录） */
+  .fselect {
+    flex: 1; max-width: 240px; margin-left: auto; height: 32px; padding: 0 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border: none; border-radius: 8px; background: var(--phx-fill-tertiary);
+    color: var(--phx-text); font-family: inherit; font-size: 14px; cursor: pointer;
+  }
+  .fselect .cv { font-size: 11px; color: var(--phx-text-3); }
+  /* ===== 健康 3×3：部位 + 当前/最大 + 血条 ===== */
+  .hgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 4px; }
+  .hcell { background: var(--phx-surface-2); border-radius: 9px; padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .hcell .hn { font-size: 12px; color: var(--phx-text-2); }
+  .hcell .hp { display: flex; align-items: center; gap: 6px; }
+  .hcell input {
+    flex: 1 1 0; width: 0; min-width: 0; padding: 2px 0;
+    border: none; outline: none; background: transparent; border-bottom: 1px solid transparent;
+    color: var(--phx-text); font-family: "SF Mono", ui-monospace, Consolas, monospace;
+    font-size: 14px; text-align: center; transition: border-color .15s;
+  }
+  .hcell input:focus { border-bottom-color: var(--phx-accent); }
+  .hcell .sep { font-size: 12px; color: var(--phx-text-3); }
+  .hcell .bar { height: 3px; border-radius: 2px; background: var(--phx-fill-quaternary); overflow: hidden; }
+  .hcell .bar .fill { display: block; height: 100%; background: var(--phx-accent); }
+  /* ===== 仪表台 2×2 ===== */
+  .dash { margin-top: 18px; display: grid; grid-template-columns: 5fr 7fr; gap: 14px; }
+  /* Scav 页签：隐藏 PMC 专属行 */
+  .window.scav .pmc-only { display: none; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a class="on" href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">角色信息</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载</div>
+          </div>
+          <div class="head-actions">
+            <div class="seg" id="seg-mode">
+              <button class="on" data-mode="pmc">PMC</button>
+              <button data-mode="scav">Scav</button>
+            </div>
+          </div>
+        </div>
+        <div class="scroll">
+          <div class="dash">
+            <!-- 基本信息 -->
+            <section class="panel">
+              <div class="panel-head"><span class="t">基本信息</span><span class="n">只读项不可编辑</span></div>
+              <div class="frow">
+                <span class="k">昵称</span>
+                <input class="field" value="Dragoon">
+              </div>
+              <div class="frow pmc-only">
+                <span class="k">阵营</span>
+                <div class="seg mini">
+                  <button>BEAR</button>
+                  <button class="on">USEC</button>
+                </div>
+              </div>
+              <div class="frow pmc-only">
+                <span class="k">角色 ID</span>
+                <span class="read">0251b1f0b8a2d9c41e77a4f3</span>
+                <span class="ro-tag">只读</span>
+              </div>
+              <div class="frow pmc-only">
+                <span class="k">游戏版本</span>
+                <span class="read">0.16.1.2.33565</span>
+                <span class="ro-tag">只读</span>
+              </div>
+            </section>
+            <!-- 成长 -->
+            <section class="panel">
+              <div class="panel-head"><span class="t">成长</span><span class="n">等级 ↔ 经验联动</span></div>
+              <div class="frow">
+                <span class="k">等级</span>
+                <span style="margin-left:auto;font-family:'SF Mono',ui-monospace,Consolas,monospace;font-size:14px;">42</span>
+                <div class="stepper"><button>−</button><button>+</button></div>
+                <span class="range">1 – 79</span>
+              </div>
+              <div class="frow exp">
+                <span class="k">经验</span>
+                <input class="field" value="6,358,240">
+                <div class="slider">
+                  <div class="track"></div>
+                  <div class="fill" style="width:62%;"></div>
+                  <div class="thumb"></div>
+                </div>
+              </div>
+              <div class="hint">经验与等级双向联动（按服务器经验表换算）</div>
+            </section>
+            <!-- 外观与装备 -->
+            <section class="panel">
+              <div class="panel-head"><span class="t">外观与装备</span><span class="n">选项来自服务器数据</span></div>
+              <div class="frow">
+                <span class="k">语音</span>
+                <button class="fselect"><span>Usec_2</span><span class="cv">▾</span></button>
+              </div>
+              <div class="frow">
+                <span class="k">头型</span>
+                <button class="fselect"><span>头型 3</span><span class="cv">▾</span></button>
+              </div>
+              <div class="frow">
+                <span class="k">口袋</span>
+                <button class="fselect"><span>口袋 · 标准</span><span class="cv">▾</span></button>
+              </div>
+            </section>
+            <!-- 健康状态 -->
+            <section class="panel">
+              <div class="panel-head"><span class="t">健康状态</span><span class="n">当前 / 最大</span></div>
+              <div class="hgrid">
+                <div class="hcell">
+                  <span class="hn">头部</span>
+                  <span class="hp"><input value="85"><span class="sep">/</span><input value="85"></span>
+                  <span class="bar"><i class="fill" style="width:100%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">胸腔</span>
+                  <span class="hp"><input value="76"><span class="sep">/</span><input value="85"></span>
+                  <span class="bar"><i class="fill" style="width:89%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">胃部</span>
+                  <span class="hp"><input value="85"><span class="sep">/</span><input value="85"></span>
+                  <span class="bar"><i class="fill" style="width:100%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">右手</span>
+                  <span class="hp"><input value="44"><span class="sep">/</span><input value="60"></span>
+                  <span class="bar"><i class="fill" style="width:73%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">左手</span>
+                  <span class="hp"><input value="60"><span class="sep">/</span><input value="60"></span>
+                  <span class="bar"><i class="fill" style="width:100%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">右腿</span>
+                  <span class="hp"><input value="35"><span class="sep">/</span><input value="70"></span>
+                  <span class="bar"><i class="fill" style="width:50%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">左腿</span>
+                  <span class="hp"><input value="70"><span class="sep">/</span><input value="70"></span>
+                  <span class="bar"><i class="fill" style="width:100%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">水分</span>
+                  <span class="hp"><input value="62"><span class="sep">/</span><input value="100"></span>
+                  <span class="bar"><i class="fill" style="width:62%;"></i></span>
+                </div>
+                <div class="hcell">
+                  <span class="hn">能量</span>
+                  <span class="hp"><input value="88"><span class="sep">/</span><input value="100"></span>
+                  <span class="bar"><i class="fill" style="width:88%;"></i></span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 设计说明（供评审，不进入生产代码） -->
+  <div class="notes">
+    <b>03 · 角色信息 —— iOS 26 暗色重设计说明</b><br>
+    1. 本稿为旧 03 稿的视觉整体替换：功能点与信息架构逐项保留（昵称 / 阵营 / 角色 ID / 游戏版本 / 等级 / 经验 / 语音 / 头型 / 口袋 / 九格健康），仅换用 iOS 26 / macOS Tahoe Liquid Glass 视觉语言。<br>
+    2. PMC / Scav 页签改为 iOS 26 分段控件（32pt，容器 fill-tertiary + 白 .27 指示器）；切到 Scav 时隐藏阵营 / 角色 ID / 游戏版本三行 PMC 专属项，与参考编辑器行为一致。<br>
+    3. 角色 ID 与游戏版本为只读项，带「只读」小标签，不可编辑（对应存档中不应手改的字段）。<br>
+    4. 等级用 iOS 26 步进器（94×29），经验为输入框 + 滑条示意；两者按服务器经验表双向联动，生产端实算。<br>
+    5. 语音 / 头型 / 口袋为自绘下拉示意，选项来自服务器数据目录（Voices / Heads / Pockets），不在稿图里写死全集。<br>
+    6. 健康状态九格为当前 / 最大双输入 + 比例血条；数值均为示意，生产端实读存档 Health 模块。<br>
+    7. 导航为底部居中悬浮胶囊 dock（玻璃拟态，内容区底部留出 92px），选中项为白色玻璃胶囊按钮；顶部为 Windows 11 风格标题栏（右侧最小化 / 最大化 / 关闭，关闭悬停变红），与内容留出间距。dock 与窗口 chrome 在 01 / 02 / 03 / 04 一致（01 服务器选择为全窗独立屏，不并入 dock）；缩放脚本仅预览用。
+  </div>
+
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+    // PMC / Scav 页签切换（仅页签分段；阵营分段不参与）
+    document.querySelectorAll('#seg-mode button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('#seg-mode button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        document.getElementById('win').classList.toggle('scav', b.dataset.mode === 'scav');
+      });
+    });
+  </script>
+</body>
+</html>

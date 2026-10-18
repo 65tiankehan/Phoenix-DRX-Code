@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 07 · 健康（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：部位数值均为示意，生产端实读存档 characters.pmc.Health（Scav 同构）+ 本地化表 -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock（与 02–06 一致） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== 按钮（iOS 26：填充胶囊主键 + 着色次键） ===== */
+  .btn { height: 32px; padding: 0 14px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: var(--phx-accent); color: #fff; font-weight: 600; }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-ghost:hover { background: var(--phx-fill-quaternary); }
+  /* ===== 工具行：阵营分段 ===== */
+  .toolbar { margin: 12px 24px 0; display: flex; align-items: center; gap: 10px; }
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--phx-fill-tertiary); }
+  .seg button { border: none; background: transparent; color: var(--phx-text-2); font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 7px; cursor: pointer; transition: background .15s, color .15s; }
+  .seg button.on { background: rgba(255,255,255,.16); color: var(--phx-text); font-weight: 600; }
+  /* ===== 分组（iOS grouped list：组头在卡外） ===== */
+  .qgroup { margin-top: 16px; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; cursor: pointer; user-select: none; }
+  .gtitle { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .02em; }
+  .gcount { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); background: var(--phx-fill-tertiary); border-radius: 8px; padding: 1px 7px; }
+  .gcap { font-size: 11px; color: var(--phx-text-3); }
+  .gchev { width: 12px; height: 12px; color: var(--phx-text-3); margin-left: auto; transition: transform .18s; }
+  .qgroup.folded .gchev { transform: rotate(-90deg); }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .qgroup.folded .qcard { display: none; }
+  /* ===== 指标卡：部位名 + 当前/上限比例条（提案）+ 当前/上限双步进 ===== */
+  .mgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px; }
+  .mgrid.g2 { grid-template-columns: repeat(2, 1fr); }
+  .mcard { background: var(--phx-surface-2); border-radius: 9px; padding: 12px 14px 12px; }
+  .mhead { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  .mname { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mkey { font-size: 11px; color: var(--phx-text-3); font-family: "SF Mono", ui-monospace, Consolas, monospace; white-space: nowrap; }
+  .mbar { height: 4px; border-radius: 2px; background: var(--phx-fill-quaternary); margin: 11px 0 13px; overflow: hidden; }
+  .mbar i { display: block; height: 100%; border-radius: 2px; background: var(--phx-accent); }
+  .mrow { display: flex; align-items: center; gap: 10px; }
+  .mrow + .mrow { margin-top: 7px; }
+  .mlabel { font-size: 11px; color: var(--phx-text-2); width: 26px; flex: none; }
+  .mrow.dim .mlabel, .mrow.dim .stepper .val { color: var(--phx-text-3); }
+  .stepper { display: flex; align-items: center; height: 28px; flex: none; border-radius: 8px; background: var(--phx-fill-tertiary); overflow: hidden; }
+  .stepper button { width: 28px; height: 100%; border: none; background: transparent; color: var(--phx-accent); font-size: 16px; font-weight: 600; cursor: pointer; }
+  .stepper button:hover { background: var(--phx-fill-quaternary); }
+  .stepper .val { min-width: 46px; text-align: center; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 12px; color: var(--phx-text); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock（健康属角色域，「角色」高亮） -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a class="on" href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">健康</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载</div>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-primary" type="button" id="btn-max">全部回满</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="seg" id="fSeg">
+            <button class="on" type="button">PMC</button>
+            <button type="button">Scav</button>
+          </div>
+        </div>
+
+        <div class="scroll" id="scroll">
+          <!-- 两个阵营页签，内容由脚本按示意数据渲染 -->
+          <div class="pane" id="pane-pmc"></div>
+          <div class="pane" id="pane-scav" style="display:none"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>07 · 健康</b><br>
+    1. <b>数据分组</b>：参考编辑器无独立健康页——健康编辑位于「信息」页尾部的 9 个指标控件（7 个身体部位 + 水分 / 能量），Phoenix 将其单列成屏，分两组卡：<b>身体部位</b>（7 张：头部 / 胸腔 / 胃部 / 左臂 / 右臂 / 左腿 / 右腿）与<b>水分 / 能量</b>（2 张）。存档路径 characters.pmc.Health.BodyParts.&#123;部位&#125;.Health.&#123;Current / Maximum&#125; 与 characters.pmc.Health.&#123;Hydration / Energy&#125;；<b>Scav 结构同构、同样可编辑</b>（参考编辑器 Scav 不折叠健康区），顶层分段切换两套数据。<br>
+    2. <b>编辑口径</b>：参考编辑器每个指标为「当前 / 上限」两个可直接键入的数字框；稿图以 ±1 步进器示意（生产端为数字输入框）。保留参考联动规则：<b>当前值 &gt; 上限时上限自动抬高到当前值</b>（参考 CharacterMetric.Current setter 行为）；上限可单独下调、不反向联动当前值，当前值最低 0。<br>
+    3. <b>比例条为提案增补</b>：卡内细条按 当前 ÷ 上限 比例填充，纯展示、不参与保存；参考编辑器无此视觉。稿图暂用主题蓝填充；低血量红色 / 低水分橙色等待状态色 token 入册后再启用，届时由视觉基线补声明。<br>
+    4. <b>「全部回满」为提案增补</b>：一键把当前页签全部指标当前值置为各自上限（水分 / 能量回 100）；参考编辑器无任何健康批量操作，此处为体验提案，请拍板取舍。<br>
+    5. <b>数值示意</b>：PMC 演示带伤状态（胸腔 62/85、右腿 28/65、左臂 45/60、水分 87/100 等），Scav 演示全新全满；参考项目与测试存档均无健康数值样本，生产端以真实 profile 为准，显示不做上限卡控。<br>
+    6. <b>名称解析</b>：中文名取本地化表（Head / Chest / … / HYDRATION / ENERGY 对应词条），英文小字为存档字段 key，便于对照原始数据。<br>
+    7. <b>伤势效果</b>：参考编辑器不支持骨折 / 出血等 Effects 的编辑，本稿未画；如需支持请另行拍板，将涉及存档 Effects 数组结构与阈值规则。<br>
+    8. <b>导航</b>：健康属角色域，dock 高亮「角色」；窗口 chrome 为 Windows 11 标题栏 + 底部居中胶囊 dock，与 02–06 一致；缩放脚本仅预览用，卡片列表区隐藏滚动条保留滚动。
+  </div>
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    // ===== 示意数据：生产端实读 characters.pmc.Health.BodyParts 与 characters.pmc.Health（Scav 同构）+ 本地化表 =====
+    var DATA = {
+      pmc: [
+        { title: '身体部位', rows: [
+          { name: '头部', en: 'Head', cur: 35, max: 35 },
+          { name: '胸腔', en: 'Chest', cur: 62, max: 85 },
+          { name: '胃部', en: 'Stomach', cur: 70, max: 70 },
+          { name: '左臂', en: 'LeftArm', cur: 45, max: 60 },
+          { name: '右臂', en: 'RightArm', cur: 60, max: 60 },
+          { name: '左腿', en: 'LeftLeg', cur: 65, max: 65 },
+          { name: '右腿', en: 'RightLeg', cur: 28, max: 65 }
+        ]},
+        { title: '水分 / 能量', rows: [
+          { name: '水分', en: 'Hydration', cur: 87, max: 100 },
+          { name: '能量', en: 'Energy', cur: 100, max: 100 }
+        ]}
+      ],
+      scav: [
+        { title: '身体部位', rows: [
+          { name: '头部', en: 'Head', cur: 35, max: 35 },
+          { name: '胸腔', en: 'Chest', cur: 85, max: 85 },
+          { name: '胃部', en: 'Stomach', cur: 70, max: 70 },
+          { name: '左臂', en: 'LeftArm', cur: 60, max: 60 },
+          { name: '右臂', en: 'RightArm', cur: 60, max: 60 },
+          { name: '左腿', en: 'LeftLeg', cur: 65, max: 65 },
+          { name: '右腿', en: 'RightLeg', cur: 65, max: 65 }
+        ]},
+        { title: '水分 / 能量', rows: [
+          { name: '水分', en: 'Hydration', cur: 100, max: 100 },
+          { name: '能量', en: 'Energy', cur: 100, max: 100 }
+        ]}
+      ]
+    };
+
+    // ===== 渲染：组头 + 卡内网格（比例条 + 当前 / 上限双步进） =====
+    function metricHTML(d) {
+      var pct = d.max ? Math.min(100, Math.round(d.cur / d.max * 100)) : 0;
+      return '<div class="mcard" data-en="' + d.en + '">' +
+        '<div class="mhead"><span class="mname">' + d.name + '</span><span class="mkey">' + d.en + '</span></div>' +
+        '<div class="mbar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="mrow"><span class="mlabel">当前</span><div class="stepper"><button type="button" data-op="dec" data-t="cur" aria-label="减少当前值">−</button><span class="val" data-t="cur">' + d.cur + '</span><button type="button" data-op="inc" data-t="cur" aria-label="增加当前值">+</button></div></div>' +
+        '<div class="mrow' + (d.cur >= d.max ? ' dim' : '') + '"><span class="mlabel">上限</span><div class="stepper"><button type="button" data-op="dec" data-t="max" aria-label="减少上限">−</button><span class="val" data-t="max">' + d.max + '</span><button type="button" data-op="inc" data-t="max" aria-label="增加上限">+</button></div></div>' +
+      '</div>';
+    }
+    function groupHTML(g) {
+      var head = '<div class="ghead"><span class="gtitle">' + g.title + '</span><span class="gcount">' + g.rows.length + '</span>' +
+        '<svg class="gchev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25 6 7.75l3.5-3.5"/></svg></div>';
+      var card = '<div class="qcard"><div class="mgrid' + (g.rows.length === 2 ? ' g2' : '') + '">' + g.rows.map(metricHTML).join('') + '</div></div>';
+      return '<section class="qgroup">' + head + card + '</section>';
+    }
+    document.getElementById('pane-pmc').innerHTML = DATA.pmc.map(groupHTML).join('');
+    document.getElementById('pane-scav').innerHTML = DATA.scav.map(groupHTML).join('');
+
+    // ===== 数值更新：当前 > 上限 → 上限自动抬高（对齐参考 CharacterMetric.Current setter） =====
+    function setMetric(card, t, v) {
+      var curEl = card.querySelector('.val[data-t="cur"]');
+      var maxEl = card.querySelector('.val[data-t="max"]');
+      var cur = parseInt(curEl.textContent, 10);
+      var max = parseInt(maxEl.textContent, 10);
+      if (t === 'cur') cur = Math.max(0, v); else max = Math.max(0, v);
+      if (cur > max) max = cur;
+      curEl.textContent = cur;
+      maxEl.textContent = max;
+      card.querySelector('.mbar i').style.width = (max ? Math.min(100, Math.round(cur / max * 100)) : 0) + '%';
+      card.querySelectorAll('.mrow')[1].classList.toggle('dim', cur >= max);
+    }
+
+    var scroll = document.getElementById('scroll');
+    scroll.addEventListener('click', function (e) {
+      var op = e.target.closest('button[data-op]');
+      if (op) {
+        var card = op.closest('.mcard');
+        setMetric(card, op.dataset.t, parseInt(card.querySelector('.val[data-t="' + op.dataset.t + '"]').textContent, 10) + (op.dataset.op === 'inc' ? 1 : -1));
+        return;
+      }
+      var head = e.target.closest('.ghead');
+      if (head) head.parentElement.classList.toggle('folded');
+    });
+
+    // ===== PMC / Scav 分段 =====
+    var faction = 0;
+    function curPane() { return document.getElementById(faction === 0 ? 'pane-pmc' : 'pane-scav'); }
+    document.getElementById('fSeg').querySelectorAll('button').forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        faction = i;
+        document.querySelectorAll('#fSeg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        document.getElementById('pane-pmc').style.display = i === 0 ? '' : 'none';
+        document.getElementById('pane-scav').style.display = i === 1 ? '' : 'none';
+      });
+    });
+
+    // ===== 全部回满（提案）：当前页签全部指标当前值置为各自上限 =====
+    document.getElementById('btn-max').addEventListener('click', function () {
+      curPane().querySelectorAll('.mcard').forEach(function (card) {
+        setMetric(card, 'cur', parseInt(card.querySelector('.val[data-t="max"]').textContent, 10));
+      });
+    });
+  </script>
+</body>
+</html>

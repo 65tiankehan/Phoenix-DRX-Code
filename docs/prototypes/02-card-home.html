@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 02 · 首页（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：档案 ID、等级、货币数额等均为示意，生产端实读存档 profile.json -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-red: #ff453a;
+    --phx-red-dim: rgba(255,69,58,.15);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-bar-h: 36px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 4px; }
+  .btn { height: 32px; padding: 0 15px; border: none; border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: filter .15s; }
+  .btn-primary { background: var(--phx-accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-secondary { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-secondary:hover { background: var(--phx-fill-quaternary); }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== 档案概览卡 ===== */
+  .hero { margin-top: 18px; background: var(--phx-surface); border-radius: var(--phx-r-card); }
+  .hero-row1 { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--phx-accent-dim); color: var(--phx-accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .hr-main { min-width: 0; }
+  .hr-label { font-size: 12px; color: var(--phx-text-2); }
+  .hr-id { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .hr-id .id { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  .hr-id .dd { font-size: 12px; color: var(--phx-text-3); }
+  .hr-lvl { margin-left: auto; font-size: 13px; color: var(--phx-text-2); flex: none; }
+  .hero-row2 { display: flex; border-top: .5px solid var(--phx-sep-strong); padding: 12px 4px; }
+  .stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .stat + .stat { border-left: .5px solid var(--phx-sep-strong); }
+  .stat .k { font-size: 12px; color: var(--phx-text-2); }
+  .stat .v { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 17px; font-weight: 600; letter-spacing: -.2px; }
+  /* ===== 仪表台：2×2 面板 ===== */
+  .dash { margin-top: 14px; display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: stretch; }
+  .panel { background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 4px 8px 8px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 8px 6px; }
+  .panel-head .t { font-size: 13px; font-weight: 600; color: var(--phx-text-2); }
+  .items { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .single .items { grid-template-columns: 1fr; }
+  .item {
+    display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px;
+    border-radius: 9px; font-size: 14px; cursor: pointer; transition: background .1s;
+    color: var(--phx-text); text-decoration: none;
+  }
+  .item:hover { background: var(--phx-fill-quaternary); }
+  .item svg { width: 16px; height: 16px; flex: none; color: var(--phx-text-2); }
+  .item .chev { margin-left: auto; font-size: 16px; color: var(--phx-text-3); line-height: 1; }
+  .item .cnt {
+    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    background: var(--phx-red); color: #fff; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .item.has-cnt .chev { margin-left: 8px; }
+  .span2 { grid-column: span 2; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a class="on" href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+      </nav>
+
+      <!-- 主内容 -->
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">首页</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载</div>
+          </div>
+          <div class="head-actions">
+            <a class="btn btn-secondary" href="01-server-select.html" style="text-decoration:none;display:inline-flex;align-items:center;">返回服务器选择</a>
+            <button class="btn btn-primary" type="button">保存修改</button>
+          </div>
+        </div>
+        <div class="scroll">
+          <section class="hero">
+            <div class="hero-row1">
+              <div class="avatar">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+              </div>
+              <div class="hr-main">
+                <div class="hr-label">当前档案</div>
+                <div class="hr-id"><span class="id">0251b1f0…</span><span class="dd">▾</span></div>
+              </div>
+              <div class="hr-lvl">等级 42 · Peacekeeper</div>
+            </div>
+            <div class="hero-row2">
+              <div class="stat"><span class="k">卢布 ₽</span><span class="v">8,245,300</span></div>
+              <div class="stat"><span class="k">美元 $</span><span class="v">612,400</span></div>
+              <div class="stat"><span class="k">欧元 €</span><span class="v">98,700</span></div>
+            </div>
+          </section>
+          <section class="dash">
+            <div class="col">
+              <div class="panel">
+                <div class="panel-head"><span class="t">角色数据</span></div>
+                <div class="items">
+                  <a class="item" href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>角色信息<span class="chev">›</span></a>
+                  <a class="item" href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z"/></svg>角色技能<span class="chev">›</span></a>
+                  <a class="item" href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>武器熟练度<span class="chev">›</span></a>
+                  <a class="item" href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5C5 7.5 7 6 9 6c1.4 0 2.4.7 3 1.7C12.6 6.7 13.6 6 15 6c2 0 4 1.5 4 4.5 0 5-7 9.5-7 9.5Z"/></svg>健康状态<span class="chev">›</span></a>
+                  <a class="item" href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 4 4 7l2 3 2-1v11h8V9l2 1 2-3-4.5-3c-1 1.4-2 2-3.5 2s-2.5-.6-3.5-2Z"/></svg>角色衣服<span class="chev">›</span></a>
+                  <a class="item" href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/><path d="M15.5 5.6a3 3 0 1 1 1.5 5.7"/><path d="M16.5 14.8c2.2.5 3.7 1.9 4.4 4.2"/></svg>Scav 信息<span class="chev">›</span></a>
+                </div>
+              </div>
+              <div class="panel" style="margin-top:14px">
+                <div class="panel-head"><span class="t">物品与经济</span></div>
+                <div class="items">
+                  <a class="item" href="04-traders.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>商人信息<span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5v-7Z"/><path d="M3.5 8.5 12 13l8.5-4.5M12 13v7"/></svg>仓库库存<span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M15.5 11.5h5v3h-5a1.5 1.5 0 1 1 0-3Z"/></svg>口袋管理<span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>物品图鉴<span class="chev">›</span></a>
+                  <a class="item span2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>检视物品<span class="chev">›</span></a>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="panel single">
+                <div class="panel-head"><span class="t">维护与工具</span></div>
+                <div class="items">
+                  <a class="item has-cnt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4M12 16.8v.2"/></svg>问题检测<span class="cnt">3</span><span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M6 9v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9"/><path d="M12 12v4M10 14l2 2 2-2"/></svg>备份管理<span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>设置<span class="chev">›</span></a>
+                </div>
+              </div>
+              <div class="panel single" style="margin-top:14px">
+                <div class="panel-head"><span class="t">进度与任务</span></div>
+                <div class="items">
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="m9.5 13 2 2 3.5-3.5"/></svg>任务<span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 19h17L12 5 3.5 19Z"/><path d="m9.5 19 2.5-5 2.5 5"/></svg>藏身处<span class="chev">›</span></a>
+                  <a class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="18" r="1.8"/></svg>武器预设<span class="chev">›</span></a>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>设计说明（iOS 26 / macOS Tahoe 暗色重设计）</b>
+    <ol>
+      <li>本稿为视觉语言整体替换：功能点与信息架构与旧版 02 完全一致，17 个入口逐项保留，无增无减。</li>
+      <li>导航结构改为底部居中悬浮胶囊 dock（玻璃拟态 blur + 描边 + 投影）：品牌圆标 + 首页 / 角色 / 商人；服务器选择（01）仍为全窗独立屏，不并入 dock。</li>
+      <li>dock 悬浮于窗口底部中央（内容区底部留出 92px），选中项为白色玻璃胶囊按钮，图标转强调色；顶部为 Windows 11 风格标题栏（40px，与「首页」等内容留出间距），右侧平铺最小化 / 最大化 / 关闭（关闭悬停变红）。</li>
+      <li>档案概览卡：头像 + 档案 ID 可下拉切换 + 等级 / 派系；三种货币横排等宽数字展示，数值均为示意，生产端实读存档。</li>
+      <li>仪表台按 2×2 面板分组：角色数据 6 项 / 维护与工具 3 项 / 物品与经济 5 项 / 进度与任务 3 项，与旧稿逐一对应。</li>
+      <li>「问题检测」红色计数徽章为示意（3 项待处理），生产端由问题检测逻辑实算。</li>
+      <li>「返回服务器选择 / 保存修改」为主操作位；保存修改前自动备份。</li>
+      <li>窗口 chrome（Windows 11 标题栏、dock 底部居中悬浮）与 01 / 03 / 04 保持一致；缩放脚本仅预览用，生产端由 Electron 窗口接管。</li>
+    </ol>
+  </div>
+
+  <script>
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = stage.querySelector('.window');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      fit();
+      window.addEventListener('resize', fit);
+    })();
+  </script>
+</body>
+</html>

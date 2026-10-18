@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>15 · 设置</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Win11 窗口 chrome ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 底部 dock ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35;
+    display: flex; align-items: center; gap: 2px; padding: 6px;
+    background: var(--phx-glass); border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 19px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-width: 56px; height: 46px; border-radius: 10px; text-decoration: none;
+    transition: background .12s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  /* ===== 页头 ===== */
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  /* ===== 内容滚动区 ===== */
+  .scroll { flex: 1; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .pane { min-height: 100%; }
+  /* ===== 15：设置分组卡片（四组双列填满整页宽，右侧不再留白） ===== */
+  .sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; }
+  .scol { min-width: 0; }
+  .sgroup { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; margin-top: 16px; }
+  .sgroup-h { padding: 14px 18px 2px; font-size: 14.5px; font-weight: 700; }
+  .sgroup-sub { padding: 0 18px 12px; font-size: 11.5px; color: var(--phx-text-3); }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 18px; }
+  .srow + .srow, .sgroup-sub + .srow { border-top: .5px solid var(--phx-sep); }
+  .slabel { font-size: 13px; font-weight: 600; }
+  .sdesc { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; line-height: 1.5; }
+  .spath { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+  /* ===== 15：自绘开关（禁用原生 checkbox/ToggleSwitch） ===== */
+  .sw {
+    width: 40px; height: 24px; border-radius: 12px; flex: none; cursor: pointer;
+    background: var(--phx-fill-quaternary);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    position: relative; transition: background .15s;
+  }
+  .sw::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+    border-radius: 50%; background: rgba(255,255,255,.92); transition: transform .15s;
+  }
+  .sw.on { background: var(--phx-accent); box-shadow: none; }
+  .sw.on::after { transform: translateX(16px); }
+  /* ===== 15：自绘下拉（禁用原生 select） ===== */
+  .dd { position: relative; flex: none; }
+  .dd-btn {
+    height: 30px; min-width: 190px; padding: 0 10px 0 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--phx-fill-tertiary); border-radius: var(--phx-r-btn);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    font-size: 12.5px; color: var(--phx-text); font-family: inherit;
+  }
+  .dd-btn:hover { background: var(--phx-fill-quaternary); }
+  .dd-btn .arr { width: 8px; height: 8px; color: var(--phx-text-3); flex: none; }
+  .dd-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); min-width: 100%; z-index: 20;
+    background: var(--phx-surface-2); border-radius: 10px; padding: 4px; display: none;
+    box-shadow: 0 12px 32px rgba(0,0,0,.5), 0 0 0 .5px var(--phx-sep-strong);
+  }
+  .dd-menu.show { display: block; }
+  .dd-item { padding: 8px 12px; border-radius: 6px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .dd-item:hover { background: var(--phx-fill-tertiary); }
+  .dd-item.on { color: var(--phx-accent); background: var(--phx-accent-dim); font-weight: 600; }
+  /* ===== 15：设置行右侧按钮 ===== */
+  .mbtn {
+    height: 26px; padding: 0 12px; border: none; border-radius: var(--phx-r-btn); cursor: pointer;
+    font-size: 12px; font-weight: 600; background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: inline-flex; align-items: center; text-decoration: none; font-family: inherit;
+  }
+  .mbtn:hover { filter: brightness(1.15); }
+  .mbtn.ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .mbtn.danger { background: transparent; color: var(--phx-text-3); }
+  .mbtn.danger:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  /* ===== 15：自绘确认弹层与轻反馈 ===== */
+  .mask { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: none;
+    align-items: center; justify-content: center; }
+  .mask.show { display: flex; }
+  .dlg { width: 360px; background: var(--phx-surface-2); border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 .5px var(--phx-sep-strong); padding: 20px; }
+  .dlg-title { font-size: 15px; font-weight: 700; }
+  .dlg-text { font-size: 12.5px; color: var(--phx-text-2); margin-top: 8px; line-height: 1.6; }
+  .dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .dlg-btns .mbtn { height: 30px; padding: 0 16px; }
+  .dlg-btns .ok { background: var(--phx-accent); color: #fff; }
+  .dlg-btns .ok.danger { background: var(--phx-danger); }
+  .toast { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%) translateY(8px); z-index: 50;
+    background: var(--phx-glass); border: .5px solid var(--phx-sep-strong); border-radius: 10px;
+    padding: 8px 16px; font-size: 12.5px; color: var(--phx-text); opacity: 0; pointer-events: none;
+    transition: opacity .18s, transform .18s; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock：第 9 项「设置」为本屏（拍板：参考的弹窗形态改为 dock 页签，与前 14 屏导航统一） -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+        <a href="09-stash.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+          <span class="lbl">仓库</span>
+        </a>
+        <a href="12-presets.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg>
+          <span class="lbl">预设</span>
+        </a>
+        <a href="14-backup.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          <span class="lbl">备份</span>
+        </a>
+        <a class="on" href="15-settings.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="lbl">设置</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">设置</div>
+            <div class="head-meta">改动即时生效并自动保存，无需手动保存</div>
+          </div>
+          <!-- 诚实原则：设置即时落盘（对应参考 NotifyPropertyChangedAndSave），页头不设「保存」按钮 -->
+        </div>
+
+        <div class="scroll">
+          <div class="pane sgrid">
+            <div class="scol">
+
+            <!-- 组 1 · 通用（参考 tab_settings_main：语言 + 检查更新；颜色主题按视觉基线「仅暗色」砍掉，语言编辑器一期不做） -->
+            <section class="sgroup">
+              <div class="sgroup-h">通用</div>
+              <div class="sgroup-sub">界面语言与更新提醒</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">界面语言</div>
+                  <div class="sdesc">切换后立即生效</div>
+                </div>
+                <div class="dd" data-dd>
+                  <button class="dd-btn" type="button"><span class="dd-val">简体中文</span><svg class="arr" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5 7 2.5" stroke="currentColor" fill="none" stroke-linecap="round"/></svg></button>
+                  <div class="dd-menu">
+                    <div class="dd-item on">简体中文</div>
+                    <div class="dd-item">English</div>
+                  </div>
+                </div>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">检查更新</div>
+                  <div class="sdesc">启动时检查新版本，有更新时提醒</div>
+                </div>
+                <div class="sw on" data-sw role="switch" aria-checked="true" aria-label="检查更新" tabindex="0"></div>
+              </div>
+            </section>
+
+            <!-- 组 2 · 服务器与账号（拍板：01 屏职责去重，此处只读 + 跳转；对应参考 tab_settings_server / tab_settings_account） -->
+            <section class="sgroup">
+              <div class="sgroup-h">服务器与账号</div>
+              <div class="sgroup-sub">更换服务器目录或账号会回到启动选择页</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">服务器目录</div>
+                  <div class="spath" id="cur-server">D:\Games\SPT-AKI-4.0.1</div>
+                </div>
+                <a class="mbtn ghost" href="01-server-select.html">更换</a>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">当前账号</div>
+                  <div class="spath" id="cur-account">silent [default.json]</div>
+                </div>
+                <a class="mbtn ghost" href="01-server-select.html">更换</a>
+              </div>
+            </section>
+            </div>
+            <div class="scol">
+
+            <!-- 组 3 · 存档编辑行为（参考 tab_settings_additional：两个自动补全开关 + 问题处理三态，三态从第 13 屏接入） -->
+            <section class="sgroup">
+              <div class="sgroup-h">存档编辑行为</div>
+              <div class="sgroup-sub">打开存档时的自动补全与问题处理方式</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">自动补全武器专精</div>
+                  <div class="sdesc">把服务器数据库里有、而存档里缺失的武器专精自动补全</div>
+                </div>
+                <div class="sw on" data-sw role="switch" aria-checked="true" aria-label="自动补全武器专精" tabindex="0"></div>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">自动补全 Scav 技能</div>
+                  <div class="sdesc">把服务器数据库里有、而存档里缺失的 Scav 技能自动补全</div>
+                </div>
+                <div class="sw on" data-sw role="switch" aria-checked="true" aria-label="自动补全 Scav 技能" tabindex="0"></div>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">存档问题处理方式</div>
+                  <div class="sdesc">打开存档时发现问题的默认处理方式</div>
+                </div>
+                <div class="dd" data-dd>
+                  <button class="dd-btn" type="button"><span class="dd-val">询问我如何处理</span><svg class="arr" viewBox="0 0 8 8"><path d="M1 2.5 4 5.5 7 2.5" stroke="currentColor" fill="none" stroke-linecap="round"/></svg></button>
+                  <div class="dd-menu">
+                    <div class="dd-item on">询问我如何处理</div>
+                    <div class="dd-item">自动修复</div>
+                    <div class="dd-item">自动忽略</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- 组 4 · 维护（参考 tab_settings_troubleshooting：打开数据文件夹 + 重置设置；「重置语言文件」砍掉——语言包随应用打包，无用户语言目录可重置） -->
+            <section class="sgroup">
+              <div class="sgroup-h">维护</div>
+              <div class="sgroup-sub">数据位置与设置重置</div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">打开数据文件夹</div>
+                  <div class="sdesc">存放本工具配置与日志的位置</div>
+                </div>
+                <button class="mbtn ghost" type="button" id="btn-appdata">打开</button>
+              </div>
+              <div class="srow">
+                <div>
+                  <div class="slabel">重置设置</div>
+                  <div class="sdesc">把所有设置恢复为默认值，应用会自动重启</div>
+                </div>
+                <button class="mbtn danger" type="button" id="btn-reset">重置…</button>
+              </div>
+            </section>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自绘确认弹层（禁用原生 confirm）与轻反馈 -->
+        <div class="mask" id="mask">
+          <div class="dlg">
+            <div class="dlg-title" id="dlg-title"></div>
+            <div class="dlg-text" id="dlg-text"></div>
+            <div class="dlg-btns">
+              <button class="mbtn ghost" type="button" id="dlg-cancel">取消</button>
+              <button class="mbtn ok" type="button" id="dlg-ok">确定</button>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toast"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>15 · 设置 — 设计说明</b><br>
+    1. <b>形态与入口</b>：参考编辑器的「设置」是顶栏齿轮按钮弹出的弹窗（左列四子页 + 底部关闭）。已拍板改为 dock 第 9 项「设置」整页，与前 14 屏页签导航统一；参考的四个子页改为页内四组卡片，底部「退出程序 / 关闭」按钮随之取消（页签制下由窗口标题栏与 dock 承担）。<br>
+    2. <b>服务器与账号去重</b>：参考在设置里可改服务器路径（文件夹校验 + 逐项修正对话框）和重选账号；本屏已拍板去重——只读展示当前值，「更换」跳回 01 启动选择页，选择与校验逻辑只在 01 屏实现一次。<br>
+    3. <b>辅助 Mod 区块砍掉</b>：参考的「帮助模组」（安装服务器端 Mod 生成帮助数据库）是参考架构特有方案，本应用为独立桌面应用、架构不同，不在范围。<br>
+    4. <b>颜色主题下拉砍掉</b>：参考提供多套配色方案；视觉基线声明本项目仅暗色主题，不提供主题切换。<br>
+    5. <b>语言编辑器不做</b>：参考语言下拉旁有「编辑 / 新增语言」按钮（打开完整的多语言编辑对话框）；一期仅保留语言切换（简体中文 / English），编辑器不在范围。<br>
+    6. <b>「重置语言文件」砍掉</b>：参考的排障组有「重置本地化」（删除用户语言包目录后重启）；本应用语言包随应用打包，无用户语言目录可重置，故维护组只保留「打开数据文件夹」与「重置设置」。<br>
+    7. <b>即时保存语义</b>：参考每个设置项改动立即写入配置文件（属性 setter 即保存）；本屏沿用——页头不设保存按钮，每次改动给轻反馈。<br>
+    8. <b>问题处理三态</b>（询问我如何处理 / 自动修复 / 自动忽略）与第 13 屏「设置以上为默认选择」联动：此处即 13 屏预告的全局默认值。<br>
+    9. <b>原生件禁用</b>：下拉与开关均为自绘（原生 select / checkbox 禁用清单）；重置确认用自绘弹层，确认钮为危险红。<br>
+    10. <b>待确认</b>：dock 第 9 项增设后，其余 8 屏稿图的 dock 需同步补「设置」入口（收尾统一处理）；自动补全两个开关的出厂默认值以实现阶段真实默认为准。<br>
+    11. <b>双列布局</b>（2026-10-17 复验修订）：单列限宽 680 右侧留白过大，四组卡片改双列填满整页宽——左列「通用 + 服务器与账号」、右列「存档编辑行为 + 维护」，顶部对齐、两列各自成组。
+  </div>
+
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+
+    // 轻反馈：设置即时保存（对应参考 NotifyPropertyChangedAndSave）
+    var toastTimer = null;
+    function toast(msg) {
+      $('toast').textContent = msg;
+      $('toast').classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 1800);
+    }
+
+    // 自绘开关：点击 / 空格 / 回车切换，改动即保存
+    document.querySelectorAll('[data-sw]').forEach(function (sw) {
+      function toggle() {
+        var on = sw.classList.toggle('on');
+        sw.setAttribute('aria-checked', on ? 'true' : 'false');
+        toast('已保存');
+      }
+      sw.addEventListener('click', toggle);
+      sw.addEventListener('keydown', function (e) {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+      });
+    });
+
+    // 自绘下拉：开合与选择（点空白关闭；选中项标色，改动即保存）
+    document.querySelectorAll('[data-dd]').forEach(function (dd) {
+      var btn = dd.querySelector('.dd-btn');
+      var menu = dd.querySelector('.dd-menu');
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = menu.classList.contains('show');
+        document.querySelectorAll('.dd-menu.show').forEach(function (m) { m.classList.remove('show'); });
+        if (!open) menu.classList.add('show');
+      });
+      menu.addEventListener('click', function (e) {
+        var item = e.target.closest('.dd-item');
+        if (!item) return;
+        menu.querySelectorAll('.dd-item').forEach(function (i) { i.classList.remove('on'); });
+        item.classList.add('on');
+        dd.querySelector('.dd-val').textContent = item.textContent;
+        menu.classList.remove('show');
+        toast('已保存');
+      });
+    });
+    document.addEventListener('click', function () {
+      document.querySelectorAll('.dd-menu.show').forEach(function (m) { m.classList.remove('show'); });
+    });
+
+    // 打开数据文件夹（示意）
+    $('btn-appdata').addEventListener('click', function () {
+      toast('已在文件管理器中打开数据文件夹');
+    });
+
+    // 自绘确认弹层：重置设置（确认钮危险红，对应参考 DeleteSettings + 重启）
+    var dlgOk = null;
+    function openDlg(title, text, okText, danger, onOk) {
+      $('dlg-title').textContent = title;
+      $('dlg-text').textContent = text;
+      var ok = $('dlg-ok');
+      ok.textContent = okText;
+      ok.classList.toggle('danger', danger);
+      $('mask').classList.add('show');
+      dlgOk = onOk;
+    }
+    $('dlg-cancel').addEventListener('click', function () { $('mask').classList.remove('show'); dlgOk = null; });
+    $('mask').addEventListener('click', function (e) { if (e.target === $('mask')) { $('mask').classList.remove('show'); dlgOk = null; } });
+    $('dlg-ok').addEventListener('click', function () {
+      $('mask').classList.remove('show');
+      var fn = dlgOk; dlgOk = null;
+      if (fn) fn();
+    });
+
+    $('btn-reset').addEventListener('click', function () {
+      openDlg('重置设置',
+        '所有设置将恢复为默认值，应用随后自动重启。此操作无法撤销。',
+        '重置', true,
+        function () {
+          // 示意：恢复默认态（全部开关开、下拉回到第一项）
+          document.querySelectorAll('[data-sw]').forEach(function (sw) {
+            sw.classList.add('on');
+            sw.setAttribute('aria-checked', 'true');
+          });
+          document.querySelectorAll('[data-dd]').forEach(function (dd) {
+            var items = dd.querySelectorAll('.dd-item');
+            items.forEach(function (i) { i.classList.remove('on'); });
+            items[0].classList.add('on');
+            dd.querySelector('.dd-val').textContent = items[0].textContent;
+          });
+          toast('设置已重置，应用即将重启');
+        });
+    });
+  </script>
+</body>
+</html>

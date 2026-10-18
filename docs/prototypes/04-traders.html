@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 04 · 商人（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：忠诚等级/声望/累计销售/跳蚤评分均为示意，生产端实读存档 traders 模块 -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;
+    --phx-surface: #1c1c1e;
+    --phx-surface-2: #2c2c2e;
+    --phx-fill-tertiary: rgba(118,118,128,.24);
+    --phx-fill-quaternary: rgba(118,118,128,.18);
+    --phx-glass: rgba(255,255,255,.12);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-bar-h: 36px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Windows 11 标题栏 + 底部居中胶囊 dock ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center;
+    padding-left: 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 24px 24px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+  .scroll { flex: 1; overflow: auto; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* ===== 按钮（iOS 26：填充胶囊 + 着色胶囊） ===== */
+  .btn { height: 32px; padding: 0 14px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary { background: var(--phx-accent); color: #fff; font-weight: 600; }
+  /* ===== 商人网格 3×3 ===== */
+  .grid { margin-top: 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  /* ===== 商人卡 ===== */
+  .tcard { background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 12px 14px; min-width: 0; display: flex; flex-direction: column; }
+  .tcard-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
+  .tav {
+    width: 38px; height: 38px; flex: none; border-radius: 50%;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700;
+  }
+  .tinfo { flex: 1; min-width: 0; }
+  .tinfo .nm { font-size: 14px; font-weight: 600; color: var(--phx-text); }
+  .tinfo .en { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); margin-top: 1px; }
+  /* ===== 解锁开关（iOS 26 toggle 51×31，蓝 ON） ===== */
+  .tg { position: relative; flex: none; width: 51px; height: 31px; border: none; border-radius: 16px; background: var(--phx-fill-tertiary); cursor: pointer; transition: background .2s; }
+  .tg::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.35); transition: transform .2s;
+  }
+  .tg.on { background: var(--phx-accent); }
+  .tg.on::after { transform: translateX(20px); }
+  /* ===== 商人字段行：忠诚等级（步进）/ 声望 / 累计销售 ===== */
+  .trow { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+  .trow + .trow { border-top: .5px solid var(--phx-sep); }
+  .trow .k { flex: none; width: 60px; font-size: 13px; color: var(--phx-text-2); }
+  .mval {
+    flex: 1; min-width: 0; height: 30px; padding: 0 8px; text-align: right;
+    border: none; outline: none; border-radius: 7px;
+    background: var(--phx-fill-tertiary); color: var(--phx-text);
+    font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 13px;
+    transition: box-shadow .15s;
+  }
+  .mval:focus { box-shadow: 0 0 0 3px var(--phx-accent-dim); }
+  /* 等级步进器（iOS 26：94×29） */
+  .stepper { margin-left: auto; display: flex; width: 94px; height: 29px; background: var(--phx-fill-tertiary); border-radius: 8px; overflow: hidden; }
+  .stepper button { flex: 1; border: none; background: transparent; color: var(--phx-text); font-size: 16px; line-height: 1; cursor: pointer; }
+  .stepper .val { min-width: 30px; display: flex; align-items: center; justify-content: center; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 14px; border-left: .5px solid var(--phx-sep-strong); border-right: .5px solid var(--phx-sep-strong); }
+  .stepper button:active { background: var(--phx-fill-quaternary); }
+  .rng { flex: none; font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); }
+  /* 开关关闭：字段一并禁用（示意态） */
+  .tcard.locked .mval, .tcard.locked .stepper { opacity: .35; pointer-events: none; }
+  /* ===== 跳蚤市场卡（第 9 格，无解锁开关） ===== */
+  .hint { padding: 8px 0 2px; font-size: 11px; color: var(--phx-text-3); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a class="on" href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">商人</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载</div>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-primary" type="button" id="btn-max">全部拉满</button>
+          </div>
+        </div>
+        <div class="scroll">
+          <div class="grid">
+            <!-- 帕拉普尔 Prapor -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">П</span>
+                <div class="tinfo"><div class="nm">帕拉普尔</div><div class="en">Prapor</div></div>
+                <button class="tg on" type="button" aria-label="帕拉普尔 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">2</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="0.84"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="3,240,000"></div>
+            </section>
+            <!-- 医师 Therapist -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">Т</span>
+                <div class="tinfo"><div class="nm">医师</div><div class="en">Therapist</div></div>
+                <button class="tg on" type="button" aria-label="医师 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">3</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="1.62"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="5,880,000"></div>
+            </section>
+            <!-- 滑雪者 Skier -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">S</span>
+                <div class="tinfo"><div class="nm">滑雪者</div><div class="en">Skier</div></div>
+                <button class="tg on" type="button" aria-label="滑雪者 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">2</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="0.35"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="1,950,000"></div>
+            </section>
+            <!-- 维和者 Peacekeeper -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">P</span>
+                <div class="tinfo"><div class="nm">维和者</div><div class="en">Peacekeeper</div></div>
+                <button class="tg on" type="button" aria-label="维和者 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">2</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="0.58"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="2,410,000"></div>
+            </section>
+            <!-- 机械师 Mechanic -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">M</span>
+                <div class="tinfo"><div class="nm">机械师</div><div class="en">Mechanic</div></div>
+                <button class="tg on" type="button" aria-label="机械师 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">1</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="0.12"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="560,000"></div>
+            </section>
+            <!-- 拾荒者 Ragman -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">R</span>
+                <div class="tinfo"><div class="nm">拾荒者</div><div class="en">Ragman</div></div>
+                <button class="tg on" type="button" aria-label="拾荒者 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">2</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="0.44"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="1,720,000"></div>
+            </section>
+            <!-- 猎人 Jaeger -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">J</span>
+                <div class="tinfo"><div class="nm">猎人</div><div class="en">Jaeger</div></div>
+                <button class="tg on" type="button" aria-label="猎人 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">1</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="-0.20"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="180,000"></div>
+            </section>
+            <!-- 黑商 Fence（改动自动同步 Scav 名下同 ID 商人） -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">F</span>
+                <div class="tinfo"><div class="nm">黑商</div><div class="en">Fence</div></div>
+                <button class="tg on" type="button" aria-label="黑商 解锁"></button>
+              </div>
+              <div class="trow">
+                <span class="k">忠诚等级</span>
+                <div class="stepper"><button>−</button><span class="val">1</span><button>+</button></div>
+                <span class="rng">1 – 4</span>
+              </div>
+              <div class="trow"><span class="k">声望</span><input class="mval" value="0.06"></div>
+              <div class="trow"><span class="k">累计销售</span><input class="mval" value="0"></div>
+            </section>
+            <!-- 跳蚤市场 Ragfair（对应存档跳蚤评分；无解锁开关） -->
+            <section class="tcard">
+              <div class="tcard-head">
+                <span class="tav">跳</span>
+                <div class="tinfo"><div class="nm">跳蚤市场</div><div class="en">Ragfair</div></div>
+              </div>
+              <div class="trow"><span class="k">评分</span><input class="mval" value="0.42"></div>
+              <div class="hint">范围 −20 起 · 精度 0.01 · 对应存档跳蚤评分</div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 设计说明（供评审，不进入生产代码） -->
+  <div class="notes">
+    <b>04 · 商人 —— iOS 26 暗色重设计说明</b><br>
+    1. 本稿为旧 04 稿的视觉整体替换：8 商人卡 + 跳蚤市场卡逐项保留（中英文名、忠诚等级、声望、累计销售、解锁开关），仅换用 iOS 26 / macOS Tahoe Liquid Glass 视觉语言。<br>
+    2. 解锁开关为 iOS 26 toggle（51×31，ON 用强调色蓝）；关闭时该卡忠诚等级 / 声望 / 累计销售一并禁用（示意态）。<br>
+    3. 忠诚等级用 iOS 26 步进器（94×29），范围 1 – 4 为示意；上限 = 服务器 base.json 忠诚段数量，生产端实算。<br>
+    4. 「全部拉满」：等级推到各自上限并解锁全部；生产端还需联动声望 / 累计销售达标（见参考编辑器实现）。<br>
+    5. 不设 PMC / Scav 页签：参考编辑器对 Scav 商人无编辑入口（诚实原则，不画没有的能力）；黑商 Fence 的改动生产端会自动同步 Scav 名下同 ID 商人。<br>
+    6. 跳蚤市场卡无解锁开关，仅评分数值（范围 −20 起 · 精度 0.01），对应存档跳蚤评分。<br>
+    7. 导航为底部居中悬浮胶囊 dock（玻璃拟态，内容区底部留出 92px），选中项为白色玻璃胶囊按钮；顶部为 Windows 11 风格标题栏（右侧最小化 / 最大化 / 关闭，关闭悬停变红），与内容留出间距。dock 与窗口 chrome 在 01 / 02 / 03 / 04 一致（01 服务器选择为全窗独立屏，不并入 dock）；缩放脚本仅预览用。
+  </div>
+
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+    // 交互演示：解锁开关（关闭时字段一并禁用）
+    document.querySelectorAll('.tcard').forEach(function (card) {
+      var sw = card.querySelector('.tg');
+      if (sw) sw.addEventListener('click', function () {
+        sw.classList.toggle('on');
+        card.classList.toggle('locked', !sw.classList.contains('on'));
+      });
+    });
+    // 等级步进（范围 1 – 4 为示意，上限生产端按服务器忠诚段实算）
+    document.querySelectorAll('.tcard').forEach(function (card) {
+      var stepper = card.querySelector('.stepper');
+      var rng = card.querySelector('.rng');
+      if (!stepper || !rng) return;
+      var parts = rng.textContent.split('–');
+      var min = parseInt(parts[0].trim(), 10);
+      var max = parseInt(parts[1].trim(), 10);
+      var val = stepper.querySelector('.val');
+      var btns = stepper.querySelectorAll('button');
+      btns[0].addEventListener('click', function () { val.textContent = Math.max(min, parseInt(val.textContent, 10) - 1); });
+      btns[1].addEventListener('click', function () { val.textContent = Math.min(max, parseInt(val.textContent, 10) + 1); });
+    });
+    // 全部拉满演示：等级推到各自上限、解锁全部（生产端还需联动声望/销售额达标，见参考实现）
+    document.getElementById('btn-max').addEventListener('click', function () {
+      document.querySelectorAll('.tcard').forEach(function (card) {
+        var rng = card.querySelector('.rng');
+        if (rng) card.querySelector('.stepper .val').textContent = parseInt(rng.textContent.split('–')[1].trim(), 10);
+        var sw = card.querySelector('.tg');
+        if (sw) { sw.classList.add('on'); card.classList.remove('locked'); }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>14 · 备份</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Win11 窗口 chrome ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 底部 dock ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(28,28,30,.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    border: .5px solid rgba(255,255,255,.14);
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    padding: 8px 10px;
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+  }
+  .dock-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--phx-accent); color: #fff;
+    font-size: 17px; font-weight: 800; font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+  }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    width: 56px; padding: 7px 0 6px; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; transition: background .15s;
+  }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列（底部为 dock 留出悬浮空间） ===== */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  /* ===== 页头与工具栏 ===== */
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .btn {
+    height: 32px; padding: 0 16px; border-radius: var(--phx-r-btn); border: none; cursor: pointer;
+    font-size: 12.5px; font-family: inherit; font-weight: 600;
+    background: var(--phx-accent); color: #fff;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn-ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .btn svg { width: 14px; height: 14px; }
+  /* ===== 内容滚动区（隐藏滚动条，保留滚动） ===== */
+  .scroll { flex: 1; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .pane { min-height: 100%; }
+  .qcard { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .empty { padding: 44px 0; text-align: center; color: var(--phx-text-3); font-size: 13px; }
+  .acts { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .tfoot { padding: 12px 14px; text-align: center; font-size: 11px; color: var(--phx-text-3); }
+  /* ===== 14：备份列表（两列：日期 / 执行，参考 BackupsTab DataGrid） ===== */
+  .bhead { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 10px 16px;
+    border-bottom: .5px solid var(--phx-sep); font-size: 11.5px; font-weight: 600; color: var(--phx-text-3); }
+  .brow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; }
+  .brow + .brow { border-top: .5px solid var(--phx-sep); }
+  .bdate { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bbtn { height: 26px; padding: 0 12px; border: none; border-radius: var(--phx-r-btn); cursor: pointer;
+    font-size: 12px; font-weight: 600; background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .bbtn.danger { background: transparent; color: var(--phx-text-3); }
+  .bbtn.danger:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  /* ===== 14：自绘确认弹层与轻反馈 ===== */
+  .mask { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: none;
+    align-items: center; justify-content: center; }
+  .mask.show { display: flex; }
+  .dlg { width: 360px; background: var(--phx-surface-2); border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 .5px var(--phx-sep-strong); padding: 20px; }
+  .dlg-title { font-size: 15px; font-weight: 700; }
+  .dlg-text { font-size: 12.5px; color: var(--phx-text-2); margin-top: 8px; line-height: 1.6; }
+  .dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .toast { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%) translateY(8px); z-index: 50;
+    background: var(--phx-glass); border: .5px solid var(--phx-sep-strong); border-radius: 10px;
+    padding: 8px 16px; font-size: 12.5px; color: var(--phx-text); opacity: 0; pointer-events: none;
+    transition: opacity .18s, transform .18s; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window" id="win">
+      <!-- Windows 11 标题栏：左置应用名（拖拽区），右置最小化 / 最大化 / 关闭 -->
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- 底部居中悬浮胶囊 dock：备份场景；第 8 项「备份」为本屏提案（参考编辑器中 Backups 是独立顶级页签），待拍板，备选=并入首页域 -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+        <a href="09-stash.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+          <span class="lbl">仓库</span>
+        </a>
+        <a href="12-presets.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg>
+          <span class="lbl">预设</span>
+        </a>
+        <a class="on" href="14-backup.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          <span class="lbl">备份</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">备份</div>
+            <div class="head-meta">SPT 4.0.1 · 档案已加载 · 每次保存修改时自动留一份当时的存档，可随时回到那个时间点</div>
+          </div>
+          <!-- 诚实原则：参考实现没有「手动备份」入口（备份只随保存生成），页头动作区不设任何按钮 -->
+        </div>
+
+        <div class="scroll">
+          <div class="pane" id="pane-b">
+            <div class="qcard" style="margin-top:16px">
+              <div class="bhead"><span>日期</span><span>执行</span></div>
+              <div id="blist">
+                <div class="brow">
+                  <div class="bdate">17.10.2026 09:42:15</div>
+                  <div class="acts">
+                    <button class="bbtn" type="button" data-act="restore">回档</button>
+                    <button class="bbtn danger" type="button" data-act="remove">删除</button>
+                  </div>
+                </div>
+                <div class="brow">
+                  <div class="bdate">17.10.2026 08:15:03</div>
+                  <div class="acts">
+                    <button class="bbtn" type="button" data-act="restore">回档</button>
+                    <button class="bbtn danger" type="button" data-act="remove">删除</button>
+                  </div>
+                </div>
+                <div class="brow">
+                  <div class="bdate">16.10.2026 22:07:48</div>
+                  <div class="acts">
+                    <button class="bbtn" type="button" data-act="restore">回档</button>
+                    <button class="bbtn danger" type="button" data-act="remove">删除</button>
+                  </div>
+                </div>
+                <div class="brow">
+                  <div class="bdate">16.10.2026 13:31:26</div>
+                  <div class="acts">
+                    <button class="bbtn" type="button" data-act="restore">回档</button>
+                    <button class="bbtn danger" type="button" data-act="remove">删除</button>
+                  </div>
+                </div>
+                <div class="brow">
+                  <div class="bdate">15.10.2026 19:55:10</div>
+                  <div class="acts">
+                    <button class="bbtn" type="button" data-act="restore">回档</button>
+                    <button class="bbtn danger" type="button" data-act="remove">删除</button>
+                  </div>
+                </div>
+              </div>
+              <div class="empty" id="bempty" style="display:none">没有备份<br>保存修改后会自动生成</div>
+            </div>
+            <div class="tfoot" id="b-foot" style="margin-top:12px">示意数据，正式版读取备份文件夹（按存档名分目录、按时间倒序）</div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 自绘确认弹层：删除 / 回档两类动作共用（禁用原生 confirm/alert，对应参考 remove_backup_dialog / restore_backup_dialog）；确认钮颜色按动作切换 -->
+      <div class="mask" id="mask">
+        <div class="dlg">
+          <div class="dlg-title" id="dlg-title"></div>
+          <div class="dlg-text" id="dlg-text"></div>
+          <div class="dlg-btns">
+            <button class="btn btn-ghost" type="button" id="dlg-cancel">取消</button>
+            <button class="btn" type="button" id="dlg-ok">删除</button>
+          </div>
+        </div>
+      </div>
+      <!-- 轻反馈：回档成功 / 删除成功使用 toast，不放假开关 -->
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="notes">
+      <b>14 · 备份</b><br>
+      1. <b>形态与入口</b>：参考编辑器中「备份」是顶级页签（Backups），本稿提案在 dock 增设第 8 项「备份」（时钟回转图标）并高亮；备选方案 = 并入「首页」域。请拍板后定稿。<br>
+      2. <b>备份来源唯一</b>：备份只在「保存修改」时自动生成（参考实现没有手动备份入口），故页头动作区不设任何按钮——诚实原则，不画假开关。<br>
+      3. <b>两列表格</b>：与参考 DataGrid 同构——「日期」列（dd.MM.yyyy HH:mm:ss，对应参考 FormatedDate 口径；参考中文版把列头译作「数据」属翻译瑕疵，本稿按语义用「日期」）+「执行」列（每行两动作：回档 / 删除）。<br>
+      4. <b>回档语义</b>：确认后把当时的存档复制回来（覆盖当前存档）并消耗这份备份，随后重新加载存档——当前未保存的修改会丢，弹层里已说明；成功后提示「已回档，存档已重新加载」。<br>
+      5. <b>删除语义</b>：确认后仅删除这份备份，不影响当前存档；列表删空后显示空态「没有备份 / 保存修改后会自动生成」（对应参考空态遮罩「没有这样的备份」）。<br>
+      6. <b>确认弹窗</b>：删除 / 回档都走自绘确认弹层（禁用原生弹窗），文案对应参考「你真的想删除这个备份吗？/ 你真的想回到这个存档点吗？」按平实中文微调；确认钮颜色按动作切换（删除 = 红、回档 = 主题色）。<br>
+      7. <b>与第 13 屏联动</b>：第 13 屏「自动修复存档问题」在写入前同样先落一份备份，修坏了可回这里一键回到修复前。<br>
+      8. <b>示意说明</b>：本稿为静态示意，5 条备份为样例数据（按时间倒序）；正式版读取备份文件夹——按存档名分目录、按时间倒序展示。
+    </div>
+
+  <script>
+    // 预览缩放：窗口按容器宽度等比缩小，仅稿图预览用
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = document.getElementById('win');
+      function fit() {
+        var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+
+    var $ = function (id) { return document.getElementById(id); };
+
+    // 自绘确认弹层与轻反馈（禁用原生 confirm/alert，对应参考 remove_backup_dialog / restore_backup_dialog）
+    // 确认钮文字与颜色按动作切换：删除 = 红、回档 = 主题色
+    var dlgOk = null;
+    function openDlg(title, text, okText, okColor, onOk) {
+      $('dlg-title').textContent = title;
+      $('dlg-text').textContent = text;
+      var ok = $('dlg-ok');
+      ok.textContent = okText;
+      ok.style.background = okColor;
+      $('mask').classList.add('show');
+      dlgOk = onOk;
+    }
+    $('dlg-cancel').addEventListener('click', function () { $('mask').classList.remove('show'); dlgOk = null; });
+    $('mask').addEventListener('click', function (e) { if (e.target === $('mask')) { $('mask').classList.remove('show'); dlgOk = null; } });
+    $('dlg-ok').addEventListener('click', function () {
+      $('mask').classList.remove('show');
+      var fn = dlgOk; dlgOk = null;
+      if (fn) fn();
+    });
+    var toastTimer = null;
+    function toast(msg) {
+      $('toast').textContent = msg;
+      $('toast').classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 1800);
+    }
+
+    // 列表删空后显示空态（对应参考 HasBackups=false 整页遮罩「没有这样的备份」）
+    function syncEmpty() {
+      var has = $('blist').querySelector('.brow');
+      $('bempty').style.display = has ? 'none' : '';
+    }
+
+    // 备份列表委托：回档 / 删除都先确认再动（示意：确认后移除该行并提示结果）
+    $('blist').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      var row = btn.closest('.brow');
+      if (btn.dataset.act === 'restore') {
+        openDlg('回档',
+          '回到这个备份的时间点吗？当前存档里未保存的修改会丢失，回档后这份备份也会随之消耗。',
+          '回档', 'var(--phx-accent)',
+          function () {
+            row.remove(); syncEmpty();
+            toast('已回档，存档已重新加载');
+          });
+      } else if (btn.dataset.act === 'remove') {
+        openDlg('删除备份',
+          '确定要删除这份备份吗？删除后无法恢复。',
+          '删除', 'var(--phx-danger)',
+          function () {
+            row.remove(); syncEmpty();
+            toast('备份已删除');
+          });
+      }
+    });
+
+  </script>
+</body>
+</html>
+</content>

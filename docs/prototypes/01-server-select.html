@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 01 · 服务器选择（iOS 26 暗色重设计）</title>
+<!-- 示意数据说明：服务器目录、存档数量、缺失原因等均为示意，生产端实读系统与存档 -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --phx-win-bg: #000;                              /* 窗口底：纯黑 */
+    --phx-surface: #1c1c1e;                          /* 卡面 / 分组列表 */
+    --phx-surface-2: #2c2c2e;                        /* 次级材质 */
+    --phx-fill-tertiary: rgba(118,118,128,.24);      /* 控件默认底 */
+    --phx-fill-quaternary: rgba(118,118,128,.18);    /* 悬停底 */
+    --phx-glass: rgba(255,255,255,.12);              /* 侧栏选中玻璃 */
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: #38383a;                       /* 0.5pt 分隔线（暗） */
+    --phx-text: #ffffff;
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;                           /* iOS 蓝（暗） */
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.15);
+    --phx-red: #ff453a;
+    --phx-red-dim: rgba(255,69,58,.15);
+    --phx-yellow: #ffd60a;
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-bar-h: 36px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  body {
+    min-height: 100vh;
+    background: #0b0b0e;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  /* ===== Windows 11 标题栏：36px 模糊材质 + 右侧最小化 / 最大化 / 关闭 ===== */
+  .titlebar {
+    height: var(--phx-bar-h); flex: none; position: relative;
+    background: rgba(30,30,30,.85);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border-bottom: .5px solid var(--phx-sep);
+    display: flex; align-items: center; justify-content: center;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .capbtns { position: absolute; right: 0; top: 0; bottom: 0; display: flex; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  .tb-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; color: rgba(255,255,255,.85); }
+  /* ===== 内容列 ===== */
+  .content {
+    flex: 1; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+    padding: 50px 0 26px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 28px; }
+  .wordmark { font-size: 30px; font-weight: 800; font-style: italic; letter-spacing: -.5px; color: var(--phx-accent); }
+  .brand-sub { font-size: 14px; font-weight: 600; color: var(--phx-text-2); }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .lede { font-size: 15px; color: var(--phx-text-2); margin-top: 8px; }
+  /* ===== 服务器列表：inset grouped 卡 ===== */
+  .list-card { width: 720px; margin-top: 30px; background: var(--phx-surface); border-radius: var(--phx-r-card); }
+  .srow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 16px; }
+  .srow + .srow::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--phx-sep-strong); }
+  .s-name { font-size: 17px; font-weight: 600; letter-spacing: -.3px; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+  .badge.ok { color: var(--phx-green); background: var(--phx-green-dim); }
+  .badge.bad { color: var(--phx-red); background: var(--phx-red-dim); }
+  .s-path { font-family: "SF Mono", ui-monospace, Consolas, monospace; font-size: 13px; color: var(--phx-text-2); margin-top: 5px; }
+  .s-meta { font-size: 13px; margin-top: 7px; }
+  .s-meta.ok { color: var(--phx-green); }
+  .s-meta.bad { color: var(--phx-red); }
+  .s-actions { display: flex; gap: 6px; flex: none; }
+  .btn { height: 32px; padding: 0 15px; border: none; border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: filter .15s; }
+  .btn-primary { background: var(--phx-accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-ghost-red { background: transparent; color: var(--phx-red); }
+  .btn-ghost-red:hover { background: var(--phx-red-dim); }
+  .btn[disabled] { background: var(--phx-fill-tertiary); color: var(--phx-text-3); cursor: default; }
+  /* ===== 虚线添加卡 ===== */
+  .add-card {
+    width: 720px; height: 56px; margin-top: 12px;
+    border: 1.5px dashed rgba(255,255,255,.28); border-radius: var(--phx-r-card);
+    background: transparent; color: var(--phx-text-2);
+    font-family: inherit; font-size: 15px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    cursor: pointer; transition: border-color .15s, color .15s;
+  }
+  .add-card:hover { border-color: var(--phx-accent); color: var(--phx-accent); }
+  .footer { margin-top: auto; font-size: 12px; color: var(--phx-text-3); display: flex; gap: 8px; align-items: center; }
+  .footer .sep { opacity: .5; }
+  /* ===== 附：移除确认弹层静态预览（自绘 Alert 270pt） ===== */
+  .modal-demo { width: 760px; margin-top: 36px; }
+  .modal-demo h2 { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+  .modal-mask {
+    height: 230px; border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,.15); background: rgba(255,255,255,.03);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .alert {
+    width: 270px; border-radius: 14px; overflow: hidden; text-align: center;
+    background: rgba(44,44,46,.92);
+    -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .alert-ico { margin-top: 18px; display: flex; justify-content: center; }
+  .alert h3 { font-size: 15px; font-weight: 600; margin-top: 8px; }
+  .alert p { font-size: 13px; line-height: 1.45; color: var(--phx-text-2); margin: 6px 16px 16px; }
+  .alert-actions { display: flex; border-top: .5px solid var(--phx-sep-strong); height: 44px; }
+  .al-btn { flex: 1; border: none; background: none; font-family: inherit; font-size: 14px; color: var(--phx-text); cursor: pointer; }
+  .al-btn:hover { background: rgba(255,255,255,.06); }
+  .al-btn + .al-btn { border-left: .5px solid var(--phx-sep-strong); }
+  .al-btn-default { font-weight: 600; }
+  .al-btn-danger { color: var(--phx-red); }
+  /* ===== 设计说明 ===== */
+  .notes { width: 760px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+  /* 原生滚动条禁用（视觉基线：隐藏滚动条保留滚动） */
+  html, body { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="window">
+      <div class="titlebar">
+        <span class="tb-title">Phoenix — SPT 存档编辑器</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <div class="content">
+        <!-- 品牌区 -->
+        <div class="brand">
+          <span class="wordmark">Phoenix</span>
+          <span class="brand-sub">SPT 存档编辑器</span>
+        </div>
+        <h1 class="large-title">服务器选择</h1>
+        <p class="lede">选择你的 SPT 服务器目录，开始编辑玩家存档</p>
+
+        <!-- 服务器列表（示意数据，生产端实读系统与存档） -->
+        <div class="list-card">
+          <div class="srow">
+            <div class="s-main">
+              <div class="s-name">SPT-AKI 4.0.5 <span class="badge ok">可用</span></div>
+              <div class="s-path">E:\SPT-AKI\</div>
+              <div class="s-meta ok">✓ 3 个存档</div>
+            </div>
+            <div class="s-actions">
+              <button type="button" class="btn btn-primary">进入编辑</button>
+              <button type="button" class="btn btn-ghost-red">移除</button>
+            </div>
+          </div>
+          <div class="srow">
+            <div class="s-main">
+              <div class="s-name">Games 备份 <span class="badge bad">不可用</span></div>
+              <div class="s-path">D:\Games\SPT\</div>
+              <div class="s-meta bad">✕ 未找到 SPT.Server.exe</div>
+            </div>
+            <div class="s-actions">
+              <button type="button" class="btn btn-primary" disabled>进入编辑</button>
+              <button type="button" class="btn btn-ghost-red">移除</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 添加服务器目录：走系统目录选择框（系统级例外白名单） -->
+        <button type="button" class="add-card">＋ 添加服务器目录</button>
+
+        <div class="footer">Phoenix-DRX<span class="sep">|</span>免费开源<span class="sep">|</span>0.1.0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 附：移除确认弹层（自绘 Alert，非系统对话框；生产端点「移除」弹出，此处静态展示） -->
+  <div class="modal-demo">
+    <h2>附：点「移除」后的确认弹层（自绘弹层，非系统对话框）</h2>
+    <div class="modal-mask">
+      <div class="alert">
+        <div class="alert-ico">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.2 22 20H2L12 3.2Z" fill="var(--phx-yellow)" opacity=".9"/>
+            <path d="M12 9.5v5" stroke="#000" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="12" cy="17.2" r="1.05" fill="#000"/>
+          </svg>
+        </div>
+        <h3>移除服务器？</h3>
+        <p>将「SPT-AKI 4.0.5」从列表移除。<br>只移除记录，不会删除任何游戏文件。</p>
+        <div class="alert-actions">
+          <button type="button" class="al-btn al-btn-default">取消</button>
+          <button type="button" class="al-btn al-btn-danger">移除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设计说明（审批用） -->
+  <div class="notes">
+    <b>设计说明（审批后删除）</b><br>
+    1. 本页为第 1 屏「服务器选择」重设计稿：按 E:\ios26-design-system-main（iOS 26 / macOS Tahoe）暗色体系整体重做，功能点与旧稿逐项对应，仅视觉替换。<br>
+    2. 视觉基线转向：窗口 r12 + 纯黑底、标题栏 36px 高斯模糊材质、强调色 iOS 蓝 #0091ff；token 仍用 --phx-* 单一来源，值集以本稿为准（获批后同步重写视觉基线.md 与 tokens.css）。<br>
+    3. 「可用」= 目录校验通过：能找到 SPT.Server.exe、SPT\user\profiles 等关键文件（沿用参考项目 4.0.1 的校验标准）；「不可用」直接显示缺失原因，「进入编辑」置灰。<br>
+    4. 「3 个存档」= 读取该服务器 SPT\user\profiles 下的存档文件数量（生产端实读）。<br>
+    5. 「添加服务器目录」走系统目录选择框（系统级例外白名单）；添加后立即校验并写入列表，支持多服务器管理。<br>
+    6. 移除确认为自绘 Alert（270pt 宽、r14 材质卡），非系统对话框；生产端点「移除」弹出，本稿静态展示于窗口下方。<br>
+    7. 本页保持全窗独立屏（无 dock）；02/03/04 屏以底部居中胶囊 dock 导航，窗口 chrome（Windows 11 标题栏：右侧最小化 / 最大化 / 关闭）四屏一致。<br>
+    8. 稿图内置缩放脚本：把 1180×820 模拟窗体等比缩进当前视口，仅预览用；生产为固定尺寸无边框窗，列表超出一屏时滚动。
+  </div>
+
+  <script>
+    // 仅稿图预览用：把模拟窗体等比缩放到当前视口，保证四边与圆角完整可见（生产代码不含此逻辑）
+    (function () {
+      var stage = document.getElementById('stage');
+      var win = stage.querySelector('.window');
+      function fit() {
+        var s = Math.min(1,
+          (document.documentElement.clientWidth - 80) / 1180,
+          (window.innerHeight - 80) / 820);
+        stage.style.width = 1180 * s + 'px';
+        stage.style.height = 820 * s + 'px';
+        win.style.transform = 'scale(' + s + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+  </script>
+</body>
+</html>
