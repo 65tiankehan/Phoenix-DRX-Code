@@ -6,6 +6,7 @@
 //! 任何写档案命令执行前必须先落备份（领域铁律：备份先行）。
 
 mod announcement;
+mod auth;
 mod backup;
 mod character;
 mod health;
@@ -20,6 +21,7 @@ mod server;
 mod settings;
 mod skills;
 mod stash;
+mod sync;
 mod traders;
 mod tray;
 mod updater;
@@ -28,6 +30,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 
 use announcement::AnnouncementPayload;
+use auth::{auth_device_cancel, auth_device_start, auth_is_configured, auth_logout};
 use backup::BackupRow;
 use character::{CharData, CharOptions, CharSaveData};
 use health::{HealthData, HealthSaveData};
@@ -41,6 +44,7 @@ use server::{AddResult, ServerRow};
 use settings::Settings;
 use skills::{SkillsData, SkillsSaveData};
 use stash::{StashData, StashSaveData};
+use sync::{sync_pull, sync_push};
 use traders::{TradersData, TradersSaveData};
 
 /// 选择 SPT 服务器根目录（系统文件夹选择框）；取消返回 None
@@ -565,6 +569,8 @@ pub fn run() {
                 let _ = win.center();
             }
             tray::init(app.handle()).expect("托盘初始化失败");
+            // GitHub 会话恢复：凭据库里有 token 则回填内存会话（登录态不依赖前端时序）
+            auth::restore();
             // 启动静默检查更新：延迟 3 秒避开启动高峰，受设置开关控制，
             // 失败/无更新零 UI（manual=false 静默语义在 updater::check 内）
             let handle = app.handle().clone();
@@ -621,6 +627,8 @@ pub fn run() {
             app_flags, mark_splash_seen, mark_onboarded, announcement_fetch,
             settings_get, settings_set, settings_open_data_dir, settings_reset, settings_restart,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,
+            auth_is_configured, auth_device_start, auth_device_cancel, auth_logout,
+            sync_pull, sync_push,
             update_check, update_download, update_install, update_open_window, update_dismiss,
             update_get_status
         ])

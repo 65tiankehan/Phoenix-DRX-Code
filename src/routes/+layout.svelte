@@ -9,11 +9,13 @@
   import PhxDock from '$lib/components/PhxDock.svelte'
   import ToastHost from '$lib/components/ToastHost.svelte'
   import PhxAnnouncements from '$lib/components/PhxAnnouncements.svelte'
+  import PhxCommandPalette from '$lib/components/PhxCommandPalette.svelte'
   import Splash from '$lib/components/Splash.svelte'
   import Onboarding from '$lib/components/Onboarding.svelte'
   import { phxApp, phxAnnouncement, phxUpdate, PHX_UPDATE_EVENT } from '$lib/ipc'
   import type { PhxUpdateStatus } from '$lib/ipc'
   import { seedAnnouncements } from '$lib/announcements.svelte'
+  import { initSync } from '$lib/sync.svelte'
   import { applyMotionClass } from '$lib/motion'
   import { toast } from '$lib/toast.svelte'
   import { t } from '$lib/i18n/i18n.svelte'
@@ -77,6 +79,8 @@
     void phxAnnouncement.fetch().then((payload) => {
       seedAnnouncements(payload.announcements, payload.source)
     })
+    // GitHub 云同步：钩子注册 + 事件监听 + 会话首拉（登录态才 pull）
+    void initSync()
     // 更新下载完成：全局 toast 提供立即重启（装包在 Rust 侧，退出后跑安装器）。
     // available 态不在此处理——Rust 侧检查到即自动开薄窗。
     let prevPhase = ''
@@ -127,6 +131,7 @@
     {/if}
     <ToastHost />
     <PhxAnnouncements />
+    <PhxCommandPalette />
 
     {#if splashMode}
       <Splash short={splashMode === 'short'} onDone={() => void splashDone()} />

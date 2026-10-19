@@ -3,6 +3,7 @@
   import { t } from '$lib/i18n/i18n.svelte'
   import PhxTooltip from './PhxTooltip.svelte'
   import { announcements, toggleAnnouncements } from '$lib/announcements.svelte'
+  import { toggleCmdk } from '$lib/cmdk.svelte'
 
   const appWindow = getCurrentWindow()
   let maximized = $state(false)
@@ -35,6 +36,27 @@
 <header class="titlebar" data-tauri-drag-region>
   <span class="tb-label" data-tauri-drag-region>Phoenix</span>
   <div class="capbtns">
+    <!-- 20 稿图场景 3：通知按钮左侧搜索按钮，悬停提示「全局搜索 · Ctrl+K」 -->
+    <PhxTooltip label={`${t('cmdk.search')} · Ctrl+K`} placement="bottom">
+      <button
+        type="button"
+        class="searchbtn"
+        aria-label={t('cmdk.search')}
+        onclick={() => toggleCmdk()}
+      >
+        <svg
+          viewBox="0 0 15 15"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="6.6" cy="6.6" r="4.4" />
+          <path d="M13.2 13.2 10 10" />
+        </svg>
+      </button>
+    </PhxTooltip>
     <PhxTooltip label={t('announce.bell')} placement="bottom">
       <button
         type="button"
@@ -155,6 +177,16 @@
   .capbtns button.cap-close:hover {
     background: #c42b1c;
     color: #fff;
+  }
+
+  /* 20 稿图场景 3：搜索按钮（铃铛左侧，与铃铛同款窄钮） */
+  .capbtns button.searchbtn {
+    width: 34px;
+  }
+
+  .capbtns button.searchbtn svg {
+    width: 14px;
+    height: 14px;
   }
 
   /* 18 稿图原值：公告铃铛（窗口三键左侧，34px 窄钮 + 14px 铃铛线稿 + 未读蓝点） */

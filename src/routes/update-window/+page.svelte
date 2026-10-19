@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
   import { getCurrentWindow } from '@tauri-apps/api/window'
+  import { LogicalSize } from '@tauri-apps/api/dpi'
   import { getVersion } from '@tauri-apps/api/app'
   import { phxUpdate, PHX_UPDATE_EVENT } from '$lib/ipc'
   import type { PhxUpdateStatus } from '$lib/ipc'
@@ -86,6 +87,21 @@
       ? status.notes.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
       : []
   )
+
+  /* 窗高自适应：Rust 只给初值，状态变化后按内容实测重设（宽 420 不变）。
+   * 否则固定 380 高会在内容短的状态下（如单行公告）窗底留一大块空白。 */
+  const WIN_W = 420
+  const TITLEBAR_H = 38
+  let appliedH = 0
+
+  $effect(() => {
+    void status // 依赖：任一状态变化（含下载进度）都重测一次
+    const h = document.querySelector<HTMLElement>('.up-body')?.offsetHeight ?? 0
+    const total = TITLEBAR_H + h
+    if (!h || Math.abs(total - appliedH) < 1) return
+    appliedH = total
+    void getCurrentWindow().setSize(new LogicalSize(WIN_W, total))
+  })
 
   function closeWin(): void {
     void getCurrentWindow().close()

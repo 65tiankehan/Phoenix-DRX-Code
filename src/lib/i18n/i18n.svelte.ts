@@ -25,6 +25,14 @@ function initialLocale(): Locale {
 /** 当前语言（runes 全局状态；切换入口在设置页，偏好持久化在 localStorage） */
 export const i18n = $state({ locale: initialLocale() })
 
+/** 云同步监听（sync store 注册）：语言每次切换落盘都会通知，回环由 sync store 的闸门拦截 */
+type LocaleChangeFn = (l: Locale) => void
+let localeChangeListener: LocaleChangeFn | null = null
+
+export function onLocaleChange(fn: LocaleChangeFn | null): void {
+  localeChangeListener = fn
+}
+
 /** 切换语言并持久化 */
 export function setLocale(locale: Locale): void {
   i18n.locale = locale
@@ -33,6 +41,7 @@ export function setLocale(locale: Locale): void {
   } catch {
     /* 存储不可用时仅内存生效 */
   }
+  localeChangeListener?.(locale)
 }
 
 /**

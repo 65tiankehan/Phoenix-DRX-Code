@@ -17,7 +17,7 @@ use tauri_plugin_updater::UpdaterExt;
 pub const UPDATE_WIN: &str = "update";
 pub const EVENT_STATUS: &str = "update://status";
 
-/// 薄窗尺寸（对齐稿图 17-update：420 宽、内容自适应）
+/// 薄窗尺寸（420 宽；高度仅为初值，前端挂载后按内容实测回调 setSize 自适应）
 const WIN_W: f64 = 420.0;
 const WIN_H: f64 = 380.0;
 

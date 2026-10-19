@@ -49,11 +49,33 @@ export function closeAnnouncements(): void {
   persistReadIds()
 }
 
+/** 云同步监听（sync store 注册）：已读集合每次落盘都会通知，回环由 sync store 的闸门拦截 */
+type ReadIdsChangeFn = (ids: string[]) => void
+let readIdsChangeListener: ReadIdsChangeFn | null = null
+
+export function onReadIdsChange(fn: ReadIdsChangeFn | null): void {
+  readIdsChangeListener = fn
+}
+
 function persistReadIds(): void {
   if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(READ_KEY, JSON.stringify([...announcements.readIds]))
+    readIdsChangeListener?.([...announcements.readIds])
   } catch {
     /* 存储不可用：未读点退化为会话内记忆 */
   }
+}
+
+/** 云同步：把远端已读 id 并入本地（只增不减），返回是否有新增 */
+export function importReadIds(ids: string[]): boolean {
+  let changed = false
+  for (const id of ids) {
+    if (!announcements.readIds.has(id)) {
+      announcements.readIds.add(id)
+      changed = true
+    }
+  }
+  if (changed) persistReadIds()
+  return changed
 }

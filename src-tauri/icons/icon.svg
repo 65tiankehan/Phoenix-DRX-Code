@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- 应用图标源：dock 蓝色 P 标识（PhxDock dock-logo 同源）。
+       圆角比例 232/960 对齐 dock 9/34；主色 phx accent 0091ff 渐变；白色粗斜体 P。
+       更新方式：改此文件后 npx tauri icon src-tauri/icons/icon.svg 重新生成全套。 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0059a6"/>
+      <stop offset="1" stop-color="#0091ff"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="232" fill="url(#bg)"/>
+  <g
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="130"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    transform="translate(155 -13) skewX(-10)"
+  >
+    <path d="M300 265 V785"/>
+    <path d="M300 330 H470 A130 130 0 0 1 470 590 H300"/>
+  </g>
+</svg>

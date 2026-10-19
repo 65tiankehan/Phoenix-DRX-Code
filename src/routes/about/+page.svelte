@@ -311,15 +311,6 @@
     border-top: 0.5px solid var(--phx-sep);
   }
 
-  .disc {
-    background: var(--phx-warn-bg);
-    box-shadow: inset 0 0 0 0.5px var(--phx-warn-bd);
-  }
-
-  .disc .sgroup-h {
-    color: var(--phx-warn);
-  }
-
   .disc-body {
     padding: 10px 18px 16px;
     font-size: 12.5px;

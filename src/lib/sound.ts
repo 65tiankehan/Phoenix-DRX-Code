@@ -27,6 +27,14 @@ export function isSoundEnabled(): boolean {
   return enabled
 }
 
+/** 云同步监听（sync store 注册）：偏好每次落盘都会通知，回环由 sync store 的闸门拦截 */
+type SoundChangeFn = (v: boolean) => void
+let soundChangeListener: SoundChangeFn | null = null
+
+export function onSoundChange(fn: SoundChangeFn | null): void {
+  soundChangeListener = fn
+}
+
 export function setSoundEnabled(v: boolean): void {
   enabled = v
   try {
@@ -34,6 +42,7 @@ export function setSoundEnabled(v: boolean): void {
   } catch {
     /* 持久化失败不影响本次会话开关 */
   }
+  soundChangeListener?.(v)
 }
 
 function getCtx(): AudioContext | null {

@@ -630,3 +630,56 @@ export const phxBackup = {
   delete: (id: string, backupId: string): Promise<void> =>
     invoke('backup_delete', { id, backupId })
 }
+
+// —— GitHub 登录与云同步（设置页 GitHub 账号分区；合并引擎在前端 sync store）——
+
+/** 登录会话（字段名对齐 Rust AuthStatus serde camelCase 输出） */
+export interface PhxAuthStatus {
+  configured: boolean
+  login: string | null
+  avatarUrl: string | null
+}
+
+/** 配对码登录起步（字段名对齐 Rust DeviceCodeStart serde camelCase 输出） */
+export interface PhxDeviceCodeStart {
+  userCode: string
+  verificationUri: string
+  /** 配对码有效期（秒） */
+  expiresIn: number
+  /** 建议轮询间隔（秒，Rust 侧已按此节奏轮询，前端仅用于展示倒计时） */
+  interval: number
+}
+
+/** 云端 settings 四键（全部可缺：远端可能没有该键） */
+export interface PhxSyncSettings {
+  soundEnabled?: boolean
+  motionEnabled?: boolean
+  locale?: string
+  readAnnouncements?: string[]
+}
+
+/** 拉取结果（字段名对齐 Rust PullResult serde camelCase 输出；未登录/远端无数据 settings = null） */
+export interface PhxPullResult {
+  settings: PhxSyncSettings | null
+  updatedAt: string | null
+}
+
+/** GitHub 登录链：会话读取 / 配对码起步 / 取消等待 / 退出登录（Rust 侧轮询与凭据落库） */
+export const phxAuth = {
+  status: (): Promise<PhxAuthStatus> => invoke('auth_is_configured'),
+  deviceStart: (): Promise<PhxDeviceCodeStart> => invoke('auth_device_start'),
+  deviceCancel: (): Promise<void> => invoke('auth_device_cancel'),
+  logout: (): Promise<void> => invoke('auth_logout')
+}
+
+/** 云同步链：拉取（只读）/ 推送（写入；「立即同步」由前端编排 pull → 有脏键才 push） */
+export const phxSync = {
+  pull: (): Promise<PhxPullResult> => invoke('sync_pull'),
+  push: (settings: PhxSyncSettings): Promise<void> => invoke('sync_push', { settings })
+}
+
+/** 登录事件（Rust app.emit；成功载荷 = PhxAuthStatus，失败载荷 = {code, message}，message 为 Rust 中文串，前端按 code 映射文案） */
+export const PHX_AUTH_DEVICE_SUCCESS = 'auth:device-success'
+export const PHX_AUTH_DEVICE_ERROR = 'auth:device-error'
+/** 会话变更广播（登录成功/退出登录共用；载荷 = {configured, login}） */
+export const PHX_AUTH_SESSION_CHANGED = 'auth:session-changed'

@@ -13,6 +13,14 @@ export function isReducedMotion(): boolean {
   }
 }
 
+/** 云同步监听（sync store 注册）：偏好每次落盘都会通知，回环由 sync store 的闸门拦截 */
+type MotionChangeFn = (v: boolean) => void
+let motionChangeListener: MotionChangeFn | null = null
+
+export function onMotionChange(fn: MotionChangeFn | null): void {
+  motionChangeListener = fn
+}
+
 export function setReducedMotion(v: boolean): void {
   try {
     if (v) localStorage.setItem(STORAGE_KEY, '1')
@@ -21,6 +29,7 @@ export function setReducedMotion(v: boolean): void {
     /* 隐私模式等存储不可用场景静默失败 */
   }
   applyMotionClass()
+  motionChangeListener?.(v)
 }
 
 /** 应用启动时调用：把持久化偏好挂到 html 根类 */
