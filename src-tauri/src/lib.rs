@@ -593,6 +593,12 @@ pub fn run() {
                         let _ = window.hide();
                     }
                 }
+                // 更新薄窗销毁：还原开窗时收起的其他可见窗口（专职窗口语义）
+                tauri::WindowEvent::Destroyed => {
+                    if window.label() == updater::UPDATE_WIN {
+                        updater::restore_others(window.app_handle());
+                    }
+                }
                 _ => {}
             }
         })

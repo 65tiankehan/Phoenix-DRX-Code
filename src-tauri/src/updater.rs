@@ -64,6 +64,10 @@ static CURRENT: Mutex<Option<UpdateStatus>> = Mutex::new(None);
 /// 下载完成的安装包字节，install 时喂给 update.install
 static DOWNLOADED: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 
+/// 开薄窗时被收起的其他可见窗口 label（薄窗销毁时按序还原）。
+/// 更新薄窗是专职窗口：开窗收起其余可见窗口，关窗还原——对齐蓝本 updateWindow.ts。
+static HIDDEN_OTHERS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
 fn broadcast(app: &AppHandle, status: &UpdateStatus) {
     *CURRENT.lock().unwrap() = Some(status.clone());
     let _ = app.emit(EVENT_STATUS, status);
@@ -181,13 +185,43 @@ pub fn install(_app: AppHandle) -> Result<(), String> {
     update.install(bytes.as_slice()).map_err(|e| e.to_string())
 }
 
-/// 打开更新薄窗（单例：已存在则 show + focus）
+/// 开薄窗前收起其余可见窗口（已收起过则跳过，薄窗复用路径不重复记录）
+fn hide_others(app: &AppHandle) {
+    let mut hidden = HIDDEN_OTHERS.lock().unwrap();
+    if !hidden.is_empty() {
+        return;
+    }
+    for (label, win) in app.webview_windows() {
+        if label == UPDATE_WIN {
+            continue;
+        }
+        if win.is_visible().unwrap_or(false) && win.hide().is_ok() {
+            hidden.push(label);
+        }
+    }
+}
+
+/// 薄窗销毁时还原开窗前收起的窗口（「稍后提醒」「后台下载」等一切关窗路径统一走这；
+/// 由 lib.rs 全局窗口事件在 Destroyed 且 label=update 时调用）
+pub fn restore_others(app: &AppHandle) {
+    let mut hidden = HIDDEN_OTHERS.lock().unwrap();
+    for label in hidden.drain(..) {
+        if let Some(win) = app.get_webview_window(&label) {
+            let _ = win.show();
+        }
+    }
+}
+
+/// 打开更新薄窗（单例：已存在则 show + focus）。
+/// 专职窗口语义：开窗收起其余可见窗口，薄窗销毁时还原（蓝本 updateWindow.ts）。
 pub fn open_window(app: &AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window(UPDATE_WIN) {
+        hide_others(app);
         let _ = win.show();
         let _ = win.set_focus();
         return Ok(());
     }
+    hide_others(app);
     WebviewWindowBuilder::new(app, UPDATE_WIN, WebviewUrl::App("update-window".into()))
         .title("Phoenix-DRX")
         .inner_size(WIN_W, WIN_H)
