@@ -21,6 +21,7 @@
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
 
+  let booting = $state(true)
   let loaded = $state(false)
   let resetOpen = $state(false)
 
@@ -30,7 +31,8 @@
   $effect(() => setSoundEnabled(soundOn))
   $effect(() => setReducedMotion(motionOn))
 
-  // —— 行为偏好（settings.json 通道，Rust 侧整对象写入；自动补全消费端待 13 屏接入）——
+  // —— 行为偏好（settings.json 通道，Rust 侧整对象写入；自动补全消费端已接入
+  // 技能页读写链：load_skills 内存补视图，save_skills 写盘前补全落盘）——
   // 字段名对齐 Rust Settings 序列化（checkUpdates / autoAddMasterings / autoAddScavSkills），
   // 名字对不上会读到 undefined，Svelte 5 会因 bind 到 undefined 直接炸渲染。
   let checkUpdates = $state(true)
@@ -83,6 +85,7 @@
       await tick() // 先让回填触发的保存 effect 以未武装状态跑完
       armed = true
       loaded = true
+      booting = false
     }
   })
 
@@ -142,9 +145,82 @@
     </div>
   </header>
 
-  {#if loaded}
-    <div class="scroll">
+  <div class="body">
+    <div class="boot phx-boot" class:gone={!booting}>
       <div class="sgrid">
+        <div class="scol">
+          <section class="sgroup">
+            <div class="sgroup-h"><i class="phx-sk gh-sk"></i></div>
+            <div class="sgroup-sub"><i class="phx-sk gs-sk"></i></div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk dd-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk sw-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk sw-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk sw-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk mbtn-sk"></i>
+            </div>
+          </section>
+          <section class="sgroup">
+            <div class="sgroup-h"><i class="phx-sk gh-sk"></i></div>
+            <div class="sgroup-sub"><i class="phx-sk gs-sk"></i></div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sp-sk"></i></div>
+              <i class="phx-sk mbtn-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sp-sk"></i></div>
+              <i class="phx-sk mbtn-sk"></i>
+            </div>
+          </section>
+        </div>
+        <div class="scol">
+          <section class="sgroup">
+            <div class="sgroup-h"><i class="phx-sk gh-sk"></i></div>
+            <div class="sgroup-sub"><i class="phx-sk gs-sk"></i></div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk sw-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk sw-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk dd-sk"></i>
+            </div>
+          </section>
+          <section class="sgroup">
+            <div class="sgroup-h"><i class="phx-sk gh-sk"></i></div>
+            <div class="sgroup-sub"><i class="phx-sk gs-sk"></i></div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk mbtn-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk mbtn-sk"></i>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    {#if loaded}
+      <div class="scroll phx-fade-in">
+        <div class="sgrid">
         <div class="scol">
           <!-- 组 1 · 通用 -->
           <section class="sgroup">
@@ -265,6 +341,7 @@
       </div>
     </div>
   {/if}
+  </div>
 </main>
 
 <PhxDialog
@@ -291,7 +368,61 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
+  }
+  /* 加载态包装层：boot 覆盖层 + 内容同层交叉淡化 */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .boot {
+    padding: 0 24px 104px;
+  }
+  .boot .gh-sk {
+    width: 96px;
+    height: 15px;
+    border-radius: 6px;
+  }
+  .boot .gs-sk {
+    width: 140px;
+    height: 12px;
+    border-radius: 6px;
+  }
+  .boot .sl-sk {
+    width: 45%;
+    height: 13px;
+    border-radius: 6px;
+  }
+  .boot .sd-sk,
+  .boot .sp-sk {
+    width: 70%;
+    height: 12px;
+    border-radius: 6px;
+    margin-top: 3px;
+  }
+  .boot .sp-sk {
+    width: 55%;
+  }
+  .boot .dd-sk {
+    width: 190px;
+    height: 30px;
+    border-radius: 8px;
+    flex: none;
+  }
+  .boot .sw-sk {
+    width: 40px;
+    height: 24px;
+    border-radius: 12px;
+    flex: none;
+  }
+  .boot .mbtn-sk {
+    width: 64px;
+    height: 26px;
+    border-radius: 8px;
+    flex: none;
   }
   .large-title {
     font-size: 34px;

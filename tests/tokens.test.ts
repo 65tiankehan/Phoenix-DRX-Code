@@ -33,12 +33,11 @@ const REQUIRED_TOKENS = [
   '--phx-orange',
   '--phx-orange-dim',
   '--phx-yellow',
-  // 形状 / 阴影 / 布局 5
+  // 形状 / 阴影 4
   '--phx-r-win',
   '--phx-r-card',
   '--phx-r-btn',
   '--phx-shadow-win',
-  '--phx-scrollbar-w',
   // 字体 3
   '--phx-font-sans',
   '--phx-font-mono',

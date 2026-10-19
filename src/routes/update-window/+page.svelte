@@ -318,13 +318,6 @@
     overflow-y: auto;
     padding: 12px 14px;
   }
-  .notes-card::-webkit-scrollbar {
-    width: 4px;
-  }
-  .notes-card::-webkit-scrollbar-thumb {
-    background: var(--phx-sep-strong);
-    border-radius: 2px;
-  }
   .nc-h {
     font-size: 11.5px;
     font-weight: 700;

@@ -165,32 +165,31 @@ impl ItemsDb {
             if let Ok(txt) =
                 fs::read_to_string(Path::new(&db).join("templates").join("items.json"))
             {
-                if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&txt) {
-                    for it in &arr {
-                        if let Some(tpl) = it.get("_id").and_then(|v| v.as_str()) {
-                            let p = it.get("_props");
-                            let grids = p
-                                .and_then(|x| x.get("Grids"))
-                                .and_then(|g| g.as_array())
-                                .map(|g| g.len())
-                                .unwrap_or(0);
-                            entries.insert(
-                                tpl.to_string(),
-                                ItemProps {
-                                    width: p.and_then(|x| x.get("Width")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
-                                    height: p.and_then(|x| x.get("Height")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
-                                    stack_max: p
-                                        .and_then(|x| x.get("StackMaxSize"))
-                                        .and_then(|v| v.as_f64())
-                                        .unwrap_or(1.0) as i64,
-                                    grids,
-                                    recoil_force_up: p
-                                        .and_then(|x| x.get("RecoilForceUp"))
-                                        .and_then(|v| v.as_f64())
-                                        .unwrap_or(0.0),
-                                },
-                            );
-                        }
+                // 真实 items.json 是 { tpl -> TarkovItem } 字典（AppData.cs LoadItemsDB 口径）
+                if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt) {
+                    for (tpl, it) in &map {
+                        let p = it.get("_props");
+                        let grids = p
+                            .and_then(|x| x.get("Grids"))
+                            .and_then(|g| g.as_array())
+                            .map(|g| g.len())
+                            .unwrap_or(0);
+                        entries.insert(
+                            tpl.clone(),
+                            ItemProps {
+                                width: p.and_then(|x| x.get("Width")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
+                                height: p.and_then(|x| x.get("Height")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
+                                stack_max: p
+                                    .and_then(|x| x.get("StackMaxSize"))
+                                    .and_then(|v| v.as_f64())
+                                    .unwrap_or(1.0) as i64,
+                                grids,
+                                recoil_force_up: p
+                                    .and_then(|x| x.get("RecoilForceUp"))
+                                    .and_then(|v| v.as_f64())
+                                    .unwrap_or(0.0),
+                            },
+                        );
                     }
                 }
             }
@@ -386,8 +385,10 @@ fn load_addable(app: &AppHandle, db: &ItemsDb) -> (Vec<AddCategoryRow>, Vec<AddI
     let Ok(v) = serde_json::from_str::<Value>(&txt) else {
         return (Vec::new(), Vec::new());
     };
+    // 真实 handbook 分类只有 Id/ParentId/Icon，无 Name 字段；
+    // 分类名 = locales 按「裸分类 Id」查（参考 HandbookCategory 本地化口径）
     let cat_name = |c: &Value| -> String {
-        let key = c.get("Name").and_then(|n| n.as_str()).unwrap_or("");
+        let key = c.get("Id").and_then(|n| n.as_str()).unwrap_or("");
         db.names
             .as_ref()
             .and_then(|n| n.get(key))
@@ -786,10 +787,9 @@ fn stash_grid_size(db_dir: &str, stash_tpl: &str) -> Result<(i64, i64), String> 
     )
     .map_err(|e| e.to_string())?;
     let v: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
-    let arr = v.as_array().ok_or("items.json 形态异常")?;
-    let stash = arr
-        .iter()
-        .find(|it| it.get("_id").and_then(|x| x.as_str()) == Some(stash_tpl))
+    // 真实 items.json 是字典：{ tpl -> TarkovItem }
+    let stash = v
+        .get(stash_tpl)
         .ok_or("仓库模板不在物品库")?;
     let g = stash
         .pointer("/_props/Grids/0/_props")

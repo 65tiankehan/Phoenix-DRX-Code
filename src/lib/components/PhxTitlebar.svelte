@@ -1,9 +1,14 @@
 <script lang="ts">
   import { getCurrentWindow } from '@tauri-apps/api/window'
   import { t } from '$lib/i18n/i18n.svelte'
+  import PhxTooltip from './PhxTooltip.svelte'
+  import { announcements, toggleAnnouncements } from '$lib/announcements.svelte'
 
   const appWindow = getCurrentWindow()
   let maximized = $state(false)
+
+  /** 铃铛未读点：有任一未读公告时亮起（关闭面板即全量标记已读，点随之熄灭） */
+  const hasUnread = $derived(announcements.list.some((a) => !announcements.readIds.has(a.id)))
 
   $effect(() => {
     let unlisten: (() => void) | null = null
@@ -30,30 +35,61 @@
 <header class="titlebar" data-tauri-drag-region>
   <span class="tb-label" data-tauri-drag-region>Phoenix</span>
   <div class="capbtns">
-    <button type="button" aria-label={t('cap.minimize')} onclick={() => void appWindow.minimize()}>
-      <svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none" /></svg>
-    </button>
-    <button
-      type="button"
-      aria-label={maximized ? t('cap.restore') : t('cap.maximize')}
-      onclick={() => void appWindow.toggleMaximize()}
-    >
-      {#if maximized}
-        <svg viewBox="0 0 10 10">
-          <rect x=".5" y="2.5" width="7" height="7" stroke="currentColor" fill="none" />
-          <path d="M2.5 2.5V.5h7v7" stroke="currentColor" fill="none" />
+    <PhxTooltip label={t('announce.bell')} placement="bottom">
+      <button
+        type="button"
+        class="bell"
+        aria-label={t('announce.bell')}
+        onclick={() => toggleAnnouncements()}
+      >
+        <svg
+          viewBox="0 0 14 14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"
+          />
+          <path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0" />
         </svg>
-      {:else}
+        {#if hasUnread}
+          <span class="bell-dot"></span>
+        {/if}
+      </button>
+    </PhxTooltip>
+    <PhxTooltip label={t('cap.minimize')} placement="bottom">
+      <button type="button" aria-label={t('cap.minimize')} onclick={() => void appWindow.minimize()}>
+        <svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none" /></svg>
+      </button>
+    </PhxTooltip>
+    <PhxTooltip label={maximized ? t('cap.restore') : t('cap.maximize')} placement="bottom">
+      <button
+        type="button"
+        aria-label={maximized ? t('cap.restore') : t('cap.maximize')}
+        onclick={() => void appWindow.toggleMaximize()}
+      >
+        {#if maximized}
+          <svg viewBox="0 0 10 10">
+            <rect x=".5" y="2.5" width="7" height="7" stroke="currentColor" fill="none" />
+            <path d="M2.5 2.5V.5h7v7" stroke="currentColor" fill="none" />
+          </svg>
+        {:else}
+          <svg viewBox="0 0 10 10">
+            <rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none" />
+          </svg>
+        {/if}
+      </button>
+    </PhxTooltip>
+    <PhxTooltip label={t('cap.close')} placement="bottom">
+      <button type="button" class="cap-close" aria-label={t('cap.close')} onclick={() => void appWindow.close()}>
         <svg viewBox="0 0 10 10">
-          <rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none" />
+          <path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none" />
         </svg>
-      {/if}
-    </button>
-    <button type="button" class="cap-close" aria-label={t('cap.close')} onclick={() => void appWindow.close()}>
-      <svg viewBox="0 0 10 10">
-        <path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none" />
-      </svg>
-    </button>
+      </button>
+    </PhxTooltip>
   </div>
 </header>
 
@@ -81,6 +117,11 @@
     display: flex;
     align-self: stretch;
     margin-left: auto;
+  }
+
+  /* 包 tooltip 后按钮需继续撑满标题栏高（span 为 PhxTooltip 根元素 tipwrap） */
+  .capbtns :global(span) {
+    align-self: stretch;
   }
 
   .capbtns button {
@@ -114,5 +155,27 @@
   .capbtns button.cap-close:hover {
     background: #c42b1c;
     color: #fff;
+  }
+
+  /* 18 稿图原值：公告铃铛（窗口三键左侧，34px 窄钮 + 14px 铃铛线稿 + 未读蓝点） */
+  .capbtns button.bell {
+    position: relative;
+    width: 34px;
+  }
+
+  .capbtns button.bell svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .capbtns .bell-dot {
+    position: absolute;
+    top: 9px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--phx-accent);
+    box-shadow: 0 0 0 2px var(--phx-win-bg);
   }
 </style>

@@ -81,7 +81,7 @@
     {#if profiles.length === 0}
       <div class="empty">{t('tray.empty')}</div>
     {:else}
-      <div class="list phx-hide-scroll">
+      <div class="list">
         {#each profiles as p (p.id)}
           <button
             class="item"

@@ -2,11 +2,12 @@
   // 08 藏身处页：按 docs/prototypes/08 稿图逐项落地（仅 PMC，Scav 无藏身处）。
   // 三子页签：区域（步进器 + 滑条双控件同绑等级，父子区域联动）/ 生产配方（已获得
   // 勾选 ↔ 存档解锁清单）/ 进行中生产（实验性；完成 = 剩余小时折回开始时间戳后置满，
-  // 删除带确认）。800ms 防抖全量自动保存（稿图无保存按钮），Rust 侧先备份、
-  // 区域等级卡控与父子联动在写入侧兜底。
+  // 删除带确认）。800ms 防抖全量自动保存（稿图无保存按钮），Rust 侧先备份并按
+  // stages 数卡控；父子同值联动是前端 UI 语义（每跳按目标自己 maxLevel 卡控），
+  // 写入侧不做联动（联动会把上限不一致的家族互相拉扯、顶超各区域上限）。
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
-  import { t, type MessageKey } from '$lib/i18n/i18n.svelte'
+  import { t } from '$lib/i18n/i18n.svelte'
   import { toast } from '$lib/toast.svelte'
   import {
     phxProfile,
@@ -17,8 +18,12 @@
   } from '$lib/ipc'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   const ICON = {
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/>',
@@ -28,8 +33,7 @@
   }
 
   /** 子页签序（稿图顶部三段分段；页头动作区与过滤框随子页切换） */
-  const SEGS = ['areas', 'recipes', 'crafts'] as const
-  type Seg = (typeof SEGS)[number]
+  type Seg = 'areas' | 'recipes' | 'crafts'
 
   let currentId = $state('')
   let areas = $state<PhxHideoutAreaRow[]>([])
@@ -88,24 +92,21 @@
         ? 100
         : 0
 
-  function switchSeg(s: Seg): void {
-    playSound('ui')
-    seg = s
-  }
-
   /**
-   * 区域等级写入（前端主联动）：卡控 0..maxLevel 后按参考 HideoutArea.Level setter
-   * 把同值递归同步给父区域与子区域（Rust 写入侧另有不动点兜底）
+   * 区域等级写入（前端主联动）：复刻参考 HideoutArea.Level setter 语义——
+   * 每一跳都按目标自己的 maxLevel 卡控后再赋值，同值递归同步给父与子
+   * （Rust 写入侧仅按 stages 数卡控，不做联动）
    */
   function applyArea(levels: Map<number, number>, row: PhxHideoutAreaRow, v: number): void {
-    if ((levels.get(row.type) ?? row.level) === v) return
-    levels.set(row.type, v)
+    const want = Math.max(0, Math.min(row.maxLevel, Math.round(v)))
+    if ((levels.get(row.type) ?? row.level) === want) return
+    levels.set(row.type, want)
     if (row.parentType != null) {
       const parent = areas.find((a) => a.type === row.parentType)
-      if (parent) applyArea(levels, parent, v)
+      if (parent) applyArea(levels, parent, want)
     }
     for (const child of areas.filter((a) => a.parentType === row.type)) {
-      applyArea(levels, child, v)
+      applyArea(levels, child, want)
     }
   }
 
@@ -126,16 +127,11 @@
     setArea(row, row.level + delta)
   }
 
-  /** 全部拉满：区域子页所有行置为各自上限（联动随单行写入自动传导） */
+  /** 全部拉满：每行独立置为各自上限（不走父子联动——联动会让上限不一致的家族互相拉扯） */
   function maxAllAreas(): void {
     if (!loaded || !areas.length) return
     playSound('success')
-    const levels = new Map<number, number>()
-    for (const a of areas) applyArea(levels, a, a.maxLevel)
-    for (const a of areas) {
-      const lv = levels.get(a.type)
-      if (lv != null) a.level = lv
-    }
+    for (const a of areas) a.level = a.maxLevel
     scheduleSave()
   }
 
@@ -309,19 +305,54 @@
     </div>
   </header>
 
-  {#if booting}
-    <div class="boot">
-      <PhxSkeleton lines={6} />
-    </div>
-  {:else if loaded}
-    <div class="toolbar">
-      <div class="seg">
-        {#each SEGS as s (s)}
-          <button type="button" class:on={seg === s} onclick={() => switchSeg(s)}>
-            {t(`hideout.seg.${s}` as MessageKey)}
-          </button>
-        {/each}
+  <div class="body">
+    <!-- 骨架层：镜像工具行 + 区域卡网格真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="toolbar">
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <span class="fspacer"></span>
+        <i class="phx-sk sfld-sk"></i>
       </div>
+      <div class="scroll">
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:64px"></i>
+            <i class="phx-sk gc-sk"></i>
+          </div>
+          <div class="qcard">
+            <div class="zgrid">
+              {#each skRows(4) as r (r)}
+                <div class="zcard">
+                  <div class="zhead">
+                    <i class="phx-sk" style="width:96px"></i>
+                    <i class="phx-sk slim" style="width:44px"></i>
+                    <i class="phx-sk zlv-sk"></i>
+                  </div>
+                  <div class="zbar"><i class="phx-sk zfill-sk"></i></div>
+                  <div class="zctl">
+                    <i class="phx-sk step-sk"></i>
+                    <i class="phx-sk range-sk"></i>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  {#if loaded}
+    <div class="toolbar phx-fade-in">
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('hideout.seg.aria')}
+        options={[
+          { value: 'areas', label: t('hideout.seg.areas') },
+          { value: 'recipes', label: t('hideout.seg.recipes') },
+          { value: 'crafts', label: t('hideout.seg.crafts') }
+        ]}
+      />
       <span class="fspacer"></span>
       {#if seg === 'areas'}
         <div class="sfield">
@@ -340,7 +371,7 @@
       {/if}
     </div>
 
-    <div class="scroll phx-hide-scroll">
+    <div class="scroll phx-fade-in">
       {#if seg === 'areas'}
         <section class="qgroup">
           <div class="ghead">
@@ -441,9 +472,11 @@
                     {t('hideout.act.finish')}
                   </button>
                 {/if}
-                <button class="del" type="button" aria-label={t('hideout.aria.del')} onclick={() => askRemoveCraft(c.id)}>
-                  <PhxIcon markup={ICON.trash} />
-                </button>
+                <PhxTooltip label={t('hideout.aria.del')}>
+                  <button class="del" type="button" aria-label={t('hideout.aria.del')} onclick={() => askRemoveCraft(c.id)}>
+                    <PhxIcon markup={ICON.trash} />
+                  </button>
+                </PhxTooltip>
               </div>
             {/each}
             {#if !visCrafts.length}<div class="empty">{t('hideout.empty.crafts')}</div>{/if}
@@ -454,6 +487,7 @@
   {:else}
     <div class="empty">{t('hideout.empty.noprofile')}</div>
   {/if}
+  </div>
 </div>
 
 <PhxDialog
@@ -531,7 +565,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
   .empty {
     padding: 44px 0;
@@ -540,9 +574,57 @@
     font-size: 13px;
   }
 
-  /* ---- 加载骨架屏缓冲 ---- */
-  .boot {
-    margin: 16px 24px 0;
+  /* ---- 页级内容包装：骨架层与真实内容共用定位上下文 ---- */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- 加载骨架屏缓冲（镜像真实布局，复用原 class 几何，仅覆写控件形状） ---- */
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .sfld-sk {
+    width: 160px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .boot .gc-sk {
+    width: 24px;
+    height: 16px;
+    border-radius: 8px;
+  }
+
+  .boot .zlv-sk {
+    width: 56px;
+    height: 16px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+
+  .boot .zfill-sk {
+    width: 45%;
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .boot .step-sk {
+    width: 96px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .boot .range-sk {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
   }
 
   /* ---- 工具行：子页分段 + 过滤框 ---- */
@@ -554,33 +636,6 @@
   }
   .fspacer {
     flex: 1;
-  }
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
   }
   .sfield {
     height: 28px;

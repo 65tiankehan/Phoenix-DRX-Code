@@ -35,6 +35,27 @@
 
   const current = $derived(options.find((o) => o.value === value))
 
+  // 菜单浮层用 fixed 定位：absolute 会被滚动容器与卡片 overflow:hidden 裁剪（设置页实坑）。
+  // open 后等 DOM 挂载，按触发钮矩形定位：默认下方 6px（设置页右对齐 / bare 左对齐），下方放不下且上方够用则向上翻。
+  $effect(() => {
+    if (open) void tick().then(placeMenu)
+  })
+
+  function placeMenu(): void {
+    if (!btnEl || !menuEl) return
+    const r = btnEl.getBoundingClientRect()
+    menuEl.style.minWidth = `${r.width}px`
+    const w = menuEl.offsetWidth
+    const h = menuEl.offsetHeight
+    let top = r.bottom + 6
+    if (top + h > window.innerHeight - 8 && r.top - 6 - h > 8) top = r.top - 6 - h
+    const left = bare
+      ? Math.max(8, r.left)
+      : Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8))
+    menuEl.style.top = `${top}px`
+    menuEl.style.left = `${left}px`
+  }
+
   function toggle(): void {
     if (!disabled) open = !open
   }
@@ -92,7 +113,8 @@
   }
 </script>
 
-<svelte:window onclick={onDocClick} />
+<!-- capture 捕获任意容器滚动（scroll 不冒泡）：fixed 菜单不随滚动走，滚动即收起防悬空错位 -->
+<svelte:window onclick={onDocClick} onscrollcapture={() => (open = false)} onresize={() => (open = false)} />
 
 <div bind:this={rootEl} class="dd" class:bare>
   <button
@@ -167,11 +189,9 @@
     color: var(--phx-text-3);
     flex: none;
   }
+  /* fixed 浮层：坐标由 placeMenu() 按触发钮矩形计算（绕开滚动容器/卡片 overflow 裁剪） */
   .dd-menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    min-width: 100%;
+    position: fixed;
     z-index: var(--phx-z-overlay);
     background: var(--phx-surface-2);
     border-radius: 10px;
@@ -207,9 +227,5 @@
   }
   .dd.bare .dd-btn:hover:not(:disabled) {
     background: transparent;
-  }
-  .dd.bare .dd-menu {
-    left: 0;
-    right: auto;
   }
 </style>

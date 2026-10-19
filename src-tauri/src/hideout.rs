@@ -10,8 +10,9 @@
 //!   配方行 {_id, areaType, endProduct, locked, ...}）；
 //! - 名称：locale 直取 `hideout_area_{type}_name`（缺失原样键）与 `{endProduct} Name`
 //!   （缺失原样模板 id）；
-//! - 联动口径（参考 HideoutArea.Level setter）：等级写入按 stages 数卡控后，
-//!   父 / 子区域同步同值（parentArea 关系递归传导，写入侧兜底做不动点收敛）；
+//! - 联动口径（参考 HideoutArea.Level setter 实证）：父子同值联动是**前端 UI 操作语义**
+//!   （每跳按目标自己的 MaxLevel 卡控、递归传导）；写入侧不做联动，仅按 stages 数卡控，
+//!   防止联动把等级顶超各区域自己的上限（如 Solar Power max=1 被父区域顶到 2）；
 //! - SetFinished（参考 StartedHideoutProduction.SetFinished）：剩余小时 × 3600 折回
 //!   startTimestamp 后 progress 置满（前端算好传回，Rust 原样写）；
 //! - 写回铁律：先备份，后整体替换三段数据（Areas / Production / unlockedProductionRecipe）。
@@ -327,51 +328,6 @@ pub fn load_hideout(app: &AppHandle, id: &str) -> Option<HideoutData> {
 
 // ———————— 写回 ————————
 
-/// 区域等级写入侧兜底：按 stages 数卡控 + 父 / 子区域联动
-/// （参考 HideoutArea.Level setter：卡控后把同值同步给 parentArea 关系的父与子，
-/// 递归传导 → 用不动点收敛近似）。
-fn propagate_levels(levels: &mut HashMap<i64, i64>, area_infos: &[Value]) {
-    // type → (_id, parentArea)
-    let rel: Vec<(i64, Option<&str>, &str)> = area_infos
-        .iter()
-        .filter_map(|a| {
-            Some((
-                a.get("type")?.as_i64()?,
-                a.get("parentArea").and_then(|v| v.as_str()),
-                a.get("_id")?.as_str()?,
-            ))
-        })
-        .collect();
-    loop {
-        let mut changed = false;
-        for (t, _parent, id) in &rel {
-            // 父 → 子：parentArea == 本区域 id 的子区域取同值
-            for (ct, cp, _) in &rel {
-                if *cp == Some(id) {
-                    let want = levels.get(t).copied().unwrap_or(0);
-                    if levels.get(ct).copied() != Some(want) {
-                        levels.insert(*ct, want);
-                        changed = true;
-                    }
-                }
-            }
-            // 子 → 父：本区域 parentArea 指向的父区域取同值
-            if let Some((pt, _, _)) = rel.iter().find(|(_, _, pid)| {
-                Some(*pid) == *_parent
-            }) {
-                let want = levels.get(t).copied().unwrap_or(0);
-                if levels.get(pt).copied() != Some(want) {
-                    levels.insert(*pt, want);
-                    changed = true;
-                }
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
-}
-
 /// 藏身处页写回：先强制备份（领域铁律），后整体替换三段数据
 pub fn save_hideout(app: &AppHandle, id: &str, data: &HideoutSaveData) -> Result<SaveResult, String> {
     if !is_safe_id(id) {
@@ -394,7 +350,7 @@ pub fn save_hideout(app: &AppHandle, id: &str, data: &HideoutSaveData) -> Result
             maxes.insert(t, s.len() as i64 - 1);
         }
     }
-    let mut levels: HashMap<i64, i64> = data
+    let levels: HashMap<i64, i64> = data
         .areas
         .iter()
         .map(|a| {
@@ -402,7 +358,6 @@ pub fn save_hideout(app: &AppHandle, id: &str, data: &HideoutSaveData) -> Result
             (a.area_type, a.level.max(0).min(cap))
         })
         .collect();
-    propagate_levels(&mut levels, &area_infos);
 
     // Hideout 节缺失则建
     if raw.pointer("/characters/pmc/Hideout").is_none() {
@@ -411,7 +366,7 @@ pub fn save_hideout(app: &AppHandle, id: &str, data: &HideoutSaveData) -> Result
         }
     }
 
-    // Areas：按 type 整体重建（联动后的等级为准）
+    // Areas：按 type 整体重建（写入侧仅卡控，不做父子联动）
     let mut areas_out: Vec<Value> = Vec::new();
     for (t, lv) in &levels {
         areas_out.push(json!({ "type": t, "level": lv }));

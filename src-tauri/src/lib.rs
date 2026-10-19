@@ -11,6 +11,7 @@ mod character;
 mod health;
 mod hideout;
 mod inspect;
+mod issues;
 mod presets;
 mod profile;
 mod quests;
@@ -23,13 +24,15 @@ mod traders;
 mod tray;
 mod updater;
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 
 use announcement::AnnouncementPayload;
+use backup::BackupRow;
 use character::{CharData, CharOptions, CharSaveData};
 use health::{HealthData, HealthSaveData};
 use hideout::{HideoutData, HideoutSaveData};
+use issues::{IssueRow, IssuesFixResult};
 use presets::{ImportResult, PresetsData};
 use profile::{ProfileHero, ProfileMeta, SaveResult};
 use quests::{QuestsData, QuestsSaveData};
@@ -365,6 +368,53 @@ async fn builds_export_all(
     presets::builds_export_all(&app, &id, &kind, &dir)
 }
 
+// —— 问题检测 / 修复（13-issues，保存动作衍生场景）——
+
+/// 问题清单：读档重扫（未选服务器报错；档案缺失或不可读时为空清单）
+#[tauri::command]
+async fn issues_scan(app: AppHandle, id: String) -> Result<Vec<IssueRow>, String> {
+    issues::issues_scan(&app, &id)
+}
+
+/// 修复选中问题：先备份后写盘；返回写盘后重扫的剩余问题与备份路径
+#[tauri::command]
+async fn issues_fix(
+    app: AppHandle,
+    id: String,
+    issue_ids: Vec<String>,
+) -> Result<IssuesFixResult, String> {
+    issues::issues_fix(&app, &id, &issue_ids)
+}
+
+// —— 备份页（14-backup）——
+
+/// 组装当前存档的完整路径（备份三命令共用；is_safe_id 前置校验）
+fn profile_path_of(app: &AppHandle, id: &str) -> Result<std::path::PathBuf, String> {
+    if !profile::is_safe_id(id) {
+        return Err("存档标识不合法".to_string());
+    }
+    let dir = profile::profiles_dir(app).ok_or_else(|| "未选择 SPT 服务器".to_string())?;
+    Ok(std::path::Path::new(&dir).join(format!("{}.json", id)))
+}
+
+/// 备份清单：按时间倒序；目录缺失为空清单
+#[tauri::command]
+async fn backup_list(app: AppHandle, id: String) -> Result<Vec<BackupRow>, String> {
+    backup::backup_list(&app, &profile_path_of(&app, &id)?)
+}
+
+/// 回档：当前档案先备份 → 选中备份覆盖 → 消耗该备份
+#[tauri::command]
+async fn backup_restore(app: AppHandle, id: String, backup_id: String) -> Result<(), String> {
+    backup::backup_restore(&app, &profile_path_of(&app, &id)?, &backup_id)
+}
+
+/// 删除单份备份（不影响当前档案）
+#[tauri::command]
+async fn backup_delete(app: AppHandle, id: String, backup_id: String) -> Result<(), String> {
+    backup::backup_delete(&app, &profile_path_of(&app, &id)?, &backup_id)
+}
+
 /// 应用级标志（启动页/引导页首启编排）
 #[tauri::command]
 async fn app_flags(app: AppHandle) -> Result<server::AppFlags, String> {
@@ -500,6 +550,20 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             apply_window_rounding(app.handle());
+            // conf 的 center:true 对无边框透明窗实测未生效，启动时显式居中兜底；
+            // 默认 860 高在小屏会顶出屏幕（实坑），按显示器逻辑高度收敛（预留任务栏等约 48px）
+            if let Some(win) = app.get_webview_window("main") {
+                if let Ok(Some(m)) = win.current_monitor() {
+                    let scale = win.scale_factor().unwrap_or(1.0);
+                    let avail = m.size().height as f64 / scale - 48.0;
+                    let max_h = avail.clamp(640.0, 860.0);
+                    let h = win.inner_size().map(|s| s.height).unwrap_or(0) as f64 / scale;
+                    if h > max_h + 1.0 {
+                        let _ = win.set_size(tauri::LogicalSize::new(1100.0, max_h));
+                    }
+                }
+                let _ = win.center();
+            }
             tray::init(app.handle()).expect("托盘初始化失败");
             // 启动静默检查更新：延迟 3 秒避开启动高峰，受设置开关控制，
             // 失败/无更新零 UI（manual=false 静默语义在 updater::check 内）
@@ -546,6 +610,8 @@ pub fn run() {
             inspect_weapon, builds_global, preset_add, preset_export, weapon_export,
             presets_load, build_remove, builds_remove_all, build_to_stash,
             build_import, build_export, builds_export_all,
+            issues_scan, issues_fix,
+            backup_list, backup_restore, backup_delete,
             app_flags, mark_splash_seen, mark_onboarded, announcement_fetch,
             settings_get, settings_set, settings_open_data_dir, settings_reset, settings_restart,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,

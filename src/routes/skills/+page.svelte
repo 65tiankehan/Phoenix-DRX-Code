@@ -10,8 +10,11 @@
   import { toast } from '$lib/toast.svelte'
   import { phxProfile, phxSkills, type PhxSkillRow, type PhxSkillsSaveRow } from '$lib/ipc'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   const ICON = {
     chev: '<path d="M6 9.5 12 15.5 18 9.5"/>',
@@ -19,8 +22,7 @@
   }
 
   /** 顶层分段：PMC / Scav 两套独立数据（存档 characters.pmc / .scav 同构） */
-  const SEGS = ['pmc', 'scav'] as const
-  type Side = (typeof SEGS)[number]
+  type Side = 'pmc' | 'scav'
 
   /** 分组定义（组序固定：普通技能 → 武器熟练；capNote 稿图组头注） */
   const GROUPS: Array<{ key: 'Common' | 'Mastering'; title: MessageKey; capNote: MessageKey }> = [
@@ -230,12 +232,65 @@
     </div>
   </header>
 
-  {#if booting}
-    <div class="boot">
-      <PhxSkeleton lines={6} />
+  <div class="body">
+    <!-- 骨架层：镜像工具行 + 技能分组真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="toolbar">
+        <i class="phx-sk search-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk ghost-sk"></i>
+      </div>
+      <div class="scroll">
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:56px"></i>
+            <i class="phx-sk gc-sk"></i>
+            <i class="phx-sk slim" style="width:64px"></i>
+            <i class="phx-sk chev-sk"></i>
+          </div>
+          <div class="qcard">
+            <div class="qfold">
+              {#each skRows(4) as r (r)}
+                <div class="srow">
+                  <div class="sinfo">
+                    <i class="phx-sk" style="width:118px"></i>
+                    <i class="phx-sk slim" style="width:84px"></i>
+                  </div>
+                  <i class="phx-sk step-sk"></i>
+                  <i class="phx-sk srange-sk"></i>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </section>
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:64px"></i>
+            <i class="phx-sk gc-sk"></i>
+            <i class="phx-sk slim" style="width:52px"></i>
+            <i class="phx-sk chev-sk"></i>
+          </div>
+          <div class="qcard">
+            <div class="qfold">
+              {#each skRows(2) as r (r)}
+                <div class="srow">
+                  <div class="sinfo">
+                    <i class="phx-sk" style="width:104px"></i>
+                    <i class="phx-sk slim" style="width:76px"></i>
+                  </div>
+                  <i class="phx-sk step-sk"></i>
+                  <i class="phx-sk srange-sk"></i>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
-  {:else if loaded}
-    <div class="toolbar">
+
+    {#if loaded}
+    <div class="toolbar phx-fade-in">
       <div class="search-wrap">
         <span class="search-ico"><PhxIcon markup={ICON.search} /></span>
         <input
@@ -246,17 +301,20 @@
           bind:value={search}
         />
       </div>
-      <div class="seg">
-        {#each SEGS as s (s)}
-          <button type="button" class:on={seg === s} onclick={() => { playSound('ui'); seg = s }}>{s.toUpperCase()}</button>
-        {/each}
-      </div>
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('skills.seg.aria')}
+        options={[
+          { value: 'pmc', label: 'PMC' },
+          { value: 'scav', label: 'SCAV' }
+        ]}
+      />
       <button class="btn ghost" type="button" style="margin-left:auto" onclick={openPanel}>
         {t('skills.act.all')}
       </button>
     </div>
 
-    <div class="scroll phx-hide-scroll">
+    <div class="scroll phx-fade-in">
       {#each visGroups as g (g.key)}
         <section class="qgroup" class:folded={folded[g.key]}>
           <button class="ghead" type="button" onclick={() => toggleFold(g.key)}>
@@ -266,6 +324,7 @@
             <span class="gchev"><PhxIcon markup={ICON.chev} /></span>
           </button>
           <div class="qcard">
+            <div class="qfold">
             {#if g.rows.length}
               {#each g.rows as row (row.id)}
                 <div class="srow">
@@ -303,6 +362,7 @@
                 <div class="t">{t('skills.empty.group')}</div>
               </div>
             {/if}
+            </div>
           </div>
         </section>
       {/each}
@@ -313,6 +373,7 @@
   {:else}
     <div class="empty">{t('skills.empty.noprofile')}</div>
   {/if}
+  </div>
 </div>
 
 {#if panelOpen}
@@ -410,7 +471,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
   .empty {
     margin-top: 18px;
@@ -420,9 +481,64 @@
     color: var(--phx-text-3);
   }
 
-  /* ---- 加载骨架屏缓冲 ---- */
-  .boot {
-    margin: 16px 24px 0;
+  /* ---- 页级内容包装：骨架层与真实内容共用定位上下文 ---- */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- 加载骨架屏缓冲（镜像真实布局，复用原 class 几何，仅覆写控件形状） ---- */
+  .boot .search-sk {
+    width: 240px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .ghost-sk {
+    width: 86px;
+    height: 30px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+
+  .boot .gc-sk {
+    width: 24px;
+    height: 16px;
+    border-radius: 8px;
+  }
+
+  .boot .chev-sk {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-left: auto;
+  }
+
+  .boot .sinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .boot .step-sk {
+    width: 94px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .boot .srange-sk {
+    width: 240px;
+    height: 4px;
+    border-radius: 2px;
   }
 
   /* ---- 工具行：搜索 + 阵营分段 + 一键设置全部 ---- */
@@ -466,33 +582,6 @@
   }
   .search:focus {
     box-shadow: 0 0 0 3px var(--phx-accent-dim);
-  }
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
   }
 
   /* ---- 分组（iOS grouped list：组头在卡外，行为卡内列表） ---- */
@@ -549,9 +638,26 @@
     background: var(--phx-surface);
     border-radius: var(--phx-r-card);
     overflow: hidden;
+    /* 展开收起高度过渡：单行 grid 1fr↔0fr（感官层基线档位） */
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--phx-dur-norm) var(--phx-ease-emphasized);
   }
   .qgroup.folded .qcard {
-    display: none;
+    grid-template-rows: 0fr;
+  }
+  /* 收起动画结束后再移出可聚焦范围；展开瞬间恢复 */
+  .qfold {
+    min-height: 0;
+    overflow: hidden;
+    transition: visibility 0s var(--phx-dur-norm);
+  }
+  .qgroup.folded .qfold {
+    visibility: hidden;
+  }
+  .qgroup:not(.folded) .qfold {
+    visibility: visible;
+    transition: visibility 0s;
   }
 
   /* ---- 技能行：名称 + 经验值步进（±100）+ 滑杆，双向联动 ---- */

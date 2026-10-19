@@ -10,14 +10,16 @@
   import { toast } from '$lib/toast.svelte'
   import { phxProfile, phxHealth, type PhxHealthSide, type PhxHealthVital } from '$lib/ipc'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   const ICON = { chev: '<path d="M6 9.5 12 15.5 18 9.5"/>' }
 
   /** 顶层分段：PMC / Scav 两套独立数据（存档 characters.pmc / .scav 同构） */
-  const SEGS = ['pmc', 'scav'] as const
-  type Side = (typeof SEGS)[number]
+  type Side = 'pmc' | 'scav'
 
   /** 分组定义：身体部位（4 列网格）与水分 / 能量（2 列网格），卡内字段键对照存档 */
   const GROUPS: Array<{
@@ -204,20 +206,78 @@
     </div>
   </header>
 
-  {#if booting}
-    <div class="boot">
-      <PhxSkeleton lines={6} />
-    </div>
-  {:else if loaded}
-    <div class="toolbar">
-      <div class="seg">
-        {#each SEGS as s (s)}
-          <button type="button" class:on={seg === s} onclick={() => { playSound('ui'); seg = s }}>{s.toUpperCase()}</button>
-        {/each}
+  <div class="body">
+    <!-- 骨架层：镜像分段 + 指标分组真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="toolbar">
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+      </div>
+      <div class="scroll">
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:56px"></i>
+            <i class="phx-sk gc-sk"></i>
+            <i class="phx-sk chev-sk"></i>
+          </div>
+          <div class="qcard">
+            <div class="qfold">
+              <div class="mgrid">
+                {#each skRows(4) as c (c)}
+                  <div class="mcard">
+                    <div class="mhead">
+                      <i class="phx-sk" style="width:56px"></i>
+                      <i class="phx-sk slim" style="width:34px"></i>
+                    </div>
+                    <i class="phx-sk mbar-sk"></i>
+                    <div class="mrow"><i class="phx-sk slim" style="width:26px"></i><i class="phx-sk step-sk"></i></div>
+                    <div class="mrow"><i class="phx-sk slim" style="width:26px"></i><i class="phx-sk step-sk"></i></div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:44px"></i>
+            <i class="phx-sk gc-sk"></i>
+            <i class="phx-sk chev-sk"></i>
+          </div>
+          <div class="qcard">
+            <div class="qfold">
+              <div class="mgrid g2">
+                {#each skRows(2) as c (c)}
+                  <div class="mcard">
+                    <div class="mhead">
+                      <i class="phx-sk" style="width:62px"></i>
+                      <i class="phx-sk slim" style="width:34px"></i>
+                    </div>
+                    <i class="phx-sk mbar-sk"></i>
+                    <div class="mrow"><i class="phx-sk slim" style="width:26px"></i><i class="phx-sk step-sk"></i></div>
+                    <div class="mrow"><i class="phx-sk slim" style="width:26px"></i><i class="phx-sk step-sk"></i></div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
-    <div class="scroll phx-hide-scroll">
+    {#if loaded}
+    <div class="toolbar phx-fade-in">
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('health.seg.aria')}
+        options={[
+          { value: 'pmc', label: 'PMC' },
+          { value: 'scav', label: 'SCAV' }
+        ]}
+      />
+    </div>
+
+    <div class="scroll phx-fade-in">
       {#each GROUPS as g (g.key)}
         <section class="qgroup" class:folded={folded[g.key]}>
           <button class="ghead" type="button" onclick={() => toggleFold(g.key)}>
@@ -226,6 +286,7 @@
             <span class="gchev"><PhxIcon markup={ICON.chev} /></span>
           </button>
           <div class="qcard">
+            <div class="qfold">
             <div class="mgrid" class:g2={g.cols === 2} style={`--cols:${g.cols}`}>
               {#each g.rows as row (row.k)}
                 {@const v = sideOf()[row.k]}
@@ -268,6 +329,7 @@
                 </div>
               {/each}
             </div>
+            </div>
           </div>
         </section>
       {/each}
@@ -275,6 +337,7 @@
   {:else}
     <div class="empty">{t('health.empty.noprofile')}</div>
   {/if}
+  </div>
 </div>
 
 <style>
@@ -334,7 +397,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
   .empty {
     margin-top: 18px;
@@ -345,8 +408,45 @@
   }
 
   /* ---- 加载骨架屏缓冲 ---- */
-  .boot {
-    margin: 16px 24px 0;
+  /* 页级定位包装层：包住常驻骨架层与内容，骨架 absolute 覆盖时避开页头 */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 骨架内复用真实布局 class（自带边距），仅覆写控件形状 */
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .gc-sk {
+    width: 24px;
+    height: 16px;
+    border-radius: 8px;
+  }
+
+  .boot .chev-sk {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-left: auto;
+  }
+
+  .boot .mbar-sk {
+    height: 4px;
+    border-radius: 2px;
+    margin: 11px 0 13px;
+  }
+
+  .boot .step-sk {
+    width: 94px;
+    height: 28px;
+    border-radius: 8px;
   }
 
   /* ---- 工具行：阵营分段 ---- */
@@ -355,33 +455,6 @@
     display: flex;
     align-items: center;
     gap: 10px;
-  }
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
   }
 
   /* ---- 分组（iOS grouped list：组头在卡外，卡内指标网格） ---- */
@@ -434,9 +507,26 @@
     background: var(--phx-surface);
     border-radius: var(--phx-r-card);
     overflow: hidden;
+    /* 展开收起高度过渡：单行 grid 1fr↔0fr（感官层基线档位） */
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--phx-dur-norm) var(--phx-ease-emphasized);
   }
   .qgroup.folded .qcard {
-    display: none;
+    grid-template-rows: 0fr;
+  }
+  /* 收起动画结束后再移出可聚焦范围；展开瞬间恢复 */
+  .qfold {
+    min-height: 0;
+    overflow: hidden;
+    transition: visibility 0s var(--phx-dur-norm);
+  }
+  .qgroup.folded .qfold {
+    visibility: hidden;
+  }
+  .qgroup:not(.folded) .qfold {
+    visibility: visible;
+    transition: visibility 0s;
   }
 
   /* ---- 指标卡：部位名 + 当前/上限比例条（提案）+ 当前/上限双步进 ---- */

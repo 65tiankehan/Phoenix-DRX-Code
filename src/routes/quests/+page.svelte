@@ -10,8 +10,12 @@
   import { phxProfile, phxQuests, type PhxQuestRow } from '$lib/ipc'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   /** 稿图图标（24 系同源路径：列表勾行 / 搜索镜 / 下箭头 / 垃圾桶） */
   const ICON = {
@@ -67,12 +71,6 @@
     { key: 'Weekly', title: 'quests.g.weekly' },
     { key: 'Daily', title: 'quests.g.daily' },
     { key: 'Daily_Savage', title: 'quests.g.savage' }
-  ]
-
-  const SEGS: Array<{ k: 'all' | 'undone' | 'done'; key: MessageKey }> = [
-    { k: 'all', key: 'quests.seg.all' },
-    { k: 'undone', key: 'quests.seg.undone' },
-    { k: 'done', key: 'quests.seg.done' }
   ]
 
   let currentId = $state('')
@@ -275,12 +273,48 @@
     </div>
   </header>
 
-  {#if booting}
-    <div class="boot">
-      <PhxSkeleton lines={6} />
+  <div class="body">
+    <!-- 骨架层：镜像概览条 + 工具行 + 任务分组真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="statbar">
+        <i class="phx-sk trk-sk"></i>
+        <i class="phx-sk slim" style="width:170px"></i>
+      </div>
+      <div class="toolbar">
+        <i class="phx-sk search-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk ghost-sk"></i>
+      </div>
+      <div class="scroll">
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:64px"></i>
+            <i class="phx-sk gc-sk"></i>
+            <i class="phx-sk chev-sk"></i>
+          </div>
+          <div class="qcard">
+            <div class="qfold">
+              {#each skRows(4) as r (r)}
+                <div class="qrow">
+                  <i class="phx-sk tav-sk"></i>
+                  <div class="qinfo">
+                    <i class="phx-sk" style="width:158px"></i>
+                    <i class="phx-sk slim" style="width:104px"></i>
+                  </div>
+                  <i class="phx-sk pill-sk"></i>
+                  <i class="phx-sk del-sk"></i>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
-  {:else if loaded}
-    <div class="statbar">
+
+    {#if loaded}
+    <div class="statbar phx-fade-in">
       <div class="track"><div class="fill" style={`width:${pct}%`}></div></div>
       <span class="stat">{t('quests.stat.done', { done: doneCount, total, pct })}</span>
     </div>
@@ -296,17 +330,21 @@
           bind:value={search}
         />
       </div>
-      <div class="seg">
-        {#each SEGS as s (s.k)}
-          <button type="button" class:on={seg === s.k} onclick={() => { playSound('ui'); seg = s.k }}>{t(s.key)}</button>
-        {/each}
-      </div>
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('quests.seg.aria')}
+        options={[
+          { value: 'all', label: t('quests.seg.all') },
+          { value: 'undone', label: t('quests.seg.undone') },
+          { value: 'done', label: t('quests.seg.done') }
+        ]}
+      />
       <button class="btn ghost" type="button" style="margin-left:auto" onclick={fillMissing} disabled={!missing.length || saving}>
         {t('quests.act.fill')}
       </button>
     </div>
 
-    <div class="scroll phx-hide-scroll">
+    <div class="scroll phx-fade-in">
       {#each visGroups as g (g.key)}
         <section class="qgroup" class:folded={folded[g.key]}>
           <button class="ghead" type="button" onclick={() => toggleFold(g.key)}>
@@ -315,6 +353,7 @@
             <span class="gchev"><PhxIcon markup={ICON.chev} /></span>
           </button>
           <div class="qcard">
+            <div class="qfold">
             {#each g.rows as row (row.qid)}
               <div class="qrow">
                 <span class="tav">{avOf(row)}</span>
@@ -327,11 +366,14 @@
                 <button class="pill {pillOf(row.status)}" type="button" onclick={(e) => openMenu(e, row)}>
                   {statusLabel(row.status)}
                 </button>
-                <button class="qdel" type="button" aria-label={t('quests.aria.del')} onclick={() => askRemove(row)}>
-                  <PhxIcon markup={ICON.trash} />
-                </button>
+                <PhxTooltip label={t('quests.aria.del')}>
+                  <button class="qdel" type="button" aria-label={t('quests.aria.del')} onclick={() => askRemove(row)}>
+                    <PhxIcon markup={ICON.trash} />
+                  </button>
+                </PhxTooltip>
               </div>
             {/each}
+            </div>
           </div>
         </section>
       {/each}
@@ -340,6 +382,7 @@
   {:else}
     <div class="empty">{t('quests.empty.noprofile')}</div>
   {/if}
+  </div>
 </div>
 
 {#if menuRow}
@@ -433,7 +476,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
   .empty {
     margin-top: 18px;
@@ -444,8 +487,79 @@
   }
 
   /* ---- 加载骨架屏缓冲 ---- */
-  .boot {
-    margin: 16px 24px 0;
+  /* 页级定位包装层：包住常驻骨架层与内容，骨架 absolute 覆盖时避开页头 */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 骨架内复用真实布局 class（自带边距），仅覆写控件形状 */
+  .boot .trk-sk {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+  }
+
+  .boot .search-sk {
+    width: 240px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .ghost-sk {
+    width: 86px;
+    height: 30px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+
+  .boot .gc-sk {
+    width: 24px;
+    height: 16px;
+    border-radius: 8px;
+  }
+
+  .boot .chev-sk {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-left: auto;
+  }
+
+  .boot .tav-sk {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    flex: none;
+  }
+
+  .boot .qinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .boot .pill-sk {
+    width: 60px;
+    height: 24px;
+    border-radius: 12px;
+    flex: none;
+  }
+
+  .boot .del-sk {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    flex: none;
   }
 
   /* ---- 概览条（稿图 05 专属） ---- */
@@ -517,33 +631,6 @@
   .search:focus {
     box-shadow: 0 0 0 3px var(--phx-accent-dim);
   }
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
-  }
 
   /* ---- 任务分组（iOS grouped list：组头在卡外，行为卡内列表） ---- */
   .qgroup {
@@ -595,9 +682,26 @@
     background: var(--phx-surface);
     border-radius: var(--phx-r-card);
     overflow: hidden;
+    /* 展开收起高度过渡：单行 grid 1fr↔0fr（感官层基线档位） */
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--phx-dur-norm) var(--phx-ease-emphasized);
   }
   .qgroup.folded .qcard {
-    display: none;
+    grid-template-rows: 0fr;
+  }
+  /* 收起动画结束后再移出可聚焦范围；展开瞬间恢复 */
+  .qfold {
+    min-height: 0;
+    overflow: hidden;
+    transition: visibility 0s var(--phx-dur-norm);
+  }
+  .qgroup.folded .qfold {
+    visibility: hidden;
+  }
+  .qgroup:not(.folded) .qfold {
+    visibility: visible;
+    transition: visibility 0s;
   }
   .qrow {
     display: flex;

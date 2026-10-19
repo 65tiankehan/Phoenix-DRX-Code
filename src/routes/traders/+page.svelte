@@ -13,6 +13,9 @@
   /** 联动起始值快照（对齐参考 ??= 一次性捕获语义） */
   type StartCap = { level: number; sales: number; standing: number; unlocked: boolean }
 
+  /** 骨架镜像占位行序号（boot 层内部件用） */
+  const skRows = (n: number) => [...Array(n).keys()]
+
   /** 已知商人：SPT 源码 Traders 枚举实证 ID，key 为 i18n 名，av 为稿图头像字 */
   const KNOWN: Array<{ id: string; key: MessageKey; en: string; av: string }> = [
     { id: '54cb50c76803fa8b248b4571', key: 'traders.name.prapor', en: 'Prapor', av: 'П' },
@@ -30,6 +33,7 @@
   let currentId = $state('')
   let traders = $state<PhxTraderRow[]>([])
   let rating = $state(0)
+  let booting = $state(true)
   let loaded = $state(false)
   let saving = $state(false)
   /** 销售输入框显示文本（千分位） */
@@ -151,22 +155,26 @@
 
   /** 全量刷新：当前档案 → 商人全量数据；成功后清空联动快照 */
   async function refresh(): Promise<void> {
+    booting = true
     const id = await phxProfile.current()
     currentId = id ?? ''
     loaded = false
     if (!currentId) {
       traders = []
+      booting = false
       return
     }
     const data = await phxTraders.load(currentId)
     if (!data) {
       traders = []
+      booting = false
       return
     }
     traders = data.traders
     rating = data.ragfair.rating
     starts = {}
     loaded = true
+    booting = false
     syncTexts()
   }
 
@@ -240,9 +248,45 @@
     </div>
   </header>
 
-  <div class="scroll phx-hide-scroll">
-    {#if loaded}
+  <div class="scroll">
+    <!-- 骨架层：镜像 3 列商人卡真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={loaded}>
       <div class="grid">
+        {#each skRows(8) as g (g)}
+          <section class="tcard">
+            <div class="tcard-head">
+              <i class="phx-sk tav-sk"></i>
+              <div class="tinfo">
+                <i class="phx-sk" style="width:64px"></i>
+                <i class="phx-sk slim" style="width:44px"></i>
+              </div>
+              <i class="phx-sk sw-sk"></i>
+            </div>
+            <div class="trow">
+              <i class="phx-sk slim k"></i>
+              <i class="phx-sk step-sk"></i>
+              <i class="phx-sk slim" style="width:48px"></i>
+            </div>
+            <div class="trow"><i class="phx-sk slim k"></i><i class="phx-sk mval-sk grow"></i></div>
+            <div class="trow"><i class="phx-sk slim k"></i><i class="phx-sk mval-sk grow"></i></div>
+          </section>
+        {/each}
+        <section class="tcard">
+          <div class="tcard-head">
+            <i class="phx-sk tav-sk"></i>
+            <div class="tinfo">
+              <i class="phx-sk" style="width:58px"></i>
+              <i class="phx-sk slim" style="width:52px"></i>
+            </div>
+          </div>
+          <div class="trow"><i class="phx-sk slim k"></i><i class="phx-sk mval-sk grow"></i></div>
+          <i class="phx-sk slim" style="width:150px;margin-top:12px"></i>
+        </section>
+      </div>
+    </div>
+
+    {#if loaded}
+      <div class="grid phx-fade-in">
         {#each sorted as row (row.id)}
           <section class="tcard" class:locked={!row.unlocked}>
             <div class="tcard-head">
@@ -302,7 +346,7 @@
           <div class="hint">{t('traders.hint.ragfair')}</div>
         </section>
       </div>
-    {:else}
+    {:else if !booting}
       <div class="empty">{t('traders.empty.none')}</div>
     {/if}
   </div>
@@ -361,10 +405,36 @@
     cursor: default;
   }
   .scroll {
+    position: relative; /* .phx-boot 骨架层的定位基准 */
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px;
+    padding: 0 24px 104px;
+  }
+  /* 骨架层内部：与 .scroll 同 padding 镜像真实几何，占位条走全局 .phx-sk 原语 */
+  .boot {
+    padding: 0 24px 104px;
+  }
+  .boot .tav-sk {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+  }
+  .boot .sw-sk {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    flex: none;
+  }
+  .boot .step-sk {
+    width: 94px;
+    height: 29px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+  .boot .mval-sk {
+    height: 30px;
+    border-radius: 7px;
   }
   .empty {
     margin-top: 18px;

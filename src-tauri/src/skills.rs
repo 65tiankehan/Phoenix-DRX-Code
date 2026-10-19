@@ -21,6 +21,7 @@ use tauri::AppHandle;
 use crate::backup::backup_before_write;
 use crate::character::database_dir;
 use crate::profile::{is_safe_id, profiles_dir, SaveResult};
+use crate::settings;
 
 /// 普通技能统一上限（参考 DefaultValues.CommonSkillMaxValue：51 级 × 100 点）
 const COMMON_SKILL_MAX: i64 = 5100;
@@ -213,6 +214,71 @@ fn read_group(
         .unwrap_or_default()
 }
 
+// ———————— 自动补全（设置页「自动补全」开关消费端） ————————
+
+/// 写盘/读视图前补全缺失技能，语义对齐参考 Profile.Load：
+/// - Scav 普通技能（auto_add_scav_skills）：PMC/Scav Common 都存在且 Scav Common
+///   为空数组时，按 PMC 行集复制新行（只取 Id，Progress 清零——不是复制进度）；
+/// - 武器熟练（auto_add_masterings）：PMC/Scav 双侧 Mastering 数组存在时，对照
+///   globals config.mastering 补缺失行 {Id, Progress: 0}（空数组也照补）；
+/// 两个开关都关时直接返回，档案零扰动。
+fn auto_add_missing(
+    app: &AppHandle,
+    mtable: &HashMap<String, MasteringEntry>,
+    raw: &mut Value,
+) {
+    let s = settings::get(app);
+    if !s.auto_add_scav_skills && !s.auto_add_masterings {
+        return;
+    }
+
+    if s.auto_add_scav_skills {
+        let pmc_common = raw.pointer("/characters/pmc/Skills/Common");
+        let scav_common = raw.pointer("/characters/scav/Skills/Common");
+        if let (Some(pmc), Some(scav)) = (pmc_common, scav_common) {
+            // 参考条件：两侧都非 null，且 Scav 侧 Count == 0
+            if scav.as_array().is_some_and(|a| a.is_empty()) {
+                let rows: Vec<Value> = pmc
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|r| r.get("Id").and_then(|v| v.as_str()))
+                            .map(|id| json!({ "Id": id, "Progress": 0 }))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if let Some(scav_arr) = raw
+                    .pointer_mut("/characters/scav/Skills/Common")
+                    .and_then(|v| v.as_array_mut())
+                {
+                    *scav_arr = rows;
+                }
+            }
+        }
+    }
+
+    if s.auto_add_masterings {
+        let mut names: Vec<String> = mtable.keys().cloned().collect();
+        names.sort();
+        for side in ["pmc", "scav"] {
+            let Some(arr) = raw
+                .pointer_mut(&format!("/characters/{}/Skills/Mastering", side))
+                .and_then(|v| v.as_array_mut())
+            else {
+                continue;
+            };
+            for name in &names {
+                let exists = arr
+                    .iter()
+                    .any(|r| r.get("Id").and_then(|v| v.as_str()) == Some(name.as_str()));
+                if !exists {
+                    arr.push(json!({ "Id": name, "Progress": 0 }));
+                }
+            }
+        }
+    }
+}
+
 // ———————— 命令实现 ————————
 
 /// 技能页全量数据；档案缺失或不可读时为 None
@@ -221,10 +287,12 @@ pub fn load_skills(app: &AppHandle, id: &str) -> Option<SkillsData> {
         return None;
     }
     let dir = profiles_dir(app)?;
-    let raw: Value =
+    let mut raw: Value =
         serde_json::from_str(&fs::read_to_string(Path::new(&dir).join(format!("{}.json", id))).ok()?)
             .ok()?;
     let mtable = mastering_table(app);
+    // 设置开关开启时在内存里补全缺失行（不改文件；用户保存时才随 save_skills 落盘）
+    auto_add_missing(app, &mtable, &mut raw);
     let lang = raw
         .pointer("/info/language")
         .and_then(|v| v.as_str())
@@ -259,6 +327,9 @@ pub fn save_skills(app: &AppHandle, id: &str, data: &SkillsSaveData) -> Result<S
     let backup_path = backup_before_write(app, &path)?;
 
     let mtable = mastering_table(app);
+    // 设置开关开启时先补全缺失行再定点替换——否则用户对补全行的修改会被
+    // 「查无该 Id：跳过」静默丢弃，开关沦为假开关
+    auto_add_missing(app, &mtable, &mut raw);
     for row in &data.rows {
         // side / group 白名单校验，防止路径注入
         if !matches!(row.side.as_str(), "pmc" | "scav") {

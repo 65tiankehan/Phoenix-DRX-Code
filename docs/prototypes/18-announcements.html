@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>18 · 公告面板</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-fill-secondary: rgba(255,255,255,.14);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-dur-fast: 0.16s;
+    --phx-dur-norm: 0.24s;
+    --phx-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --phx-ease-emphasized: cubic-bezier(0.34, 1.3, 0.64, 1);
+    --phx-z-header: 10;
+    --phx-z-overlay: 100;
+    --phx-z-modal: 200;
+    --phx-z-toast: 300;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+  }
+  .note {
+    margin-top: 20px; width: 1180px;
+    font-size: 12.5px; color: #9aa0a6; line-height: 1.8;
+  }
+  .note b { color: #c8ccd0; font-weight: 600; }
+
+  /* ===== 标题栏（40px 悬浮，与 02-04 一致）===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px;
+    z-index: var(--phx-z-header);
+    display: flex; align-items: center;
+    padding: 0 0 0 18px;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .tb-right { margin-left: auto; display: flex; align-self: stretch; align-items: stretch; }
+  .capbtns { display: flex; align-self: stretch; }
+  .capbtns button {
+    width: 46px; padding: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--phx-text-2); background: none; border: 0; font: inherit;
+    transition: background .12s, color .12s; cursor: default;
+  }
+  .capbtns button svg { width: 10px; height: 10px; display: block; }
+  .capbtns button:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns button.cap-close:hover { background: #c42b1c; color: #fff; }
+
+  /* ===== 公告铃铛（标题栏右端、窗口三键左侧）===== */
+  .bell {
+    position: relative; width: 34px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--phx-text-2); background: none; border: 0; font: inherit;
+    transition: background .12s, color .12s; cursor: default;
+  }
+  .bell:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .bell svg { width: 14px; height: 14px; display: block; }
+  .bell .dot {
+    position: absolute; top: 9px; right: 7px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--phx-accent);
+    box-shadow: 0 0 0 2px var(--phx-win-bg);
+  }
+  .bell .dot.hidden { display: none; }
+
+  /* ===== 被压暗的页面内容（示意，非本稿重点）===== */
+  .page-mock { position: absolute; inset: 40px 0 0; padding: 24px 32px; }
+  .pm-title { width: 180px; height: 20px; border-radius: 6px; background: var(--phx-fill-tertiary); }
+  .pm-grid { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .pm-tile { height: 96px; border-radius: var(--phx-r-card); background: var(--phx-surface); }
+
+  /* ===== 遮罩 + 公告面板（z-modal 层）===== */
+  .overlay {
+    position: absolute; inset: 0;
+    z-index: var(--phx-z-modal);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.5);
+    opacity: 0; pointer-events: none;
+    transition: opacity var(--phx-dur-norm) var(--phx-ease-out);
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .panel {
+    width: 520px; max-height: 560px;
+    display: flex; flex-direction: column;
+    background: var(--phx-surface);
+    border-radius: var(--phx-r-card);
+    box-shadow: var(--phx-shadow-win);
+    border: 1px solid var(--phx-sep);
+    transform: translateY(8px) scale(.98);
+    transition: transform var(--phx-dur-norm) var(--phx-ease-emphasized);
+    overflow: hidden;
+  }
+  .overlay.show .panel { transform: none; }
+
+  .panel-head {
+    flex: none; height: 52px;
+    display: flex; align-items: center;
+    padding: 0 10px 0 20px;
+    border-bottom: 1px solid var(--phx-sep);
+  }
+  .panel-title-wrap { display: flex; align-items: baseline; gap: 10px; }
+  .panel-title { font-size: 17px; font-weight: 600; color: var(--phx-text); }
+  .src-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; line-height: 1; padding: 4px 8px;
+    border-radius: 999px;
+  }
+  .src-badge i { width: 5px; height: 5px; border-radius: 50%; }
+  .src-remote { background: var(--phx-green-dim); color: var(--phx-green); }
+  .src-remote i { background: var(--phx-green); }
+  .src-cache { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .src-cache i { background: var(--phx-accent); }
+  .panel-close {
+    margin-left: auto; width: 36px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: 0; border-radius: var(--phx-r-btn);
+    color: var(--phx-text-2); cursor: default; font: inherit;
+    transition: background .12s, color .12s;
+  }
+  .panel-close svg { width: 10px; height: 10px; }
+  .panel-close:hover { background: var(--phx-fill-quaternary); color: var(--phx-text); }
+
+  .panel-list {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 14px 16px; scrollbar-width: none;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .panel-list::-webkit-scrollbar { display: none; }
+  .ann {
+    flex: none;
+    background: var(--phx-surface-2);
+    border-radius: var(--phx-r-card);
+    padding: 14px 16px 12px;
+  }
+  .ann-head { display: flex; align-items: center; gap: 8px; }
+  .ann-unread { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--phx-accent); }
+  .ann-unread.read { background: none; }
+  .ann-title { font-size: 14.5px; font-weight: 600; color: var(--phx-text); }
+  .ann-time { margin-left: auto; font-size: 12px; color: var(--phx-text-3); }
+  .ann-body {
+    margin-top: 8px;
+    font-size: 13px; line-height: 1.7; color: var(--phx-text-2);
+  }
+  .ann-link {
+    margin-top: 10px;
+    display: inline-flex; align-items: center; gap: 4px;
+    background: none; border: 0; padding: 0; font: inherit;
+    font-size: 12.5px; font-weight: 500; color: var(--phx-accent);
+    cursor: default; border-radius: 4px;
+  }
+  .ann-link svg { width: 9px; height: 9px; }
+  .ann-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  .panel-foot {
+    flex: none; height: 60px;
+    display: flex; align-items: center;
+    padding: 0 16px 0 20px;
+    border-top: 1px solid var(--phx-sep);
+  }
+  .foot-hint { font-size: 12px; color: var(--phx-text-3); }
+  .btn-primary {
+    margin-left: auto; height: 32px; padding: 0 18px;
+    background: var(--phx-accent); color: #fff;
+    border: 0; border-radius: var(--phx-r-btn); font: inherit;
+    font-size: 13px; font-weight: 600;
+    cursor: default;
+    transition: background .12s, transform var(--phx-dur-fast) var(--phx-ease-out);
+  }
+  .btn-primary:hover { background: #24a1ff; }
+  .btn-primary:active { transform: scale(.97); }
+
+  /* ===== 空态 ===== */
+  .panel-empty {
+    align-items: center; justify-content: center;
+    gap: 6px; padding: 28px 16px;
+    color: var(--phx-text-3);
+  }
+  .panel-empty svg { width: 32px; height: 32px; color: var(--phx-text-3); }
+  .empty-title { font-size: 13.5px; font-weight: 600; color: var(--phx-text-2); }
+  .empty-hint { font-size: 12px; color: var(--phx-text-3); }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="window" id="win">
+    <!-- 被压暗的页面内容（示意） -->
+    <div class="page-mock">
+      <div class="pm-title"></div>
+      <div class="pm-grid">
+        <div class="pm-tile"></div><div class="pm-tile"></div><div class="pm-tile"></div>
+        <div class="pm-tile"></div><div class="pm-tile"></div><div class="pm-tile"></div>
+      </div>
+    </div>
+
+    <!-- 标题栏 -->
+    <header class="titlebar">
+      <span class="tb-label">Phoenix</span>
+      <div class="tb-right">
+        <button type="button" class="bell" id="bell" aria-label="公告">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/>
+            <path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/>
+          </svg>
+          <span class="dot" id="bellDot"></span>
+        </button>
+        <div class="capbtns">
+          <button type="button" aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+          <button type="button" aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+          <button type="button" class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 公告面板（居中模态） -->
+    <div class="overlay show" id="overlay">
+      <section class="panel" role="dialog" aria-label="公告" aria-modal="true">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title">公告</h2>
+            <span class="src-badge src-remote"><i></i>已同步最新</span>
+          </div>
+          <button type="button" class="panel-close" id="panelClose" aria-label="关闭公告面板">
+            <svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="panel-list">
+          <article class="ann">
+            <div class="ann-head">
+              <span class="ann-unread"></span>
+              <h3 class="ann-title">v0.1.1 更新说明</h3>
+              <time class="ann-time">今天</time>
+            </div>
+            <p class="ann-body">修复藏身处「全部拉满」未生效的问题；新增公告面板。右上角小气泡今后只用于操作反馈，正式公告都在这里查看。</p>
+            <button type="button" class="ann-link">查看详情
+              <svg viewBox="0 0 10 10"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </article>
+          <article class="ann">
+            <div class="ann-head">
+              <span class="ann-unread read"></span>
+              <h3 class="ann-title">数据安全提醒</h3>
+              <time class="ann-time">3 天前</time>
+            </div>
+            <p class="ann-body">编辑存档有风险，请养成备份习惯。应用在每次保存前都会自动备份一次，你也可以在「备份」页随时手动创建。</p>
+          </article>
+          <article class="ann">
+            <div class="ann-head">
+              <span class="ann-unread read"></span>
+              <h3 class="ann-title">欢迎来到 Phoenix</h3>
+              <time class="ann-time">上周</time>
+            </div>
+            <p class="ann-body">这是一款免费开源的 SPT 存档编辑器。选择你的 SPT 服务器目录后即可开始编辑角色、藏身处与仓库。</p>
+          </article>
+        </div>
+        <div class="panel-foot">
+          <span class="foot-hint">关闭后可点标题栏的铃铛再次查看</span>
+          <button type="button" class="btn-primary" id="ackBtn">知道了</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>18 · 公告面板（稿图待批）</b><br>
+  · 右上角小气泡（toast）只承载操作反馈（保存成功 / 备份完成等）；正式公告一律进本面板。<br>
+  · 入口：标题栏右端、窗口三键左侧的铃铛按钮；有未读公告时铃铛带蓝点。<br>
+  · 启动时拉到公告：自动弹出一次本面板（不逐条弹 toast）；未读点在关闭面板（或点「知道了」）后清除。<br>
+  · 面板为居中模态卡片：顶部「公告」+ 数据来源徽章（远端 = 绿点「已同步最新」/ 缓存回退 = 琥珀「缓存内容」）；中部公告列表（标题 / 相对时间 / 正文 / 可选「查看详情」链接钮，未读项标题前带蓝点）；底部左提示文案 + 右「知道了」主按钮（清未读并关闭）。<br>
+  · 关闭方式：右上角关闭钮 / 「知道了」/ Esc / 点遮罩。<br>
+  · 无公告时面板显示空态（见下方小样）。
+</div>
+
+<div class="stage" style="height: 460px; width: 640px;">
+  <div class="window" id="win2" style="width: 640px; height: 460px;">
+    <div class="page-mock" style="padding: 20px 24px;">
+      <div class="pm-title" style="width: 140px;"></div>
+      <div class="pm-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 16px;">
+        <div class="pm-tile" style="height: 72px;"></div><div class="pm-tile" style="height: 72px;"></div>
+      </div>
+    </div>
+    <header class="titlebar">
+      <span class="tb-label">Phoenix</span>
+      <div class="tb-right">
+        <button type="button" class="bell" aria-label="公告">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/>
+            <path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/>
+          </svg>
+        </button>
+        <div class="capbtns">
+          <button type="button" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+        </div>
+      </div>
+    </header>
+    <div class="overlay">
+      <section class="panel" style="width: 400px;">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title">公告</h2>
+            <span class="src-badge src-cache"><i></i>缓存内容</span>
+          </div>
+          <button type="button" class="panel-close" aria-label="关闭公告面板">
+            <svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="panel-list panel-empty">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 4.5a8.5 8.5 0 0 0-8.5 8.5c0 6.5-2.5 9-2.5 9h22s-2.5-2.5-2.5-9A8.5 8.5 0 0 0 16 4.5Z"/>
+            <path d="M13.6 26a2.6 2.6 0 0 0 4.8 0"/>
+          </svg>
+          <p class="empty-title">暂无公告</p>
+          <p class="empty-hint">有新公告时会自动在这里呈现</p>
+        </div>
+        <div class="panel-foot">
+          <span class="foot-hint">关闭后可点标题栏的铃铛再次查看</span>
+          <button type="button" class="btn-primary">关闭</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('overlay')
+  const bellDot = document.getElementById('bellDot')
+  const openPanel = () => { overlay.classList.add('show') }
+  const closePanel = () => { overlay.classList.remove('show'); bellDot.classList.add('hidden') }
+  document.getElementById('bell').addEventListener('click', () => {
+    overlay.classList.contains('show') ? closePanel() : openPanel()
+  })
+  document.getElementById('panelClose').addEventListener('click', closePanel)
+  document.getElementById('ackBtn').addEventListener('click', closePanel)
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel() })
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel() })
+</script>
+
+</body>
+</html>

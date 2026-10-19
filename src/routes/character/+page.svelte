@@ -12,8 +12,12 @@
     type PhxCharSide
   } from '$lib/ipc'
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
 
   type Mode = 'pmc' | 'scav'
+
+  /** 骨架镜像占位行序号（boot 层内部件用） */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   let currentId = $state('')
   let meta = $state<{ side: string; aid: string; gameVersion: string } | null>(null)
@@ -22,6 +26,7 @@
   let opts = $state<PhxCharOptions | null>(null)
   let mode = $state<Mode>('pmc')
   let saving = $state(false)
+  let booting = $state(true)
   /** 经验输入框显示文本（千分位） */
   let expText = $state('')
 
@@ -94,6 +99,7 @@
 
   /** 全量刷新：当前档案 → 全量角色数据 + 选项（服务器经验表 / 语音 / 头型 / 口袋） */
   async function refresh(): Promise<void> {
+    booting = true
     const id = await phxProfile.current()
     currentId = id ?? ''
     if (!currentId) {
@@ -101,6 +107,7 @@
       pmc = null
       scav = null
       syncExpText(null)
+      booting = false
       return
     }
     const [data, options] = await Promise.all([phxChar.load(currentId), phxChar.options()])
@@ -110,12 +117,14 @@
       pmc = null
       scav = null
       syncExpText(null)
+      booting = false
       return
     }
     meta = { side: data.side, aid: data.aid, gameVersion: data.gameVersion }
     pmc = normalizeSide(data.pmc)
     scav = normalizeSide(data.scav)
     syncExpText(cur)
+    booting = false
   }
 
   /** 经验输入：剥离非数字，同步等级（只升不降怪癖不复刻，直接按表换算） */
@@ -183,11 +192,6 @@
     return v ? t('char.meta.loaded', { v }) : t('char.meta.loadedPlain')
   })
 
-  function setMode(m: Mode): void {
-    mode = m
-    syncExpText(cur)
-  }
-
   function setVital(key: keyof PhxCharHealth, part: 'current' | 'maximum', raw: string): void {
     if (!cur) return
     cur.health[key][part] = snap(Number(raw))
@@ -244,14 +248,17 @@
       <div class="head-meta">{metaText}</div>
     </div>
     <div class="head-actions">
-      <div class="seg" role="tablist" aria-label={t('char.mode.aria')}>
-        <button type="button" class:on={mode === 'pmc'} onclick={() => setMode('pmc')}>
-          {t('char.mode.pmc')}
-        </button>
-        <button type="button" class:on={mode === 'scav'} onclick={() => setMode('scav')}>
-          {t('char.mode.scav')}
-        </button>
-      </div>
+      <PhxSegmented
+        size="md"
+        role="tablist"
+        ariaLabel={t('char.mode.aria')}
+        bind:value={mode}
+        onchange={() => syncExpText(cur)}
+        options={[
+          { value: 'pmc', label: t('char.mode.pmc') },
+          { value: 'scav', label: t('char.mode.scav') }
+        ]}
+      />
       <button
         type="button"
         class="btn primary"
@@ -263,9 +270,70 @@
     </div>
   </div>
 
-  <div class="scroll phx-hide-scroll">
+  <div class="scroll">
+    <!-- 骨架层：镜像 5fr/7fr 仪表台真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="dash">
+        <section class="panel">
+          <div class="panel-head">
+            <i class="phx-sk" style="width:58px"></i>
+            <i class="phx-sk slim" style="width:96px"></i>
+          </div>
+          <div class="frow"><i class="phx-sk slim k"></i><i class="phx-sk fld grow"></i></div>
+          <div class="frow"><i class="phx-sk slim k"></i><i class="phx-sk seg"></i></div>
+          <div class="frow"><i class="phx-sk slim k"></i><i class="phx-sk grow"></i><i class="phx-sk tag"></i></div>
+          <div class="frow"><i class="phx-sk slim k"></i><i class="phx-sk grow"></i><i class="phx-sk tag"></i></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <i class="phx-sk" style="width:58px"></i>
+            <i class="phx-sk slim" style="width:110px"></i>
+          </div>
+          <div class="frow">
+            <i class="phx-sk slim k"></i>
+            <i class="phx-sk lvln"></i>
+            <i class="phx-sk step"></i>
+            <i class="phx-sk slim rng"></i>
+          </div>
+          <div class="frow">
+            <i class="phx-sk slim k"></i>
+            <i class="phx-sk expf"></i>
+            <i class="phx-sk trk grow"></i>
+          </div>
+          <i class="phx-sk slim hint-sk" style="width:188px"></i>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <i class="phx-sk" style="width:92px"></i>
+            <i class="phx-sk slim" style="width:80px"></i>
+          </div>
+          {#each skRows(3) as r (r)}
+            <div class="frow">
+              <i class="phx-sk slim k"></i>
+              <i class="phx-sk fsel" style={`width:${190 + r * 22}px`}></i>
+            </div>
+          {/each}
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <i class="phx-sk" style="width:58px"></i>
+            <i class="phx-sk slim" style="width:100px"></i>
+          </div>
+          <div class="hgrid">
+            {#each skRows(9) as c (c)}
+              <div class="hcell">
+                <i class="phx-sk slim" style="width:44px"></i>
+                <span class="hp"><i class="phx-sk"></i><span class="sep">/</span><i class="phx-sk"></i></span>
+                <i class="phx-sk slot"></i>
+              </div>
+            {/each}
+          </div>
+        </section>
+      </div>
+    </div>
+
     {#if cur}
-      <div class="dash" class:scav={mode === 'scav'}>
+      <div class="dash phx-fade-in" class:scav={mode === 'scav'}>
         <!-- 基本信息 -->
         <section class="panel">
           <div class="panel-head">
@@ -279,13 +347,18 @@
           {#if mode === 'pmc'}
             <div class="frow">
               <span class="k">{t('char.f.side')}</span>
-              <div class="seg mini" role="radiogroup" aria-label={t('char.f.side')}>
-                <button type="button" class:on={cur.side === 'Bear'} onclick={() => (cur.side = 'Bear')}>
-                  BEAR
-                </button>
-                <button type="button" class:on={cur.side === 'Usec'} onclick={() => (cur.side = 'Usec')}>
-                  USEC
-                </button>
+              <div class="mini">
+                <PhxSegmented
+                  size="md"
+                  role="radiogroup"
+                  ariaLabel={t('char.f.side')}
+                  value={cur.side}
+                  onchange={(v) => cur && (cur.side = v)}
+                  options={[
+                    { value: 'Bear', label: 'BEAR' },
+                    { value: 'Usec', label: 'USEC' }
+                  ]}
+                />
               </div>
             </div>
             <div class="frow">
@@ -406,7 +479,7 @@
           </div>
         </section>
       </div>
-    {:else}
+    {:else if !booting}
       <div class="empty">{t('char.empty.none')}</div>
     {/if}
   </div>
@@ -466,41 +539,80 @@
     cursor: default;
   }
   /* 分段切换（模式 / 阵营共用） */
-  .seg {
-    display: flex;
-    padding: 2px;
-    background: var(--phx-fill-tertiary);
-    border-radius: 9px;
-  }
-  .seg button {
-    height: 28px;
-    padding: 0 18px;
-    border: none;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-size: 13px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  /* 稿图原值 rgba(255,255,255,.27)：无对应 token，沿用 server-select 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.27);
-    color: #fff;
-    font-weight: 600;
-  }
-  .seg.mini {
+  /* BEAR/USEC 分段靠右（稿图排版；页面内包裹层，分段本体为 PhxSegmented 组件）；
+     --seg-pad-x 稿图原值 22px 经 CSS 变量继承穿透进组件（组件默认 18px） */
+  .mini {
     margin-left: auto;
-  }
-  .seg.mini button {
-    padding: 0 22px;
+    --seg-pad-x: 22px;
   }
   .scroll {
+    position: relative; /* .phx-boot 骨架层的定位基准 */
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px;
+    padding: 0 24px 104px;
+  }
+  /* 骨架层内部：与 .scroll 同 padding 镜像真实几何，占位条走全局 .phx-sk 原语 */
+  .boot {
+    padding: 0 24px 104px;
+  }
+  .boot .fld {
+    height: 32px;
+    border-radius: 8px;
+  }
+  .boot .seg {
+    width: 148px;
+    height: 29px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+  .boot .tag {
+    width: 34px;
+    height: 18px;
+    border-radius: 5px;
+    margin-left: auto;
+  }
+  .boot .lvln {
+    width: 24px;
+    margin-left: auto;
+  }
+  .boot .step {
+    width: 94px;
+    height: 29px;
+    border-radius: 8px;
+    margin-left: 10px;
+  }
+  .boot .rng {
+    width: 52px;
+    margin-left: 10px;
+  }
+  .boot .expf {
+    width: 110px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .boot .trk {
+    height: 4px;
+    border-radius: 2px;
+    margin-left: 10px;
+  }
+  .boot .hint-sk {
+    margin-top: 12px;
+  }
+  .boot .fsel {
+    height: 32px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+  .boot .hcell .hp .phx-sk {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 16px;
+    border-radius: 4px;
+  }
+  .boot .hcell .phx-sk.slot {
+    height: 3px;
+    border-radius: 2px;
   }
   .empty {
     margin-top: 18px;

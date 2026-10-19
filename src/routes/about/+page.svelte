@@ -171,7 +171,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
 
   .sgrid {

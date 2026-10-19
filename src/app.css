@@ -9,7 +9,7 @@
  */
 
 :root {
-  /* ---- 颜色（26，视觉基线 §三） ---- */
+  /* ---- 颜色（27，视觉基线 §三） ---- */
   --phx-win-bg: #09090b;
   --phx-surface: #101013;
   --phx-surface-2: #16161a;
@@ -24,6 +24,7 @@
   --phx-text-3: rgba(235, 235, 245, 0.3);
   --phx-accent: #0091ff;
   --phx-accent-dim: rgba(0, 145, 255, 0.16);
+  --phx-accent-mid: rgba(0, 145, 255, 0.45);
   --phx-warn: #ffc860;
   --phx-warn-bg: rgba(255, 159, 10, 0.1);
   --phx-warn-bd: rgba(255, 159, 10, 0.32);
@@ -43,7 +44,6 @@
   --phx-r-card: 12px;
   --phx-r-btn: 8px;
   --phx-shadow-win: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
-  --phx-scrollbar-w: 4px;
 
   /* ---- 字体（3） ---- */
   --phx-font-sans: -apple-system, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
@@ -90,41 +90,25 @@ body {
   outline-offset: 1px;
 }
 
-/* 按钮按压反馈：全站单一规则（感官层基线 §二 通用交互动效）；
-   组件内自定义 transition 时需并写 transform 一项，避免覆盖丢失回弹 */
+/* 按钮按压反馈：全站单一规则（感官层基线 §二 通用交互动效）。
+   必须用 filter（不改命中区）：transform 缩放会让按住期间按钮命中区收缩，
+   指针滑出后 mouseup 落在父级，click target 变共同祖先，Svelte 事件委托找不到
+   按钮处理器 → 点击失效（2026-10-19 quests 折叠/分段全页点击失效事故根因）。
+   组件内自定义 transition 时需并写 filter 一项，避免覆盖丢回弹 */
 button {
-  transition: transform var(--phx-dur-fast) var(--phx-ease-out);
+  transition: filter var(--phx-dur-fast) var(--phx-ease-out);
 }
 
 button:active {
-  transform: scale(0.96);
+  filter: brightness(0.92);
 }
 
-/* ---- 滚动条：默认 4px 细滚动条（表格/仓库网格区） ---- */
-::-webkit-scrollbar {
-  width: var(--phx-scrollbar-w);
-  height: var(--phx-scrollbar-w);
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: calc(var(--phx-scrollbar-w) / 2);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-/* 卡片列表区：隐藏滚动条但保留滚动（旧 Phoenix 行为） */
-.phx-hide-scroll {
+/* ---- 滚动条：全局隐藏但保留滚动（2026-10-19 拍板统一无滚动条，滚轮/拖拽/键盘滚动不受影响） ---- */
+* {
   scrollbar-width: none;
 }
 
-.phx-hide-scroll::-webkit-scrollbar {
+*::-webkit-scrollbar {
   display: none;
 }
 
@@ -377,6 +361,124 @@ button:active {
   50% {
     opacity: 0.9;
   }
+}
+
+/* ---- 通用淡入：三态页 booting → loaded 切换时内容浮现（感官层基线 §二）。
+   入场终态 transform:none 符合动效实现契约；reduced-motion 双通道自动降级为瞬时显示 ---- */
+@keyframes phx-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.phx-fade-in {
+  animation: phx-fade-in var(--phx-dur-norm) var(--phx-ease-out) both;
+}
+
+/* ---- 骨架层（感官层基线 §二）：镜像页面真实布局的加载占位 ----
+   页面用自身布局 class 拼「镜像骨架」DOM 放入 .phx-boot 层；
+   .phx-boot 常驻覆盖内容区（absolute inset:0 + 实心 --phx-bg 底，禁玻璃拟态），
+   数据就绪加 .gone 淡出，与内容 .phx-fade-in 并行构成「内容自骨架中长出、骨架化开」交接；
+   reduced-motion 双通道把 transition 压到 0.01ms，退化为瞬时切换 ---- */
+.phx-boot {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  overflow: auto;
+  background: var(--phx-bg);
+  pointer-events: none;
+  transition: opacity var(--phx-dur-norm) var(--phx-ease-out);
+}
+
+.phx-boot.gone {
+  opacity: 0;
+}
+
+/* 骨架原语：色条/圆标/槽位，呼吸只动 opacity（循环动画非过渡，不占 token 档位） */
+@keyframes phx-sk-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.phx-sk {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--phx-fill-tertiary);
+  flex: none;
+  animation: phx-sk-breathe 1.2s ease-in-out infinite;
+}
+
+.phx-sk.slim {
+  height: 10px;
+  border-radius: 5px;
+}
+
+.phx-sk.title {
+  height: 12px;
+  border-radius: 6px;
+}
+
+.phx-sk.av {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.phx-sk.av-sm {
+  width: 34px;
+  height: 34px;
+}
+
+.phx-sk.pill {
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  flex: none;
+}
+
+.phx-sk.slot {
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* 弹性填充条：行内占满剩余宽度 */
+.phx-sk.grow {
+  flex: 1 1 auto;
+  min-width: 24px;
+}
+
+/* 图标方块（默认 24px，与 tile 头图标同尺寸；个别页面可用局部类覆写宽高） */
+.phx-sk.ic {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+/* 微段：进度点阵（5 段小条） */
+.phx-sk.pip {
+  width: 14px;
+  height: 5px;
+  border-radius: 2.5px;
+}
+
+/* 面板壳：镜像骨架直接复用页面自身布局 class，需要面板底色时用本类 */
+.phx-sk-panel {
+  border-radius: var(--phx-r-card);
+  background: var(--phx-surface-2);
 }
 
 /* ---- 引导页 Onboarding（3 页沉浸舞台：欢迎 / 安全三条件 / 就绪） ---- */
@@ -683,7 +785,7 @@ button:active {
 
 .ob-ghost:active,
 .ob-primary:active {
-  transform: scale(0.97);
+  filter: brightness(0.92);
 }
 
 @keyframes ob-in {

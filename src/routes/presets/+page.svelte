@@ -13,8 +13,14 @@
   } from '$lib/ipc'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
+
+  type Seg = 'weapon' | 'equipment'
 
   /** 内联图标（markup 注入 PhxIcon） */
   const ICON = {
@@ -23,9 +29,6 @@
     caret: '<path d="m9 5 7 7-7 7"/>',
     eye: '<path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/>'
   }
-
-  const SEGS = ['weapon', 'equipment'] as const
-  type Seg = (typeof SEGS)[number]
 
   let currentId = $state('')
   let weapons = $state<PhxBuildView[]>([])
@@ -63,11 +66,6 @@
   const slotName = (slot: string): string => t(`stash.slot.${slot}` as MessageKey)
   /** 文件名净化：替换非法字符 */
   const safeName = (name: string): string => `${name.replace(/[\\/:*?"<>|]/g, '_')}.json`
-
-  function switchSeg(s: Seg): void {
-    playSound('ui')
-    seg = s
-  }
 
   /** 只重拉预设数据（写操作后对账） */
   async function loadAll(): Promise<void> {
@@ -278,19 +276,70 @@
     </div>
   </header>
 
-  {#if booting}
-    <div class="boot"><PhxSkeleton /></div>
-  {:else if !currentId}
-    <div class="scroll"><div class="empty">{t('stash.empty.noprofile')}</div></div>
-  {:else}
-    <div class="toolbar">
-      <div class="seg">
-        {#each SEGS as s (s)}
-          <button class={seg === s ? 'on' : ''} onclick={() => switchSeg(s)}>
-            {t(`presets.seg.${s}` as MessageKey)}
-          </button>
+  <div class="body">
+    <!-- 骨架层：镜像工具条 + 武器预设卡真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="toolbar">
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk grow"></i>
+        <i class="phx-sk sfld-sk"></i>
+      </div>
+      <div class="scroll">
+        <div class="ghead">
+          <i class="phx-sk" style="width:56px"></i>
+          <i class="phx-sk pill"></i>
+        </div>
+        {#each skRows(2) as c (c)}
+          <section class="wcard">
+            <div class="whead">
+              <i class="phx-sk" style="width:118px"></i>
+              <div class="wbtns">
+                <i class="phx-sk wbtn-sk"></i>
+                <i class="phx-sk wbtn-sk"></i>
+                <i class="phx-sk wbtn-sk"></i>
+              </div>
+            </div>
+            <div class="wbody">
+              <div class="wweapon">
+                <div class="wgun">
+                  <i class="phx-sk iconb-sk"></i>
+                  <div class="wgun-t">
+                    <i class="phx-sk" style="width:150px"></i>
+                    <i class="phx-sk slim" style="width:96px"></i>
+                  </div>
+                </div>
+                <div class="attrs">
+                  <div class="attr"><i class="phx-sk slim" style="width:34px"></i><i class="phx-sk" style="width:46px"></i></div>
+                  <div class="attr"><i class="phx-sk slim" style="width:34px"></i><i class="phx-sk" style="width:46px"></i></div>
+                  <div class="attr"><i class="phx-sk slim" style="width:34px"></i><i class="phx-sk" style="width:46px"></i></div>
+                </div>
+              </div>
+              <div class="wparts">
+                <div class="ptitle"><i class="phx-sk slim" style="width:64px"></i></div>
+                {#each skRows(3) as p (p)}
+                  <div class="part">
+                    <i class="phx-sk dot-sk"></i>
+                    <i class="phx-sk grow"></i>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </section>
         {/each}
       </div>
+    </div>
+
+    {#if currentId}
+      <div class="toolbar phx-fade-in">
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('presets.seg.aria')}
+        options={[
+          { value: 'weapon', label: t('presets.seg.weapon') },
+          { value: 'equipment', label: t('presets.seg.equipment') }
+        ]}
+      />
       <div class="fspacer"></div>
       <div class="sfield">
         <span class="sico"><PhxIcon markup={ICON.search} /></span>
@@ -299,7 +348,7 @@
     </div>
 
     {#if seg === 'weapon'}
-      <div class="scroll">
+      <div class="scroll phx-fade-in">
         <div class="ghead">
           <div class="gtitle">{t('presets.seg.weapon')}</div>
           <div class="gcount">{gcText(visWeapons.length, weapons.length)}</div>
@@ -347,7 +396,7 @@
         {/each}
       </div>
     {:else}
-      <div class="scroll">
+      <div class="scroll phx-fade-in">
         <div class="warn"><PhxIcon markup={ICON.warn} />{t('presets.warn.equip')}</div>
         <div class="ghead">
           <div class="gtitle">{t('presets.seg.equipment')}</div>
@@ -399,13 +448,15 @@
                     <div class="iid">{row.item.id}</div>
                     <div class="acts">
                       {#if row.item.isWeapon || row.item.isContainer}
-                        <button
-                          class="abtn"
-                          aria-label={row.item.isWeapon ? t('stash.aria.inspect') : t('presets.aria.openContainer')}
-                          onclick={() => inspectSlot()}
-                        >
-                          <PhxIcon markup={ICON.eye} />
-                        </button>
+                        <PhxTooltip label={row.item.isWeapon ? t('stash.aria.inspect') : t('presets.aria.openContainer')}>
+                          <button
+                            class="abtn"
+                            aria-label={row.item.isWeapon ? t('stash.aria.inspect') : t('presets.aria.openContainer')}
+                            onclick={() => inspectSlot()}
+                          >
+                            <PhxIcon markup={ICON.eye} />
+                          </button>
+                        </PhxTooltip>
                       {/if}
                     </div>
                   {:else}
@@ -424,7 +475,10 @@
         {/each}
       </div>
     {/if}
+  {:else if !booting}
+    <div class="scroll"><div class="empty">{t('stash.empty.noprofile')}</div></div>
   {/if}
+  </div>
 
   <PhxDialog
     bind:open={dlgOpen}
@@ -518,15 +572,80 @@
     cursor: default;
   }
 
+  /* 页级定位包装层：包住常驻骨架层与内容，骨架 absolute 覆盖时避开页头 */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .boot {
-    margin: 16px 24px 0;
+    padding: 16px 24px 104px;
+  }
+
+  /* 骨架内复用真实布局 class，覆写其外距与滚动 */
+  .boot .toolbar {
+    margin: 0;
+  }
+
+  .boot .scroll {
+    margin-top: 0;
+    padding: 0;
+  }
+
+  /* 骨架控件形状（对齐真实控件几何） */
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .sfld-sk {
+    width: 180px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .boot .wbtn-sk {
+    width: 58px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .boot .iconb-sk {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    flex: none;
+  }
+
+  .boot .wgun-t {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .boot .attr {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .boot .dot-sk {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    flex: none;
   }
 
   .scroll {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    margin-top: 12px;
+    padding: 0 24px 104px;
   }
 
   .empty {
@@ -546,33 +665,6 @@
 
   .fspacer {
     flex: 1;
-  }
-
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character / stash 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
   }
 
   .sfield {

@@ -19,8 +19,12 @@
   } from '$lib/ipc'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   const ICON = {
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/>',
@@ -36,8 +40,7 @@
     { tpl: '5696686a4bdc2da3298b456a', sym: '$', get: () => dollars, add: 10000 }
   ]
 
-  const SEGS = ['stash', 'add', 'equip'] as const
-  type Seg = (typeof SEGS)[number]
+  type Seg = 'stash' | 'add' | 'equip'
 
   let currentId = $state('')
   let items = $state<PhxStashItemRow[]>([])
@@ -96,11 +99,6 @@
 
   /** 装备槽名 i18n：stash.slot.{slotId}，意外槽位原样显示 slotId */
   const slotName = (slot: string): string => t(`stash.slot.${slot}` as MessageKey)
-
-  function switchSeg(s: Seg): void {
-    playSound('ui')
-    seg = s
-  }
 
   function toggleDesc(): void {
     playSound('toggle')
@@ -272,19 +270,63 @@
     </div>
   </header>
 
-  {#if booting}
-    <div class="boot">
-      <PhxSkeleton lines={6} />
-    </div>
-  {:else if loaded}
-    <div class="toolbar">
-      <div class="seg">
-        {#each SEGS as s (s)}
-          <button type="button" class:on={seg === s} onclick={() => switchSeg(s)}>
-            {t(`stash.seg.${s}` as MessageKey)}
-          </button>
-        {/each}
+  <div class="body">
+    <!-- 骨架层：镜像工具行 + 货币条/物品列表真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="toolbar">
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <span class="fspacer"></span>
+        <i class="phx-sk sfld-sk"></i>
+        <i class="phx-sk sfld-sk"></i>
       </div>
+      <div class="scroll">
+        <div class="stashmeta">
+          {#each skRows(3) as r (r)}
+            <i class="phx-sk mcap-sk"></i>
+          {/each}
+          <div class="bonus">
+            <i class="phx-sk slim" style="width:56px;height:14px"></i>
+            <i class="phx-sk step-sk"></i>
+          </div>
+        </div>
+        <section class="qgroup">
+          <div class="ghead">
+            <i class="phx-sk slim" style="width:72px"></i>
+            <i class="phx-sk gc-sk"></i>
+          </div>
+          <div class="qcard">
+            {#each skRows(6) as r (r)}
+              <div class="mrow">
+                <i class="phx-sk av-sk"></i>
+                <i class="phx-sk" style="width:62%"></i>
+                <span></span>
+                <i class="phx-sk" style="width:70%"></i>
+                <div class="acts">
+                  <i class="phx-sk abtn-sk"></i>
+                  <i class="phx-sk abtn-sk"></i>
+                </div>
+              </div>
+            {/each}
+          </div>
+          <div class="tfoot">
+            <i class="phx-sk slim" style="width:128px"></i>
+          </div>
+        </section>
+      </div>
+    </div>
+  {#if loaded}
+    <div class="toolbar phx-fade-in">
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('stash.seg.aria')}
+        options={[
+          { value: 'stash', label: t('stash.seg.stash') },
+          { value: 'add', label: t('stash.seg.add') },
+          { value: 'equip', label: t('stash.seg.equip') }
+        ]}
+      />
       <span class="fspacer"></span>
       {#if seg === 'stash'}
         <div class="sfield">
@@ -306,7 +348,7 @@
       {/if}
     </div>
 
-    <div class="scroll phx-hide-scroll">
+    <div class="scroll phx-fade-in">
       {#if seg === 'stash'}
         <!-- 货币与附加行数：含 modded 物品时加钱区禁用（稿图注 4） -->
         <div class="stashmeta">
@@ -314,9 +356,11 @@
             <div class="mcap" class:disabled={hasModded}>
               <span class="sym">{m.sym}</span>
               <span class="val">{fmtMoney(m.get())}</span>
-              <button class="madd" type="button" aria-label={t('stash.aria.addMoney', { sym: m.sym })} disabled={hasModded || saving} onclick={() => addMoney(m.tpl, m.add)}>
-                <PhxIcon markup={ICON.plus} />
-              </button>
+              <PhxTooltip label={t('stash.aria.addMoney', { sym: m.sym })}>
+                <button class="madd" type="button" aria-label={t('stash.aria.addMoney', { sym: m.sym })} disabled={hasModded || saving} onclick={() => addMoney(m.tpl, m.add)}>
+                  <PhxIcon markup={ICON.plus} />
+                </button>
+              </PhxTooltip>
             </div>
           {/each}
           <div class="bonus">
@@ -349,13 +393,17 @@
                 <div class="acts">
                   {#if it.isWeapon}
                     <!-- 检视入口（10 屏弹窗已落地）：武器行跳转检视页并自动开弹窗 -->
-                    <button class="abtn" type="button" aria-label={t('stash.aria.inspect')} onclick={() => { playSound('pop'); goto(resolve(`/inspect?id=${it.id}`)) }}>
-                      <PhxIcon markup={ICON.search} />
-                    </button>
+                    <PhxTooltip label={t('stash.aria.inspect')}>
+                      <button class="abtn" type="button" aria-label={t('stash.aria.inspect')} onclick={() => { playSound('pop'); goto(resolve(`/inspect?id=${it.id}`)) }}>
+                        <PhxIcon markup={ICON.search} />
+                      </button>
+                    </PhxTooltip>
                   {/if}
-                  <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(it.id)}>
-                    <PhxIcon markup={ICON.trash} />
-                  </button>
+                  <PhxTooltip label={t('stash.aria.del')}>
+                    <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(it.id)}>
+                      <PhxIcon markup={ICON.trash} />
+                    </button>
+                  </PhxTooltip>
                 </div>
               </div>
             {/each}
@@ -425,9 +473,11 @@
                   <span class="mmod" class:show={s.item.modded}><PhxIcon markup={ICON.warn} /></span>
                   <span class="iid">{s.item.tpl}</span>
                   <div class="acts">
-                    <button class="abtn del" type="button" aria-label={t('stash.aria.unequip')} onclick={() => askRemove(s.item!.id)}>
-                      <PhxIcon markup={ICON.trash} />
-                    </button>
+                    <PhxTooltip label={t('stash.aria.unequip')}>
+                      <button class="abtn del" type="button" aria-label={t('stash.aria.unequip')} onclick={() => askRemove(s.item!.id)}>
+                        <PhxIcon markup={ICON.trash} />
+                      </button>
+                    </PhxTooltip>
                   </div>
                 {:else}
                   <span class="icon-b empty-ico">—</span>
@@ -446,9 +496,11 @@
                   <span class="icon-b small">{p.name.charAt(0)}</span>
                   <div class="iname">{p.name}{p.count > 1 ? ` ×${p.count}` : ''}</div>
                   <span class="iid">{p.tpl}</span>
-                  <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(p.id)}>
-                    <PhxIcon markup={ICON.trash} />
-                  </button>
+                  <PhxTooltip label={t('stash.aria.del')}>
+                    <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(p.id)}>
+                      <PhxIcon markup={ICON.trash} />
+                    </button>
+                  </PhxTooltip>
                 </div>
               {/each}
               {#if !pockets.length}<div class="pempty">{t('stash.row.empty')}</div>{/if}
@@ -460,6 +512,7 @@
   {:else}
     <div class="empty">{t('stash.empty.noprofile')}</div>
   {/if}
+  </div>
 </div>
 
 <PhxDialog
@@ -544,7 +597,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
   .empty {
     padding: 44px 0;
@@ -553,9 +606,61 @@
     font-size: 13px;
   }
 
-  /* ---- 加载骨架屏缓冲 ---- */
-  .boot {
-    margin: 16px 24px 0;
+  /* ---- 页级内容包装：骨架层与真实内容共用定位上下文 ---- */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- 加载骨架屏缓冲（镜像真实布局，复用原 class 几何，仅覆写控件形状） ---- */
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .sfld-sk {
+    width: 180px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .boot .mcap-sk {
+    width: 92px;
+    height: 30px;
+    border-radius: 999px;
+  }
+
+  .boot .step-sk {
+    width: 88px;
+    height: 26px;
+    border-radius: 8px;
+  }
+
+  .boot .gc-sk {
+    width: 24px;
+    height: 16px;
+    border-radius: 8px;
+  }
+
+  .boot .av-sk {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+  }
+
+  .boot .abtn-sk {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .boot .tfoot {
+    display: flex;
+    justify-content: center;
   }
 
   /* ---- 工具行：子页分段 + 过滤框 + 含描述勾选 ---- */
@@ -567,33 +672,6 @@
   }
   .fspacer {
     flex: 1;
-  }
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
   }
   .sfield {
     height: 28px;

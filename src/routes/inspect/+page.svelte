@@ -7,7 +7,7 @@
   import { page } from '$app/state'
   import { listen } from '@tauri-apps/api/event'
   import { save } from '@tauri-apps/plugin-dialog'
-  import { t, type MessageKey } from '$lib/i18n/i18n.svelte'
+  import { t } from '$lib/i18n/i18n.svelte'
   import { toast } from '$lib/toast.svelte'
   import {
     phxProfile,
@@ -19,8 +19,12 @@
   } from '$lib/ipc'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
-  import PhxSkeleton from '$lib/components/PhxSkeleton.svelte'
+  import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+
+  /** 骨架屏行序号生成 */
+  const skRows = (n: number) => [...Array(n).keys()]
 
   const ICON = {
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/>',
@@ -32,8 +36,7 @@
     out: '<path d="M12 15V4m0 0 4 4m-4-4-4 4M5 20h14"/>'
   }
 
-  const SEGS = ['view', 'lib'] as const
-  type Seg = (typeof SEGS)[number]
+  type Seg = 'view' | 'lib'
 
   let currentId = $state('')
   let weapons = $state<PhxStashItemRow[]>([])
@@ -60,11 +63,6 @@
 
   const gsubText = (b: PhxBuildView): string =>
     t(b.hasModded ? 'inspect.gsub.modded' : 'inspect.gsub', { n: b.parts.length })
-
-  function switchSeg(s: Seg): void {
-    playSound('ui')
-    seg = s
-  }
 
   /** 即时保存：op 列表交 Rust 逐条执行；reload = 成功后重读对账 */
   async function runOps(ops: PhxStashOp[], reload: boolean): Promise<void> {
@@ -250,17 +248,40 @@
     {/if}
   </div>
 
-  {#if booting}
-    <div class="boot"><PhxSkeleton lines={6} /></div>
-  {:else}
-    <div class="toolbar">
-      <div class="seg">
-        {#each SEGS as s (s)}
-          <button type="button" class:on={seg === s} onclick={() => switchSeg(s)}>
-            {t(`inspect.seg.${s}` as MessageKey)}
-          </button>
-        {/each}
+  <div class="body">
+    <!-- 骨架层：镜像工具行 + 武器列表真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="toolbar">
+        <i class="phx-sk seg-sk"></i>
+        <i class="phx-sk seg-sk"></i>
+        <div class="fspacer"></div>
       </div>
+      <div class="scroll">
+        <div class="qcard">
+          {#each skRows(6) as r (r)}
+            <div class="mrow">
+              <i class="phx-sk av-sk"></i>
+              <i class="phx-sk" style="width:62%"></i>
+              <span></span>
+              <i class="phx-sk" style="width:70%"></i>
+              <div class="acts">
+                <i class="phx-sk abtn-sk"></i>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {#if !booting}
+    <div class="toolbar phx-fade-in">
+      <PhxSegmented
+        bind:value={seg}
+        ariaLabel={t('inspect.seg.aria')}
+        options={[
+          { value: 'view', label: t('inspect.seg.view') },
+          { value: 'lib', label: t('inspect.seg.lib') }
+        ]}
+      />
       <div class="fspacer"></div>
       {#if seg === 'lib'}
         <div class="sfield">
@@ -270,7 +291,7 @@
       {/if}
     </div>
 
-    <div class="scroll">
+    <div class="scroll phx-fade-in">
       {#if seg === 'view'}
         {#if !loaded}
           <div class="empty">{t('stash.empty.noprofile')}</div>
@@ -285,14 +306,16 @@
                 <div class="mmod" class:show={it.modded}><PhxIcon markup={ICON.warn} /></div>
                 <div class="iid">{it.id}</div>
                 <div class="acts">
-                  <button
-                    class="abtn"
-                    type="button"
-                    aria-label={t('inspect.aria.view')}
-                    onclick={() => openView(it)}
-                  >
-                    <PhxIcon markup={ICON.search} />
-                  </button>
+                  <PhxTooltip label={t('inspect.aria.view')}>
+                    <button
+                      class="abtn"
+                      type="button"
+                      aria-label={t('inspect.aria.view')}
+                      onclick={() => openView(it)}
+                    >
+                      <PhxIcon markup={ICON.search} />
+                    </button>
+                  </PhxTooltip>
                 </div>
               </div>
             {/each}
@@ -347,6 +370,7 @@
       {/if}
     </div>
   {/if}
+  </div>
 </div>
 
 {#if sheetOpen && view && sheetItem}
@@ -491,7 +515,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px 8px;
+    padding: 0 24px 104px;
   }
   .empty {
     padding: 44px 0;
@@ -501,8 +525,35 @@
   }
 
   /* ---- 加载骨架屏缓冲 ---- */
+  /* 加载态包装层：boot 覆盖层 + 内容同层交叉淡化 */
+  .body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .boot {
     margin: 16px 24px 0;
+  }
+
+  .boot .seg-sk {
+    width: 64px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .boot .av-sk {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+  }
+
+  .boot .abtn-sk {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
   }
 
   /* ---- 工具行：子页分段 + 图鉴筛选框 ---- */
@@ -514,33 +565,6 @@
   }
   .fspacer {
     flex: 1;
-  }
-  .seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--phx-fill-tertiary);
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    color: var(--phx-text-2);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 14px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      transform var(--phx-dur-fast) var(--phx-ease-out);
-  }
-  /* 稿图原值 rgba(255,255,255,.16)：无对应 token，沿用 character / stash 页 .seg.on 硬编码先例 */
-  .seg button.on {
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--phx-text);
-    font-weight: 600;
   }
   .sfield {
     height: 28px;

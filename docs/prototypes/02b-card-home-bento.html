@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 02b · 首页便当改版（B 端数据仪表台）</title>
+<!--
+  02b 稿图说明（2026-10-19 用户裁决：首页缺 B 端感，便当布局加密）
+  · 取向：数据便当（bento）——不等权 tile、每块有真实数据可视化、任务分段条承担"甘特"语义
+  · 数据来源全部为既有 IPC 真实链路（示意值仅演示形态）：
+      hero      → profile_load（沿用现稿）+ issues_scan 计数徽章（问题态两态见稿注①）
+      任务       → quests_load：rows 按 status 五段聚合（聚合口径在 Rust 侧定，稿注②）
+      藏身处     → hideout_load：areas 等级 pips（pips 数 = 各区域真实 maxLevel）
+      仓库       → stash_load：items 总数 / bonusRows / modded·武器计数（不画占用率——无上限数据，稿注③）
+      商人       → traders_load：信赖等级 pips（满级 4）
+      技能       → skills_load：PMC common 按 progress/cap 排序取 top3 进度条
+      健康       → health_load：7 部位 current/maximum 比例条（<35% warn、<15% danger 分级）
+      入口区     → 17 入口原职责不变，压缩为四组紧凑 chip 行（点击行为与现版一致）
+  · 交互：数据 tile 整体可点进对应页；hero 徽章点进问题页
+  · 稿注：
+    ① hero 右端问题徽章两态：0 项 → 绿点"档案无问题"；>0 → 红"n 项待处理"。与入口区"问题检测"chip 同源计数，入口 chip 保留徽章位
+    ② 任务分段条五段口径（Locked / 可开始 / 进行中 / 可交付 / 已完成）生产实现时由 Rust 聚合返回，颜色映射见样式注释
+    ③ 仓库 tile 不画"占用率条"：基准格数不在接口里，画了就是假数据；只呈现真实可算的三项指标
+  · token：全部取自 src/app.css 现行 --phx-* 值，无新色
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    /* 与 src/app.css 现行值逐一对齐 */
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-fill-secondary: rgba(255,255,255,.14);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.1);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  body {
+    min-height: 100vh;
+    background: #060608;
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 860px; position: relative; flex: none; }
+  .window {
+    position: absolute; inset: 0;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+  }
+  /* ===== Windows 11 标题栏 ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding-left: 18px;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  /* ===== 页面骨架：head + scroll（底部留 dock 避让，对应通透布局规格 104px）===== */
+  .page { position: absolute; inset: 40px 0 0; display: flex; flex-direction: column; }
+  .main-head {
+    padding: 20px 24px 0;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  }
+  .large-title { font-size: 26px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { margin-top: 5px; font-size: 12px; color: var(--phx-text-2); }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 4px; }
+  .btn {
+    height: 32px; padding: 0 15px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .btn.primary { background: var(--phx-accent); color: #fff; }
+  .btn.secondary { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  /* 稿图一屏展示：底 padding 收窄；生产版为 104px（dock 避让，滚动到底时生效，见视觉基线 §dock） */
+  .scroll { flex: 1; min-height: 0; overflow: hidden; padding: 0 24px 20px; }
+  /* ===== 便当网格：4 列基准，gap 12 ===== */
+  .bento { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .span2 { grid-column: span 2; }
+  .tile {
+    background: var(--phx-surface-2);
+    border-radius: var(--phx-r-card);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    padding: 11px 14px 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .tile:hover { filter: brightness(1.12); }
+  .t-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .t-ic { width: 24px; height: 24px; border-radius: 7px; background: var(--phx-accent-dim); color: var(--phx-accent);
+          display: flex; align-items: center; justify-content: center; flex: none; }
+  .t-ic svg { width: 13px; height: 13px; }
+  .t-name { font-size: 13px; font-weight: 600; }
+  .t-chev { margin-left: auto; color: var(--phx-text-3); font-size: 15px; line-height: 1; }
+  .t-k { font-size: 11px; color: var(--phx-text-2); }
+  .t-num { font-family: var(--phx-font-mono); font-weight: 600; letter-spacing: -.3px; }
+  /* ===== hero 档案条（span 4）===== */
+  .hero { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: default; }
+  .hero:hover { background: var(--phx-surface-2); }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%; background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .avatar svg { width: 19px; height: 19px; }
+  .hr-label { font-size: 12px; color: var(--phx-text-2); }
+  .hr-id { margin-top: 3px; font-family: var(--phx-font-mono); font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  .hr-id .dd { color: var(--phx-text-3); font-size: 11px; margin-left: 4px; }
+  .hr-lvl { font-size: 13px; color: var(--phx-text-2); margin-left: 6px; }
+  .hero-stats { display: flex; gap: 0; margin-left: 18px; padding-left: 18px; border-left: .5px solid var(--phx-sep-strong); flex: 1; }
+  .stat { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .stat .k { font-size: 11px; color: var(--phx-text-2); }
+  .stat .v { font-family: var(--phx-font-mono); font-size: 16px; font-weight: 600; }
+  .hero-badge {
+    flex: none; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
+    border-radius: 15px; background: var(--phx-danger-bg); color: var(--phx-danger);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .hero-badge.ok { background: var(--phx-green-dim); color: var(--phx-green); }
+  /* ===== 任务 tile：五段状态分段条（"甘特"语义核心，稿注②）===== */
+  .q-big { display: flex; align-items: baseline; gap: 8px; }
+  .q-big .n { font-size: 30px; color: var(--phx-text); }
+  .q-big .d { font-size: 16px; color: var(--phx-text-3); }
+  .q-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 10px 0 9px; gap: 2px; }
+  .q-bar i { display: block; height: 100%; }
+  /* 五段颜色映射（全现有 token）：已完成=green 可交付=accent 进行中=accent-dim 可开始=fill-secondary 未解锁=fill-tertiary */
+  .q-done { background: var(--phx-green); }
+  .q-fin { background: var(--phx-accent); }
+  .q-run { background: rgba(0,145,255,.45); }
+  .q-ava { background: var(--phx-fill-secondary); }
+  .q-lock { background: var(--phx-fill-tertiary); }
+  .q-legend { display: flex; gap: 14px; }
+  .q-legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--phx-text-2); }
+  .q-legend b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .q-legend i { width: 6px; height: 6px; border-radius: 2px; }
+  /* ===== 藏身处 tile：区域等级 pips ===== */
+  .h-row { display: flex; align-items: center; gap: 8px; height: 23px; }
+  .h-row .n { font-size: 12px; color: var(--phx-text); width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pips { display: flex; gap: 3px; }
+  .pips i { width: 14px; height: 5px; border-radius: 2.5px; background: var(--phx-fill-quaternary); }
+  .pips i.on { background: var(--phx-accent); }
+  .pips i.max { background: var(--phx-green); }
+  .h-row .lv { margin-left: auto; font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text-2); }
+  .t-foot { margin-top: 7px; padding-top: 6px; border-top: .5px solid var(--phx-sep); font-size: 11px; color: var(--phx-text-2); display: flex; justify-content: space-between; }
+  .t-foot b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .t-foot b.ok { color: var(--phx-green); }
+  /* ===== 仓库 tile：真实指标堆叠（稿注③）===== */
+  .s-big { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+  .s-big .n { font-size: 30px; }
+  .s-big .u { font-size: 12px; color: var(--phx-text-2); }
+  .s-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+  .s-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--phx-text-2); }
+  .s-row b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .s-row b.hl { color: var(--phx-accent); }
+  /* ===== 商人 tile：信赖 pips ===== */
+  .tr-row { display: flex; align-items: center; gap: 8px; height: 23px; }
+  .tr-row .n { font-size: 12px; width: 70px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tr-row .lv { margin-left: auto; font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text-2); }
+  /* ===== 技能 tile：top3 进度条 ===== */
+  .sk-row { margin-top: 7px; }
+  .sk-row .l { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .sk-row .l b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text-2); }
+  .sk-bar { height: 6px; border-radius: 3px; background: var(--phx-fill-quaternary); overflow: hidden; }
+  .sk-bar i { display: block; height: 100%; border-radius: 3px; background: var(--phx-accent); }
+  /* ===== 健康 tile：部位迷你血条（<35% warn <15% danger）===== */
+  .hp-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 6px; }
+  .hp-row { display: flex; align-items: center; gap: 7px; }
+  .hp-row .n { font-size: 11px; color: var(--phx-text-2); width: 30px; flex: none; }
+  .hp-bar { flex: 1; height: 5px; border-radius: 2.5px; background: var(--phx-fill-quaternary); overflow: hidden; }
+  .hp-bar i { display: block; height: 100%; border-radius: 2.5px; background: var(--phx-green); }
+  .hp-bar i.warn { background: var(--phx-warn); }
+  .hp-bar i.bad { background: var(--phx-danger); }
+  .hp-row .v { font-family: var(--phx-font-mono); font-size: 10px; color: var(--phx-text-2); width: 44px; text-align: right; flex: none; }
+  /* ===== 全部入口：四组紧凑 chip 行 ===== */
+  .entries { cursor: default; }
+  .en-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; row-gap: 4px; }
+  .en-group { display: flex; flex-direction: column; gap: 2px; }
+  .en-title { font-size: 11px; color: var(--phx-text-2); padding: 3px 0 2px; }
+  .en-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+    border: none; border-radius: 13px; background: transparent; color: var(--phx-text);
+    font-size: 12px; font-family: inherit; cursor: pointer;
+  }
+  .chip:hover { background: var(--phx-fill-quaternary); }
+  .chip svg { width: 13px; height: 13px; color: var(--phx-text-2); flex: none; }
+  .chip .soon { font-size: 9px; color: var(--phx-text-3); border: .5px solid var(--phx-sep-strong); border-radius: 6px; padding: 1px 4px; }
+  .chip .cnt { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--phx-danger); color: #fff;
+               font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  /* ===== 底部居中胶囊 dock（通透布局：玻璃底透出内容）===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 40;
+    display: flex; align-items: center; gap: 2px; padding: 6px;
+    background: var(--phx-glass); backdrop-filter: blur(20px);
+    border-radius: 14px; box-shadow: inset 0 0 0 .5px var(--phx-sep-strong), 0 6px 20px rgba(0,0,0,.35);
+  }
+  .dk-brand { width: 46px; height: 46px; border-radius: 10px; background: var(--phx-accent); color: #fff;
+              display: flex; align-items: center; justify-content: center; margin-right: 6px;
+              font-family: var(--phx-font-brand); font-size: 20px; }
+  .dk-item { width: 56px; height: 46px; border: none; border-radius: 10px; background: transparent; color: var(--phx-text-2);
+             font-size: 10px; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; }
+  .dk-item svg { width: 16px; height: 16px; }
+  .dk-item.on { background: var(--phx-fill-secondary); color: var(--phx-accent); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="window">
+    <div class="titlebar">
+      <span class="tb-label">Phoenix</span>
+      <div class="capbtns">
+        <a><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></a>
+        <a><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg></a>
+        <a><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></a>
+      </div>
+    </div>
+    <div class="page">
+      <div class="main-head">
+        <div>
+          <div class="large-title">首页</div>
+          <div class="head-meta">SPT 16.1.3.34619 · 档案已加载</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn secondary">返回服务器选择</button>
+          <button class="btn primary">保存修改</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="bento">
+          <!-- hero 档案条（span4）：现稿信息结构 + 右端问题徽章（稿注①，示意 3 项态） -->
+          <div class="tile hero" style="grid-column: span 4;">
+            <div class="avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg></div>
+            <div>
+              <div class="hr-label">当前档案</div>
+              <div class="hr-id">mock-usec<span class="dd">⌄</span></div>
+            </div>
+            <div class="hr-lvl">等级 27 · USEC</div>
+            <div class="hero-stats">
+              <div class="stat"><div class="k">卢布 ₽</div><div class="v">8,240,000</div></div>
+              <div class="stat"><div class="k">美元 $</div><div class="v">17,750</div></div>
+              <div class="stat"><div class="k">欧元 €</div><div class="v">3,200</div></div>
+            </div>
+            <div class="hero-badge"><span class="dot"></span>3 项待处理</div>
+          </div>
+
+          <!-- 任务 tile（span2）：五段分段条 = 甘特语义（稿注②） -->
+          <div class="tile span2">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="m9.5 13 2 2 3.5-3.5"/></svg></span>
+              <span class="t-name">任务</span><span class="t-chev">›</span>
+            </div>
+            <div class="q-big"><span class="t-num n">42</span><span class="d">/ 85 已完成</span></div>
+            <div class="q-bar">
+              <i class="q-done" style="width: 49%"></i>
+              <i class="q-fin" style="width: 4%"></i>
+              <i class="q-run" style="width: 14%"></i>
+              <i class="q-ava" style="width: 21%"></i>
+              <i class="q-lock" style="width: 12%"></i>
+            </div>
+            <div class="q-legend">
+              <span><i class="q-done"></i>已完成 <b>42</b></span>
+              <span><i class="q-fin"></i>可交付 <b>3</b></span>
+              <span><i class="q-run"></i>进行中 <b>12</b></span>
+              <span><i class="q-ava"></i>可开始 <b>18</b></span>
+              <span><i class="q-lock"></i>未解锁 <b>10</b></span>
+            </div>
+          </div>
+
+          <!-- 藏身处 tile：区域等级 pips -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 19h17L12 5 3.5 19Z"/><path d="m9.5 19 2.5-5 2.5 5"/></svg></span>
+              <span class="t-name">藏身处</span><span class="t-chev">›</span>
+            </div>
+            <div class="h-row"><span class="n">发电机组</span><span class="pips"><i class="on max"></i><i class="on max"></i><i class="max"></i></span><span class="lv">3/3</span></div>
+            <div class="h-row"><span class="n">情报中心</span><span class="pips"><i class="on"></i><i class="on"></i><i></i></span><span class="lv">2/3</span></div>
+            <div class="h-row"><span class="n">医疗站</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="lv">2/4</span></div>
+            <div class="h-row"><span class="n">集水器</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="lv">3/3</span></div>
+            <div class="h-row"><span class="n">工作台</span><span class="pips"><i class="on"></i><i></i><i></i></span><span class="lv">1/3</span></div>
+            <div class="h-row"><span class="n">休息室</span><span class="pips"><i></i><i></i><i></i><i></i></span><span class="lv">0/4</span></div>
+            <div class="t-foot"><span>已满级</span><b class="ok">2 / 6</b></div>
+          </div>
+
+          <!-- 仓库 tile：真实指标（稿注③，不画占用率） -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5v-7Z"/><path d="M3.5 8.5 12 13l8.5-4.5M12 13v7"/></svg></span>
+              <span class="t-name">仓库</span><span class="t-chev">›</span>
+            </div>
+            <div class="s-big"><span class="t-num n">213</span><span class="u">件物品</span></div>
+            <div class="s-rows">
+              <div class="s-row"><span>额外格数</span><b class="hl">+9</b></div>
+              <div class="s-row"><span>武器</span><b>41</b></div>
+              <div class="s-row"><span>非原版改件</span><b>3</b></div>
+            </div>
+          </div>
+
+          <!-- 商人 tile：信赖等级 pips（满级 4） -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>
+              <span class="t-name">商人</span><span class="t-chev">›</span>
+            </div>
+            <div class="tr-row"><span class="n">Prapor</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="lv">3/4</span></div>
+            <div class="tr-row"><span class="n">Therapist</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on max"></i></span><span class="lv">4/4</span></div>
+            <div class="tr-row"><span class="n">Skier</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="lv">2/4</span></div>
+            <div class="tr-row"><span class="n">Mechanic</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="lv">3/4</span></div>
+            <div class="tr-row"><span class="n">Ragman</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="lv">2/4</span></div>
+            <div class="t-foot"><span>已满级</span><b class="ok">1 / 5</b></div>
+          </div>
+
+          <!-- 技能 tile：PMC top3 进度条 -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z"/></svg></span>
+              <span class="t-name">技能</span><span class="t-chev">›</span>
+            </div>
+            <div class="sk-row"><div class="l"><span>搜索</span><b>82%</b></div><div class="sk-bar"><i style="width:82%"></i></div></div>
+            <div class="sk-row"><div class="l"><span>活力</span><b>64%</b></div><div class="sk-bar"><i style="width:64%"></i></div></div>
+            <div class="sk-row"><div class="l"><span>后坐力控制</span><b>47%</b></div><div class="sk-bar"><i style="width:47%"></i></div></div>
+            <div class="t-foot"><span>PMC 平均进度</span><b>38%</b></div>
+          </div>
+
+          <!-- 健康 tile：7 部位迷你血条（示意含受伤态）+ 水分能量 -->
+          <div class="tile span2">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.5-7-9.5C5 7.5 7 6 9 6c1.4 0 2.4.7 3 1.7C12.6 6.7 13.6 6 15 6c2 0 4 1.5 4 4.5 0 5-7 9.5-7 9.5Z"/></svg></span>
+              <span class="t-name">健康</span><span class="t-chev">›</span>
+            </div>
+            <div class="hp-grid">
+              <div class="hp-row"><span class="n">头部</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">35/35</span></div>
+              <div class="hp-row"><span class="n">水分</span><div class="hp-bar"><i style="width:78%"></i></div><span class="v">2035/2600</span></div>
+              <div class="hp-row"><span class="n">胸腔</span><div class="hp-bar"><i class="warn" style="width:62%"></i></div><span class="v">51/85</span></div>
+              <div class="hp-row"><span class="n">能量</span><div class="hp-bar"><i style="width:91%"></i></div><span class="v">2300/2600</span></div>
+              <div class="hp-row"><span class="n">胃部</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">70/70</span></div>
+              <div class="hp-row"><span class="n">左臂</span><div class="hp-bar"><i class="bad" style="width:12%"></i></div><span class="v">7/60</span></div>
+              <div class="hp-row"><span class="n">右臂</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">60/60</span></div>
+              <div class="hp-row"><span class="n">双腿</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">85/85</span></div>
+            </div>
+          </div>
+
+          <!-- 全部入口（span4）：17 入口原职责不变，四组紧凑 chip 2×2 对称排布（组名沿用现版面板标题） -->
+          <div class="tile entries" style="grid-column: span 4;">
+            <div class="en-grid">
+              <div class="en-group">
+                <div class="en-title">角色数据</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>角色信息</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z"/></svg>角色技能</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>武器熟练度</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.5-7-9.5C5 7.5 7 6 9 6c1.4 0 2.4.7 3 1.7C12.6 6.7 13.6 6 15 6c2 0 4 1.5 4 4.5 0 5-7 9.5-7 9.5Z"/></svg>健康状态</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8.5 4 4 7l2 3 2-1v11h8V9l2 1 2-3-4.5-3c-1 1.4-2 2-3.5 2s-2.5-.6-3.5-2Z"/></svg>角色衣服</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/><path d="M15.5 5.6a3 3 0 1 1 1.5 5.7"/><path d="M16.5 14.8c2.2.5 3.7 1.9 4.4 4.2"/></svg>Scav 信息</button>
+                </div>
+              </div>
+              <div class="en-group">
+                <div class="en-title">物品与经济</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>商人信息</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5v-7Z"/></svg>仓库库存</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M15.5 11.5h5v3h-5a1.5 1.5 0 1 1 0-3Z"/></svg>口袋管理<span class="soon">即将开放</span></button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>物品图鉴<span class="soon">即将开放</span></button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>检视物品</button>
+                </div>
+              </div>
+              <div class="en-group">
+                <div class="en-title">进度与任务</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="m9.5 13 2 2 3.5-3.5"/></svg>任务</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 19h17L12 5 3.5 19Z"/></svg>藏身处</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="18" r="1.8"/></svg>武器预设</button>
+                </div>
+              </div>
+              <div class="en-group">
+                <div class="en-title">维护与工具</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4M12 16.8v.2"/></svg>问题检测<span class="cnt">3</span></button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M6 9v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9"/><path d="M12 12v4M10 14l2 2 2-2"/></svg>备份管理</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>设置</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock">
+      <div class="dk-brand">P</div>
+      <button class="dk-item on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>首页</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>角色</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="m9.5 13 2 2 3.5-3.5"/></svg>任务</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>商人</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 19h17L12 5 3.5 19Z"/></svg>藏身处</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5v-7Z"/></svg>仓库</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="18" r="1.8"/></svg>预设</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M6 9v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9"/></svg>备份</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>设置</button>
+      <button class="dk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.2"/></svg>关于</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

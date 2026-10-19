@@ -93,23 +93,22 @@ impl InspectDb {
             if let Ok(txt) =
                 fs::read_to_string(Path::new(&db).join("templates").join("items.json"))
             {
-                if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&txt) {
-                    for it in &arr {
-                        if let Some(tpl) = it.get("_id").and_then(|v| v.as_str()) {
-                            let p = it.get("_props");
-                            props.insert(
-                                tpl.to_string(),
-                                ItemProps {
-                                    ergonomics: p.and_then(|x| x.get("Ergonomics")).and_then(|v| v.as_f64()).unwrap_or(0.0),
-                                    recoil: p.and_then(|x| x.get("Recoil")).and_then(|v| v.as_f64()).unwrap_or(0.0),
-                                    recoil_up: p.and_then(|x| x.get("RecoilForceUp")).and_then(|v| v.as_f64()).unwrap_or(0.0),
-                                    recoil_back: p
-                                        .and_then(|x| x.get("RecoilForceBack"))
-                                        .and_then(|v| v.as_f64())
-                                        .unwrap_or(0.0),
-                                },
-                            );
-                        }
+                // 真实 items.json 是 { tpl -> TarkovItem } 字典（AppData.cs LoadItemsDB 口径）
+                if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt) {
+                    for (tpl, it) in &map {
+                        let p = it.get("_props");
+                        props.insert(
+                            tpl.clone(),
+                            ItemProps {
+                                ergonomics: p.and_then(|x| x.get("Ergonomics")).and_then(|v| v.as_f64()).unwrap_or(0.0),
+                                recoil: p.and_then(|x| x.get("Recoil")).and_then(|v| v.as_f64()).unwrap_or(0.0),
+                                recoil_up: p.and_then(|x| x.get("RecoilForceUp")).and_then(|v| v.as_f64()).unwrap_or(0.0),
+                                recoil_back: p
+                                    .and_then(|x| x.get("RecoilForceBack"))
+                                    .and_then(|v| v.as_f64())
+                                    .unwrap_or(0.0),
+                            },
+                        );
                     }
                 }
             }

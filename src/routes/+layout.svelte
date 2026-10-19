@@ -8,10 +8,12 @@
   import PhxTitlebar from '$lib/components/PhxTitlebar.svelte'
   import PhxDock from '$lib/components/PhxDock.svelte'
   import ToastHost from '$lib/components/ToastHost.svelte'
+  import PhxAnnouncements from '$lib/components/PhxAnnouncements.svelte'
   import Splash from '$lib/components/Splash.svelte'
   import Onboarding from '$lib/components/Onboarding.svelte'
   import { phxApp, phxAnnouncement, phxUpdate, PHX_UPDATE_EVENT } from '$lib/ipc'
   import type { PhxUpdateStatus } from '$lib/ipc'
+  import { seedAnnouncements } from '$lib/announcements.svelte'
   import { applyMotionClass } from '$lib/motion'
   import { toast } from '$lib/toast.svelte'
   import { t } from '$lib/i18n/i18n.svelte'
@@ -29,7 +31,7 @@
   /** 更新薄窗（/update-window）：同托盘走极简渲染，无 dock/无 toast 域 */
   const isUpdateWin = $derived(page.route.id === '/update-window')
 
-  /** 薄窗合并判定：托盘面板 + 更新薄窗共用（跳过首启编排与公告 toast） */
+  /** 薄窗合并判定：托盘面板 + 更新薄窗共用（跳过首启编排与公告拉取） */
   const isThin = $derived(isTray || isUpdateWin)
 
   /* 最大化联动圆角：.shell.maximized 让 app.css 去圆角规则生效。
@@ -71,14 +73,9 @@
       splashMode = flags.splashSeen ? 'short' : 'full'
       onboardVisible = !flags.onboarded
     })
-    // 公告：启动拉取（三镜像/缓存回退/急停均在 Rust 侧），逐条 toast 展示
+    // 公告：启动拉取（三镜像/缓存回退/急停均在 Rust 侧），结果进公告面板（含未读自动弹出一次）
     void phxAnnouncement.fetch().then((payload) => {
-      for (const a of payload.announcements) {
-        const action = a.actionUrl
-          ? { label: a.actionLabel || t('announce.viewDetail'), url: a.actionUrl }
-          : undefined
-        toast.announce(`${a.title}：${a.body}`, action)
-      }
+      seedAnnouncements(payload.announcements, payload.source)
     })
     // 更新下载完成：全局 toast 提供立即重启（装包在 Rust 侧，退出后跑安装器）。
     // available 态不在此处理——Rust 侧检查到即自动开薄窗。
@@ -129,6 +126,7 @@
       <PhxDock />
     {/if}
     <ToastHost />
+    <PhxAnnouncements />
 
     {#if splashMode}
       <Splash short={splashMode === 'short'} onDone={() => void splashDone()} />
@@ -155,13 +153,14 @@
     border-radius: 0;
   }
 
-  /* 底部 92px 为悬浮 dock 留位（稿图 .main 规格） */
+  /* main 直达窗口底：内容从悬浮 dock 底下穿过（通透布局，参考 Nowbar 式）。
+     dock 避让留白由各页 .scroll 的 padding-bottom 承担（104px = dock 76px 占位 + 28px 呼吸） */
   .main {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    padding: 40px 0 92px;
+    padding: 40px 0 0;
     /* 页面入场：随 {#key} 每次导航重放（感官层基线 §二） */
     animation: phx-page-enter var(--phx-dur-norm) var(--phx-ease-out) both;
   }

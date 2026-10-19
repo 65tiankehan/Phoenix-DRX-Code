@@ -86,7 +86,7 @@
   const removeText = $derived(t('ss.dlg.removeText', { name: pendingRemove?.name ?? '' }))
 </script>
 
-<div class="page phx-hide-scroll">
+<div class="page">
   <div class="brand">
     <span class="wordmark">Phoenix</span>
     <span class="brand-sub">{t('app.subtitle')}</span>

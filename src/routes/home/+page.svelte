@@ -1,16 +1,40 @@
 <script lang="ts">
-  // 02 首页：hero 档案卡 + 2×2 仪表台 17 入口，按 docs/prototypes/02 稿图逐项落地
+  // 02b 首页：hero 单行 + 4 列便当网格（六路数据 tile）+ 四组入口，按 docs/prototypes/02b 稿图逐项落地
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import { resolve } from '$app/paths'
   import { listen } from '@tauri-apps/api/event'
   import { t, type MessageKey } from '$lib/i18n/i18n.svelte'
   import { toast } from '$lib/toast.svelte'
-  import { phxProfile, type PhxProfileHero, type PhxProfileMeta } from '$lib/ipc'
+  import {
+    phxProfile,
+    phxIssues,
+    phxSettings,
+    phxQuests,
+    phxHideout,
+    phxStash,
+    phxTraders,
+    phxSkills,
+    phxHealth,
+    type PhxProfileHero,
+    type PhxProfileMeta,
+    type PhxIssueRow,
+    type PhxQuestsData,
+    type PhxHideoutData,
+    type PhxStashData,
+    type PhxTradersData,
+    type PhxSkillsData,
+    type PhxHealthData,
+    type PhxHealthSide
+  } from '$lib/ipc'
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
+  import PhxIssueSheet from '$lib/components/PhxIssueSheet.svelte'
 
-  /** 入口图标：稿图同款 svg inner markup（wrapper 统一由模板提供） */
+  /** 骨架镜像占位行序号（boot 层内部件用） */
+  const skRows = (n: number) => [...Array(n).keys()]
+
+  /** 入口图标：02 稿同款 svg inner markup（wrapper 统一由模板提供） */
   const ICON = {
     info: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/>',
     skills: '<path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z"/>',
@@ -61,20 +85,12 @@
     to?: EntryRoute
     /** 无落地屏的入口：点击提示将在后续版本提供 */
     soon?: boolean
-    /** 跨两列（02 稿图「检视物品」） */
-    span2?: boolean
   }
 
-  interface DashPanel {
-    titleKey: MessageKey
-    items: DashEntry[]
-    single: boolean
-  }
-
-  const leftPanels: DashPanel[] = [
+  /** 02b 入口四组：每组一个 2 列 chip 行 */
+  const ENTRY_GROUPS: Array<{ titleKey: MessageKey; items: DashEntry[] }> = [
     {
       titleKey: 'home.panel.character',
-      single: false,
       items: [
         { key: 'info', to: '/character' },
         { key: 'skills', to: '/skills' },
@@ -86,35 +102,29 @@
     },
     {
       titleKey: 'home.panel.economy',
-      single: false,
       items: [
         { key: 'traders', to: '/traders' },
         { key: 'stash', to: '/stash' },
         { key: 'pockets', soon: true },
         { key: 'encyclopedia', soon: true },
-        { key: 'inspect', to: '/inspect', span2: true }
-      ]
-    }
-  ]
-
-  const rightPanels: DashPanel[] = [
-    {
-      titleKey: 'home.panel.maintain',
-      single: true,
-      items: [
-        // 问题检测红徽章：实算逻辑在问题检测屏落地后接入（诚实原则，0 时隐藏，本屏暂不渲染）
-        { key: 'issues', to: '/issues' },
-        { key: 'backup', to: '/backup' },
-        { key: 'settings', to: '/settings' }
+        { key: 'inspect', to: '/inspect' }
       ]
     },
     {
       titleKey: 'home.panel.progress',
-      single: true,
       items: [
         { key: 'quests', to: '/quests' },
         { key: 'hideout', to: '/hideout' },
         { key: 'presets', to: '/presets' }
+      ]
+    },
+    {
+      titleKey: 'home.panel.maintain',
+      items: [
+        // 问题检测红徽章：计数由 refresh() 实算（issues_scan），0 时隐藏（02 稿注 6）
+        { key: 'issues', to: '/issues' },
+        { key: 'backup', to: '/backup' },
+        { key: 'settings', to: '/settings' }
       ]
     }
   ]
@@ -123,6 +133,19 @@
   let currentId = $state('')
   let hero = $state<PhxProfileHero | null>(null)
   let saving = $state(false)
+  let booting = $state(true)
+  // 问题检测实算计数（02 稿注 6：红徽章，0 时隐藏）
+  let issueCount = $state(0)
+  // 保存拦截弹窗（13 稿）：ask 偏好下 scan 出问题时弹出
+  let sheetOpen = $state(false)
+  let sheetIssues = $state<PhxIssueRow[]>([])
+  // 02b 六路 tile 数据（单路失败置 null，对应 tile 显示空态「—」）
+  let quests = $state<PhxQuestsData | null>(null)
+  let hideout = $state<PhxHideoutData | null>(null)
+  let stash = $state<PhxStashData | null>(null)
+  let traders = $state<PhxTradersData | null>(null)
+  let skills = $state<PhxSkillsData | null>(null)
+  let health = $state<PhxHealthData | null>(null)
 
   const ddOptions = $derived(profiles.map((p) => ({ value: p.id, label: p.id })))
 
@@ -143,8 +166,168 @@
     hero = currentId ? await phxProfile.load(currentId) : null
   }
 
-  /** 全量刷新：列表 → 当前选择（失效回退首个）→ 概览数据 */
+  // —— 任务五段聚合（前端口径：Success→已完成 / AvailableForFinish→可交付 /
+  //    Started→进行中 / AvailableForStart→可开始 / 其余→锁定，总和恒等 rows.length）——
+  const qData = $derived.by(() => {
+    const rows = quests?.rows ?? []
+    const total = rows.length
+    let done = 0
+    let fin = 0
+    let run = 0
+    let ava = 0
+    let lock = 0
+    for (const r of rows) {
+      if (r.status === 'Success') done++
+      else if (r.status === 'AvailableForFinish') fin++
+      else if (r.status === 'Started') run++
+      else if (r.status === 'AvailableForStart') ava++
+      else lock++
+    }
+    // 零段跳过：避免分段条 gap 画出空气隙
+    const segs =
+      total > 0
+        ? [
+            { cls: 'q-done', w: (done / total) * 100, n: done },
+            { cls: 'q-fin', w: (fin / total) * 100, n: fin },
+            { cls: 'q-run', w: (run / total) * 100, n: run },
+            { cls: 'q-ava', w: (ava / total) * 100, n: ava },
+            { cls: 'q-lock', w: (lock / total) * 100, n: lock }
+          ].filter((s) => s.n > 0)
+        : []
+    return { total, done, fin, run, ava, lock, segs }
+  })
+
+  // 藏身处前 6 行（pips 预计算：'on' 已点亮 / 'max' 满级 / '' 未点亮）
+  const hideoutRows = $derived.by(() => {
+    if (!hideout) return []
+    return hideout.areas.slice(0, 6).map((a) => ({
+      name: a.name,
+      level: a.level,
+      maxLevel: a.maxLevel,
+      pips: Array.from({ length: a.maxLevel }, (_, k) =>
+        a.level >= a.maxLevel ? 'max' : k < a.level ? 'on' : ''
+      )
+    }))
+  })
+  const hideoutMaxed = $derived.by(() => {
+    if (!hideout) return { done: 0, total: 0 }
+    return {
+      total: hideout.areas.length,
+      done: hideout.areas.filter((a) => a.maxLevel > 0 && a.level >= a.maxLevel).length
+    }
+  })
+
+  // 仓库（02b 稿注 ③：无上限数据，不画占用率）
+  const stashStats = $derived.by(() => {
+    if (!stash) return null
+    return {
+      count: stash.items.length,
+      bonus: stash.bonusRows,
+      weapons: stash.items.filter((i) => i.isWeapon).length,
+      modded: stash.items.filter((i) => i.modded).length
+    }
+  })
+
+  // 商人前 5 行（pips 满级点亮全段）
+  const traderRows = $derived.by(() => {
+    if (!traders) return []
+    return traders.traders.slice(0, 5).map((tr) => ({
+      nickname: tr.nickname,
+      level: tr.loyaltyLevel,
+      maxLevel: tr.maxLevel,
+      pips: Array.from({ length: tr.maxLevel }, (_, k) =>
+        tr.loyaltyLevel >= tr.maxLevel ? 'max' : k < tr.loyaltyLevel ? 'on' : ''
+      )
+    }))
+  })
+  const traderMaxed = $derived.by(() => {
+    if (!traders) return { done: 0, total: 0 }
+    return {
+      total: traders.traders.length,
+      done: traders.traders.filter((x) => x.maxLevel > 0 && x.loyaltyLevel >= x.maxLevel).length
+    }
+  })
+
+  // 技能 top3（过滤 bot 内部技能；cap 防除零）
+  const skillRows = $derived.by(() => {
+    if (!skills) return []
+    return skills.pmc.common
+      .filter((s) => !s.bot)
+      .map((s) => ({
+        name: s.name,
+        pct: s.cap > 0 ? Math.min(100, Math.round((s.progress / s.cap) * 100)) : 0
+      }))
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 3)
+  })
+  const skillAvg = $derived.by(() => {
+    if (!skills) return null
+    const rows = skills.pmc.common.filter((s) => !s.bot && s.cap > 0)
+    if (rows.length === 0) return 0
+    const sum = rows.reduce((acc, s) => acc + Math.min(100, (s.progress / s.cap) * 100), 0)
+    return Math.round(sum / rows.length)
+  })
+
+  // 健康 PMC 九部位（左右腿分开；<15% 红 / <35% 黄）
+  const hpRows = $derived.by(() => {
+    const p = health?.pmc
+    if (!p) return []
+    const defs: Array<{ key: MessageKey; part: PhxHealthSide['head'] }> = [
+      { key: 'char.health.head', part: p.head },
+      { key: 'char.health.chest', part: p.chest },
+      { key: 'char.health.stomach', part: p.stomach },
+      { key: 'char.health.leftArm', part: p.leftArm },
+      { key: 'char.health.rightArm', part: p.rightArm },
+      { key: 'char.health.leftLeg', part: p.leftLeg },
+      { key: 'char.health.rightLeg', part: p.rightLeg },
+      { key: 'char.health.hydration', part: p.hydration },
+      { key: 'char.health.energy', part: p.energy }
+    ]
+    return defs.map(({ key, part }) => {
+      const pct = part.maximum > 0 ? Math.round((part.current / part.maximum) * 100) : 0
+      return {
+        key,
+        cur: part.current,
+        max: part.maximum,
+        pct,
+        cls: pct < 15 ? 'bad' : pct < 35 ? 'warn' : ''
+      }
+    })
+  })
+
+  async function loadTiles(): Promise<void> {
+    const id = currentId
+    if (!id) {
+      quests = null
+      hideout = null
+      stash = null
+      traders = null
+      skills = null
+      health = null
+      return
+    }
+    // 六路并发（allSettled：单路失败置 null，不拖垮其余 tile；解包变量避开 i18n 的 t）
+    const [qRes, hRes, sRes, trRes, skRes, hpRes] = await Promise.allSettled([
+      phxQuests.load(id),
+      phxHideout.load(id),
+      phxStash.load(id),
+      phxTraders.load(id),
+      phxSkills.load(id),
+      phxHealth.load(id)
+    ])
+    // 拉取期间切换档案：丢弃旧数据
+    if (id !== currentId) return
+    quests = qRes.status === 'fulfilled' ? qRes.value : null
+    hideout = hRes.status === 'fulfilled' ? hRes.value : null
+    stash = sRes.status === 'fulfilled' ? sRes.value : null
+    traders = trRes.status === 'fulfilled' ? trRes.value : null
+    skills = skRes.status === 'fulfilled' ? skRes.value : null
+    health = hpRes.status === 'fulfilled' ? hpRes.value : null
+  }
+
+  /** 全量刷新：列表 → 当前选择（失效回退首个）→ 概览数据 → 问题计数 → 六路 tile */
   async function refresh(): Promise<void> {
+    booting = true
     const list = await phxProfile.list()
     profiles = list
     let id = await phxProfile.current()
@@ -153,6 +336,9 @@
     if (id && id !== currentId) await phxProfile.use(id)
     currentId = id ?? ''
     await loadHeroData()
+    issueCount = currentId ? (await phxIssues.scan(currentId)).length : 0
+    await loadTiles()
+    booting = false
   }
 
   async function onPick(id: string): Promise<void> {
@@ -160,20 +346,69 @@
     currentId = id
     await phxProfile.use(id)
     await loadHeroData()
+    await loadTiles()
   }
 
-  /** 保存修改：写回前主进程强制自动备份（领域铁律） */
+  /**
+   * 保存链（13 稿注 3）：先自动备份（Rust 侧强制）→ 扫描问题 → 按三态偏好处理。
+   * ask 弹窗期间 saving 持续为真，弹窗结束（resolve）后继续或放弃。
+   */
   async function onSave(): Promise<void> {
     if (!hero || saving) return
     saving = true
     try {
-      await phxProfile.save(hero.id)
+      const settings = await phxSettings.get()
+      const issues = await phxIssues.scan(hero.id)
+      issueCount = issues.length
+      if (issues.length === 0 || settings.issueHandling === 'ignore') {
+        await doSave()
+        return
+      }
+      if (settings.issueHandling === 'fix') {
+        await phxIssues.fix(
+          hero.id,
+          issues.map((i) => i.id)
+        )
+        issueCount = (await phxIssues.scan(hero.id)).length
+        await doSave()
+        return
+      }
+      // 询问：弹出问题弹窗（saving 保持为真，避免保存期间重复触发）
+      sheetIssues = issues
+      sheetOpen = true
+    } catch {
+      toast.error(t('home.toast.failed'))
+      saving = false
+    }
+  }
+
+  /** 写盘（Rust 侧先落备份）+ 成败反馈 */
+  async function doSave(): Promise<void> {
+    try {
+      await phxProfile.save(hero!.id)
       toast.success(t('home.toast.saved'))
     } catch {
       toast.error(t('home.toast.failed'))
     } finally {
       saving = false
     }
+  }
+
+  /** 问题弹窗结束：save = 已忽略或全部处理完，继续写盘；cancel = 放弃本次保存 */
+  function onSheetResolve(action: 'save' | 'cancel'): void {
+    sheetOpen = false
+    if (action === 'cancel' || !hero) {
+      saving = false
+      return
+    }
+    void (async () => {
+      await doSave()
+      try {
+        issueCount = (await phxIssues.scan(hero!.id)).length
+      } catch {
+        // 重扫失败不影响保存结果
+      }
+    })()
   }
 
   function onEntry(entry: DashEntry): void {
@@ -211,12 +446,131 @@
   </div>
 
   <div class="scroll phx-hide-scroll">
-    <section class="hero">
-      <div class="hero-row1">
+    <!-- 骨架层：镜像便当网格真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
+    <div class="boot phx-boot" class:gone={!booting}>
+      <div class="bento">
+        <!-- hero（span4） -->
+        <section class="hero">
+          <i class="phx-sk av"></i>
+          <div class="sk-stack">
+            <i class="phx-sk slim" style="width:84px"></i>
+            <i class="phx-sk" style="width:176px"></i>
+          </div>
+          <i class="phx-sk slim" style="width:44px;margin-left:6px"></i>
+          <div class="hero-stats">
+            <div class="stat"><i class="phx-sk slim" style="width:40px"></i><i class="phx-sk" style="width:56px"></i></div>
+            <div class="stat"><i class="phx-sk slim" style="width:40px"></i><i class="phx-sk" style="width:56px"></i></div>
+            <div class="stat"><i class="phx-sk slim" style="width:40px"></i><i class="phx-sk" style="width:56px"></i></div>
+          </div>
+          <i class="phx-sk hr-badge"></i>
+        </section>
+        <!-- 任务（span2）：大数 + 五段分段条 + 图例 -->
+        <section class="tile span2">
+          <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          <div class="q-big"><i class="phx-sk" style="width:54px"></i><i class="phx-sk slim" style="width:92px"></i></div>
+          <div class="q-bar">
+            <i class="phx-sk slot" style="width:30%"></i>
+            <i class="phx-sk slot" style="width:16%"></i>
+            <i class="phx-sk slot" style="width:20%"></i>
+            <i class="phx-sk slot" style="width:15%"></i>
+            <i class="phx-sk slot" style="width:19%"></i>
+          </div>
+          <div class="q-legend">
+            <i class="phx-sk slim" style="width:58px"></i>
+            <i class="phx-sk slim" style="width:70px"></i>
+            <i class="phx-sk slim" style="width:52px"></i>
+            <i class="phx-sk slim" style="width:66px"></i>
+            <i class="phx-sk slim" style="width:48px"></i>
+          </div>
+        </section>
+        <!-- 藏身处：6 行区域 + 满级计数 -->
+        <section class="tile">
+          <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          {#each skRows(6) as k (k)}
+            <div class="h-row">
+              <i class="phx-sk slim" style="width:70px"></i>
+              <span class="pips">
+                {#each skRows(5) as p (p)}<i class="phx-sk pip"></i>{/each}
+              </span>
+              <i class="phx-sk slim" style="width:34px"></i>
+            </div>
+          {/each}
+          <div class="t-foot"><i class="phx-sk slim" style="width:70px"></i><i class="phx-sk slim" style="width:44px"></i></div>
+        </section>
+        <!-- 仓库：总数 + 三行统计 -->
+        <section class="tile">
+          <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          <div class="s-big"><i class="phx-sk" style="width:64px"></i><i class="phx-sk slim" style="width:22px"></i></div>
+          <div class="s-rows">
+            <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
+            <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
+            <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
+          </div>
+        </section>
+        <!-- 商人：5 行忠诚度 -->
+        <section class="tile">
+          <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          {#each skRows(5) as k (k)}
+            <div class="tr-row">
+              <i class="phx-sk slim" style="width:70px"></i>
+              <span class="pips">
+                {#each skRows(5) as p (p)}<i class="phx-sk pip"></i>{/each}
+              </span>
+              <i class="phx-sk slim" style="width:34px"></i>
+            </div>
+          {/each}
+          <div class="t-foot"><i class="phx-sk slim" style="width:70px"></i><i class="phx-sk slim" style="width:44px"></i></div>
+        </section>
+        <!-- 技能：top3 进度条 -->
+        <section class="tile">
+          <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          {#each skRows(3) as k (k)}
+            <div class="sk-row">
+              <div class="l"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:34px"></i></div>
+              <div class="sk-bar"><i class="phx-sk slot" style="width:68%"></i></div>
+            </div>
+          {/each}
+          <div class="t-foot"><i class="phx-sk slim" style="width:88px"></i><i class="phx-sk slim" style="width:36px"></i></div>
+        </section>
+        <!-- 健康（span2）：九部位两列 -->
+        <section class="tile span2">
+          <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          <div class="hp-grid">
+            {#each skRows(9) as k (k)}
+              <div class="hp-row">
+                <i class="phx-sk slim" style="width:56px"></i>
+                <div class="hp-bar"><i class="phx-sk slot" style="width:64%"></i></div>
+                <i class="phx-sk slim" style="width:44px"></i>
+              </div>
+            {/each}
+          </div>
+        </section>
+        <!-- 入口（span4）：四组 2×2 chip -->
+        <section class="tile entries">
+          <div class="en-grid">
+            {#each [6, 5, 3, 3] as count, g (g)}
+              <div class="en-group">
+                <div class="en-title"><i class="phx-sk slim" style="width:76px"></i></div>
+                <div class="en-chips">
+                  {#each skRows(count) as k (k)}
+                    <span class="chip"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:48px"></i></span>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </section>
+      </div>
+    </div>
+
+    {#if !booting}
+    <div class="bento phx-fade-in">
+      <!-- hero（span4）：单行概览，不可点；徽章两态见 02b 稿注 ① -->
+      <section class="hero">
         <div class="avatar">
           <PhxIcon markup={ICON.info} />
         </div>
-        <div class="hr-main">
+        <div>
           <div class="hr-label">{t('home.hero.label')}</div>
           <div class="hr-id">
             {#if profiles.length > 0}
@@ -236,73 +590,220 @@
         </div>
         {#if hero}
           <div class="hr-lvl">{levelText}</div>
+          <div class="hero-stats">
+            <div class="stat">
+              <div class="k">{t('home.hero.rub')}</div>
+              <div class="v">{hero.rub ?? '—'}</div>
+            </div>
+            <div class="stat">
+              <div class="k">{t('home.hero.usd')}</div>
+              <div class="v">{hero.usd ?? '—'}</div>
+            </div>
+            <div class="stat">
+              <div class="k">{t('home.hero.eur')}</div>
+              <div class="v">{hero.eur ?? '—'}</div>
+            </div>
+          </div>
+          {#if issueCount === 0}
+            <span class="hero-badge ok">
+              <i class="dot"></i>{t('home.badge.ok')}
+            </span>
+          {:else}
+            <button type="button" class="hero-badge" onclick={() => void goto(resolve('/issues'))}>
+              <i class="dot"></i>{t('home.badge.issues', { n: issueCount })}
+            </button>
+          {/if}
         {/if}
-      </div>
-      <div class="hero-stats">
-        <div class="stat">
-          <div class="k">{t('home.hero.rub')}</div>
-          <div class="v">{hero?.rub ?? '—'}</div>
-        </div>
-        <div class="stat">
-          <div class="k">{t('home.hero.usd')}</div>
-          <div class="v">{hero?.usd ?? '—'}</div>
-        </div>
-        <div class="stat">
-          <div class="k">{t('home.hero.eur')}</div>
-          <div class="v">{hero?.eur ?? '—'}</div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="dash">
-      <div class="dash-col">
-        {#each leftPanels as panel (panel.titleKey)}
-          <div class="panel" class:single={panel.single}>
-            <div class="panel-head"><span class="pt">{t(panel.titleKey)}</span></div>
-            <div class="items">
-              {#each panel.items as item (item.key)}
-                <button
-                  type="button"
-                  class="item"
-                  class:span2={item.span2}
-                  onclick={() => onEntry(item)}
-                >
-                  <PhxIcon markup={ICON[item.key]} />
-                  <span class="txt">{t(`home.item.${item.key}` as MessageKey)}</span>
-                  <span class="chev">›</span>
-                </button>
-              {/each}
-            </div>
+      <!-- 任务（span2）：五段分段条（前端口径聚合） -->
+      <button type="button" class="tile span2" onclick={() => void goto(resolve('/quests'))}>
+        <div class="t-head">
+          <span class="t-ic"><PhxIcon markup={ICON.quests} /></span>
+          <span class="t-name">{t('home.tile.quests')}</span>
+          <span class="t-chev">›</span>
+        </div>
+        {#if qData.total > 0}
+          <div class="q-big">
+            <span class="n">{qData.done}</span>
+            <span class="d">/ {qData.total} {t('quests.st.Success')}</span>
           </div>
-        {/each}
-      </div>
-      <div class="dash-col">
-        {#each rightPanels as panel (panel.titleKey)}
-          <div class="panel" class:single={panel.single}>
-            <div class="panel-head"><span class="pt">{t(panel.titleKey)}</span></div>
-            <div class="items">
-              {#each panel.items as item (item.key)}
-                <button
-                  type="button"
-                  class="item"
-                  class:span2={item.span2}
-                  onclick={() => onEntry(item)}
-                >
-                  <PhxIcon markup={ICON[item.key]} />
-                  <span class="txt">{t(`home.item.${item.key}` as MessageKey)}</span>
-                  <span class="chev">›</span>
-                </button>
-              {/each}
-            </div>
+          <div class="q-bar">
+            {#each qData.segs as s (s.cls)}
+              <i class={s.cls} style={`width:${s.w}%`}></i>
+            {/each}
           </div>
-        {/each}
-      </div>
-    </section>
+          <div class="q-legend">
+            <span><i class="q-done"></i>{t('quests.st.Success')} {qData.done}</span>
+            <span><i class="q-fin"></i>{t('quests.st.AvailableForFinish')} {qData.fin}</span>
+            <span><i class="q-run"></i>{t('quests.st.Started')} {qData.run}</span>
+            <span><i class="q-ava"></i>{t('quests.st.AvailableForStart')} {qData.ava}</span>
+            <span><i class="q-lock"></i>{t('quests.st.Locked')} {qData.lock}</span>
+          </div>
+        {:else}
+          <div class="t-none">—</div>
+        {/if}
+      </button>
+
+      <!-- 藏身处：前 6 行区域 + 满级计数 -->
+      <button type="button" class="tile" onclick={() => void goto(resolve('/hideout'))}>
+        <div class="t-head">
+          <span class="t-ic"><PhxIcon markup={ICON.hideout} /></span>
+          <span class="t-name">{t('home.tile.hideout')}</span>
+          <span class="t-chev">›</span>
+        </div>
+        {#if hideoutRows.length > 0}
+          {#each hideoutRows as h (h.name)}
+            <div class="h-row">
+              <span class="n">{h.name}</span>
+              <span class="pips">
+                {#each h.pips as p, k (k)}
+                  <i class={p}></i>
+                {/each}
+              </span>
+              <span class="lv">{h.level}/{h.maxLevel}</span>
+            </div>
+          {/each}
+          <div class="t-foot">
+            <span class:ok={hideoutMaxed.done > 0}>{t('home.maxed')}</span>
+            <b class:ok={hideoutMaxed.done > 0}>{hideoutMaxed.done} / {hideoutMaxed.total}</b>
+          </div>
+        {:else}
+          <div class="t-none">—</div>
+        {/if}
+      </button>
+
+      <!-- 仓库：总数 + 三行统计（02b 稿注 ③：无上限数据，不画占用率） -->
+      <button type="button" class="tile" onclick={() => void goto(resolve('/stash'))}>
+        <div class="t-head">
+          <span class="t-ic"><PhxIcon markup={ICON.stash} /></span>
+          <span class="t-name">{t('home.tile.stash')}</span>
+          <span class="t-chev">›</span>
+        </div>
+        {#if stashStats}
+          <div class="s-big">
+            <span class="n">{stashStats.count}</span>
+            <span class="u">{t('home.stash.unit')}</span>
+          </div>
+          <div class="s-rows">
+            <div class="s-row"><span>{t('home.stash.bonus')}</span><b class="hl">+{stashStats.bonus}</b></div>
+            <div class="s-row"><span>{t('home.stash.weapons')}</span><b>{stashStats.weapons}</b></div>
+            <div class="s-row"><span>{t('home.stash.modded')}</span><b>{stashStats.modded}</b></div>
+          </div>
+        {:else}
+          <div class="t-none">—</div>
+        {/if}
+      </button>
+
+      <!-- 商人：前 5 行忠诚度 -->
+      <button type="button" class="tile" onclick={() => void goto(resolve('/traders'))}>
+        <div class="t-head">
+          <span class="t-ic"><PhxIcon markup={ICON.traders} /></span>
+          <span class="t-name">{t('home.tile.traders')}</span>
+          <span class="t-chev">›</span>
+        </div>
+        {#if traderRows.length > 0}
+          {#each traderRows as tr (tr.nickname)}
+            <div class="tr-row">
+              <span class="n">{tr.nickname}</span>
+              <span class="pips">
+                {#each tr.pips as p, k (k)}
+                  <i class={p}></i>
+                {/each}
+              </span>
+              <span class="lv">{tr.level}/{tr.maxLevel}</span>
+            </div>
+          {/each}
+          <div class="t-foot">
+            <span class:ok={traderMaxed.done > 0}>{t('home.maxed')}</span>
+            <b class:ok={traderMaxed.done > 0}>{traderMaxed.done} / {traderMaxed.total}</b>
+          </div>
+        {:else}
+          <div class="t-none">—</div>
+        {/if}
+      </button>
+
+      <!-- 技能：top3 + PMC 平均进度 -->
+      <button type="button" class="tile" onclick={() => void goto(resolve('/skills'))}>
+        <div class="t-head">
+          <span class="t-ic"><PhxIcon markup={ICON.skills} /></span>
+          <span class="t-name">{t('home.tile.skills')}</span>
+          <span class="t-chev">›</span>
+        </div>
+        {#if skillRows.length > 0}
+          {#each skillRows as sk (sk.name)}
+            <div class="sk-row">
+              <div class="l"><span>{sk.name}</span><b>{sk.pct}%</b></div>
+              <div class="sk-bar"><i style={`width:${sk.pct}%`}></i></div>
+            </div>
+          {/each}
+          <div class="t-foot">
+            <span>{t('home.skills.avg')}</span>
+            <b>{skillAvg}%</b>
+          </div>
+        {:else}
+          <div class="t-none">—</div>
+        {/if}
+      </button>
+
+      <!-- 健康（span2）：PMC 九部位两列 -->
+      <button type="button" class="tile span2" onclick={() => void goto(resolve('/health'))}>
+        <div class="t-head">
+          <span class="t-ic"><PhxIcon markup={ICON.health} /></span>
+          <span class="t-name">{t('home.tile.health')}</span>
+          <span class="t-chev">›</span>
+        </div>
+        {#if hpRows.length > 0}
+          <div class="hp-grid">
+            {#each hpRows as hp (hp.key)}
+              <div class="hp-row">
+                <span class="n">{t(hp.key)}</span>
+                <div class="hp-bar"><i class={hp.cls} style={`width:${hp.pct}%`}></i></div>
+                <span class="v">{hp.cur}/{hp.max}</span>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="t-none">—</div>
+        {/if}
+      </button>
+
+      <!-- 入口（span4）：四组 2×2 chip 行 -->
+      <section class="tile entries">
+        <div class="en-grid">
+          {#each ENTRY_GROUPS as group (group.titleKey)}
+            <div class="en-group">
+              <div class="en-title">{t(group.titleKey)}</div>
+              <div class="en-chips">
+                {#each group.items as item (item.key)}
+                  <button type="button" class="chip" onclick={() => onEntry(item)}>
+                    <PhxIcon markup={ICON[item.key]} />
+                    <span>{t(`home.item.${item.key}` as MessageKey)}</span>
+                    {#if item.soon}<span class="soon">{t('home.soon')}</span>{/if}
+                    {#if item.key === 'issues' && issueCount > 0}
+                      <span class="cnt">{issueCount}</span>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </section>
+    </div>
+    {/if}
   </div>
+
+  <PhxIssueSheet
+    open={sheetOpen}
+    profileId={hero?.id ?? ''}
+    issues={sheetIssues}
+    onresolve={onSheetResolve}
+  />
 </div>
 
 <style>
-  /* 02 稿图原值：页头 + hero 档案卡 + 2×2 仪表台 */
+  /* 02b 稿图原值：页头 + 4 列便当网格（hero + 六路数据 tile + 入口组） */
   .page {
     flex: 1;
     min-height: 0;
@@ -364,23 +865,83 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 24px;
+    padding: 0 24px 104px;
+    position: relative; /* .phx-boot 骨架层的定位基准 */
   }
-  .hero {
-    margin-top: 18px;
+
+  /* 骨架层内部：与 .scroll 同 padding 镜像真实几何，占位条走全局 .phx-sk 原语 */
+  .boot {
+    padding: 0 24px 104px;
+  }
+  .boot .q-bar .phx-sk.slot {
+    height: 10px;
+    border-radius: 5px;
+  }
+  .boot .sk-bar .phx-sk.slot {
+    height: 6px;
+    border-radius: 3px;
+  }
+  .boot .hp-bar .phx-sk.slot {
+    height: 5px;
+    border-radius: 2.5px;
+  }
+  .sk-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .hr-badge {
+    width: 88px;
+    height: 30px;
+    border-radius: 15px;
+  }
+
+  /* —— 便当网格与 tile 通用 —— */
+  .bento {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .tile {
+    /* button 默认把内容垂直居中，内容少的 tile（仓库）会整体下沉——显式改为贴顶堆叠 */
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    border: none;
     background: var(--phx-surface-2);
     border-radius: var(--phx-r-card);
     box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
+    padding: 11px 14px 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--phx-text);
+    transition: filter var(--phx-dur-fast) var(--phx-ease-out);
   }
-  .hero-row1 {
+  .tile:hover {
+    filter: brightness(1.12);
+  }
+  .span2 {
+    grid-column: span 2;
+  }
+
+  /* —— hero（span4，不可点）—— */
+  .hero {
+    grid-column: span 4;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 16px;
+    padding: 12px 14px;
+    background: var(--phx-surface-2);
+    border-radius: var(--phx-r-card);
+    box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
+    cursor: default;
   }
   .avatar {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: var(--phx-accent-dim);
     color: var(--phx-accent);
@@ -390,11 +951,8 @@
     flex: none;
   }
   .avatar :global(svg) {
-    width: 22px;
-    height: 22px;
-  }
-  .hr-main {
-    min-width: 0;
+    width: 19px;
+    height: 19px;
   }
   .hr-label {
     font-size: 12px;
@@ -426,15 +984,17 @@
     white-space: nowrap;
   }
   .hr-lvl {
-    margin-left: auto;
+    margin-left: 6px;
     font-size: 13px;
     color: var(--phx-text-2);
     flex: none;
   }
   .hero-stats {
+    margin-left: 18px;
+    padding-left: 18px;
+    border-left: 0.5px solid var(--phx-sep-strong);
+    flex: 1;
     display: flex;
-    border-top: 0.5px solid var(--phx-sep-strong);
-    padding: 12px 4px;
   }
   .stat {
     flex: 1;
@@ -452,82 +1012,388 @@
   }
   .stat .v {
     font-family: var(--phx-font-mono);
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 600;
   }
-  .dash {
-    margin-top: 14px;
-    display: grid;
-    grid-template-columns: 7fr 5fr;
-    gap: 14px;
-    align-items: stretch;
-  }
-  .dash-col {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-width: 0;
-  }
-  .panel {
-    background: var(--phx-surface-2);
-    border-radius: var(--phx-r-card);
-    box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
-    padding: 4px 8px 8px;
-  }
-  .panel-head {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 8px 6px;
-  }
-  .panel-head .pt {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--phx-text-2);
-  }
-  .items {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-  }
-  .panel.single .items {
-    grid-template-columns: 1fr;
-  }
-  .item {
-    height: 44px;
-    padding: 0 10px;
+  .hero-badge {
+    height: 30px;
+    padding: 0 12px;
     border: none;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--phx-text);
-    font-size: 14px;
+    border-radius: 15px;
+    background: var(--phx-danger-bg);
+    color: var(--phx-danger);
+    font-size: 12px;
+    font-weight: 600;
     font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: none;
+    cursor: pointer;
+    transition: filter var(--phx-dur-fast) var(--phx-ease-out);
+  }
+  .hero-badge:hover {
+    filter: brightness(1.12);
+  }
+  .hero-badge.ok {
+    background: var(--phx-green-dim);
+    color: var(--phx-green);
+    cursor: default;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* —— tile 头部 —— */
+  .t-head {
     display: flex;
     align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    text-align: left;
+    gap: 8px;
+    margin-bottom: 8px;
   }
-  .item:hover {
-    background: var(--phx-fill-quaternary);
-  }
-  .item :global(svg) {
-    width: 16px;
-    height: 16px;
-    color: var(--phx-text-2);
+  .t-ic {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: var(--phx-accent-dim);
+    color: var(--phx-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex: none;
   }
-  .item .txt {
+  .t-ic :global(svg) {
+    width: 13px;
+    height: 13px;
+  }
+  .t-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .t-chev {
+    margin-left: auto;
+    font-size: 15px;
+    line-height: 1;
+    color: var(--phx-text-3);
+  }
+  .t-none {
+    font-size: 12px;
+    color: var(--phx-text-3);
+  }
+
+  /* —— 任务 —— */
+  .q-big {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .q-big .n {
+    font-family: var(--phx-font-mono);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .q-big .d {
+    font-size: 16px;
+    color: var(--phx-text-3);
+  }
+  .q-bar {
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 10px 0 9px;
+    display: flex;
+    gap: 2px;
+  }
+  .q-bar i {
+    display: block;
+  }
+  .q-done {
+    background: var(--phx-green);
+  }
+  .q-fin {
+    background: var(--phx-accent);
+  }
+  .q-run {
+    background: var(--phx-accent-mid);
+  }
+  .q-ava {
+    background: var(--phx-fill-secondary);
+  }
+  .q-lock {
+    background: var(--phx-fill-tertiary);
+  }
+  .q-legend {
+    display: flex;
+    gap: 14px;
+  }
+  .q-legend span {
+    font-size: 11px;
+    color: var(--phx-text-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .q-legend i {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+  }
+
+  /* —— 藏身处/商人行 —— */
+  .h-row {
+    height: 23px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .h-row .n {
+    width: 64px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .item .chev {
-    margin-left: auto;
-    font-size: 16px;
-    line-height: 1;
-    color: var(--phx-text-3);
+  .pips {
+    display: flex;
+    gap: 3px;
+    flex: 1;
   }
-  .span2 {
-    grid-column: span 2;
+  .pips i {
+    width: 14px;
+    height: 5px;
+    border-radius: 2.5px;
+    background: var(--phx-fill-quaternary);
+  }
+  .pips i.on {
+    background: var(--phx-accent);
+  }
+  .pips i.max {
+    background: var(--phx-green);
+  }
+  .lv {
+    font-family: var(--phx-font-mono);
+    font-size: 11px;
+    color: var(--phx-text-2);
+    flex: none;
+  }
+  .t-foot {
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 0.5px solid var(--phx-sep);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--phx-text-2);
+  }
+  .t-foot b {
+    font-family: var(--phx-font-mono);
+    font-weight: 600;
+  }
+  .t-foot b.ok {
+    color: var(--phx-green);
+  }
+  .t-foot span.ok {
+    color: var(--phx-green);
+  }
+
+  /* —— 商人 —— */
+  .tr-row {
+    height: 23px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tr-row .n {
+    width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* —— 仓库 —— */
+  .s-big {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .s-big .n {
+    font-family: var(--phx-font-mono);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .s-big .u {
+    font-size: 12px;
+    color: var(--phx-text-2);
+  }
+  .s-rows {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .s-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--phx-text-2);
+  }
+  .s-row b {
+    font-family: var(--phx-font-mono);
+    font-weight: 600;
+    color: var(--phx-text);
+  }
+  .s-row b.hl {
+    color: var(--phx-accent);
+  }
+
+  /* —— 技能 —— */
+  .sk-row {
+    margin-top: 7px;
+  }
+  .sk-row .l {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .sk-row .l b {
+    font-family: var(--phx-font-mono);
+    font-weight: 600;
+    color: var(--phx-text-2);
+  }
+  .sk-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--phx-fill-quaternary);
+    overflow: hidden;
+  }
+  .sk-bar i {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--phx-accent);
+  }
+
+  /* —— 健康 —— */
+  .hp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+    row-gap: 6px;
+  }
+  .hp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hp-row .n {
+    width: 56px;
+    font-size: 11px;
+    color: var(--phx-text-2);
+    flex: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hp-bar {
+    flex: 1;
+    height: 5px;
+    border-radius: 2.5px;
+    background: var(--phx-fill-quaternary);
+    overflow: hidden;
+  }
+  .hp-bar i {
+    display: block;
+    height: 100%;
+    border-radius: 2.5px;
+    background: var(--phx-green);
+  }
+  .hp-bar i.warn {
+    background: var(--phx-warn);
+  }
+  .hp-bar i.bad {
+    background: var(--phx-danger);
+  }
+  .hp-row .v {
+    width: 52px;
+    font-family: var(--phx-font-mono);
+    font-size: 10px;
+    color: var(--phx-text-2);
+    text-align: right;
+    flex: none;
+  }
+
+  /* —— 入口 —— */
+  .entries {
+    grid-column: span 4;
+    cursor: default;
+  }
+  .en-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 20px;
+    row-gap: 4px;
+  }
+  .en-title {
+    font-size: 11px;
+    color: var(--phx-text-2);
+    padding: 3px 0 2px;
+  }
+  .en-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .chip {
+    height: 26px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 13px;
+    background: transparent;
+    color: var(--phx-text);
+    font-size: 12px;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .chip:hover {
+    background: var(--phx-fill-tertiary);
+  }
+  .chip :global(svg) {
+    width: 13px;
+    height: 13px;
+    color: var(--phx-text-2);
+    flex: none;
+  }
+  .chip .soon {
+    font-size: 9px;
+    color: var(--phx-text-3);
+    border: 0.5px solid var(--phx-sep-strong);
+    border-radius: 6px;
+    padding: 1px 4px;
+  }
+  .chip .cnt {
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--phx-danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
   }
 </style>

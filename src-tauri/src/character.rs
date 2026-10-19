@@ -393,11 +393,12 @@ pub fn load_options(app: &AppHandle) -> CharOptions {
     opts.heads.sort_by(|a, b| a.name.cmp(&b.name));
 
     // 口袋：templates/items.json 过滤 _parent，按槽数升序（AppData.cs FindPockets 基准）
+    // 真实 items.json 是 { tpl -> TarkovItem } 字典
     if let Ok(txt) = fs::read_to_string(db.join("templates").join("items.json")) {
         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-            if let Some(items) = v.as_array() {
+            if let Some(items) = v.as_object() {
                 let mut pockets: Vec<CharPocketItem> = items
-                    .iter()
+                    .values()
                     .filter(|it| {
                         it.get("_parent").and_then(|p| p.as_str()) == Some(POCKETS_PARENT)
                     })

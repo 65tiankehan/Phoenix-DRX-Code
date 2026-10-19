@@ -585,3 +585,48 @@ export const phxUpdate = {
   openWindow: (): Promise<void> => invoke('update_open_window'),
   dismiss: (): Promise<void> => invoke('update_dismiss')
 }
+
+// —— 问题检测（13 屏：保存拦截弹窗 + 仪表台问题清单）——
+
+/** 问题行（字段名对齐 Rust IssueRow serde camelCase 输出；描述文案由前端按 kind 组装） */
+export interface PhxIssueRow {
+  id: string
+  kind: 'dup' | 'trader-level' | 'quest-level' | 'quest-status' | 'quest-loyalty' | 'quest-standing'
+  side: string | null
+  traderName: string | null
+  questName: string | null
+  questTraderName: string | null
+  targetQuestName: string | null
+  targetTraderName: string | null
+  /** trader-level/quest-level = 整数；quest-status = 状态枚举名（前端用 quests.st.* 本地化）；quest-standing = 已格式化两位小数 */
+  requiredText: string
+}
+
+export interface PhxIssuesFixResult {
+  remaining: PhxIssueRow[]
+  backupPath: string | null
+}
+
+/** 问题检测：扫描（只读）与修复（选中行逐条修，先备份后写盘，返回重扫剩余） */
+export const phxIssues = {
+  scan: (id: string): Promise<PhxIssueRow[]> => invoke('issues_scan', { id }),
+  fix: (id: string, issueIds: string[]): Promise<PhxIssuesFixResult> =>
+    invoke('issues_fix', { id, issueIds })
+}
+
+// —— 备份管理（14 屏）——
+
+/** 备份行（id = 备份文件主名，timeMs = 生成时间毫秒；Rust 侧已按时间倒序） */
+export interface PhxBackupRow {
+  id: string
+  timeMs: number
+}
+
+/** 备份链：列表（倒序）/ 回档（当前档案先备份 → 选中备份覆盖 → 消耗）/ 删除单份 */
+export const phxBackup = {
+  list: (id: string): Promise<PhxBackupRow[]> => invoke('backup_list', { id }),
+  restore: (id: string, backupId: string): Promise<void> =>
+    invoke('backup_restore', { id, backupId }),
+  delete: (id: string, backupId: string): Promise<void> =>
+    invoke('backup_delete', { id, backupId })
+}
