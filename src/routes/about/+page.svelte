@@ -5,10 +5,10 @@
   import { t } from '$lib/i18n/i18n.svelte'
   import PhxLink from '$lib/components/PhxLink.svelte'
 
-  // 真实外链：开发者主页 / 发布页 / 项目仓库 / Issues
+  // 真实外链：开发者主页 / 发布页 / 问题反馈 / 项目致谢
   const HOME_URL = 'https://github.com/65tiankehan'
   const RELEASES_URL = 'https://github.com/65tiankehan/Phoenix-DRX-releases/releases'
-  const REPO_URL = 'https://github.com/65tiankehan/Phoenix-DRX-Code'
+  const ISSUES_URL = 'https://github.com/65tiankehan/Phoenix-DRX-releases/issues'
   const SPT_URL = 'https://sp-tarkov.com'
   const SKITLES_URL = 'https://github.com/SkiTles55/SPT-AKI-Profile-Editor'
 
@@ -86,12 +86,6 @@
             </div>
             <span class="lic-badge">MIT</span>
           </div>
-          <div class="srow">
-            <div class="stext">
-              <div class="slabel">{t('about.license.source')}</div>
-            </div>
-            <PhxLink href={REPO_URL} external>{t('about.repo')}</PhxLink>
-          </div>
         </section>
 
         <!-- 卡 4 · 问题反馈 -->
@@ -103,7 +97,7 @@
               <div class="slabel">{t('about.card.issues')}</div>
               <div class="sdesc">{t('about.issues.desc')}</div>
             </div>
-            <PhxLink href={`${REPO_URL}/issues`} external>GitHub Issues</PhxLink>
+            <PhxLink href={ISSUES_URL} external>GitHub Issues</PhxLink>
           </div>
         </section>
 
