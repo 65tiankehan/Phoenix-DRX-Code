@@ -518,6 +518,14 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
                                 .or_insert_with(|| Value::from(now));
                         }
                         obj.insert("status".to_string(), Value::from(final_status.clone()));
+                        // 降级到未开始（≤ AvailableForStart）：清 completedConditions
+                        //（参考 ProfileSaver.cs：不清理会导致再升级时条件视为已完成）
+                        if final_status == "Locked" || final_status == "AvailableForStart" {
+                            obj.insert(
+                                "completedConditions".to_string(),
+                                Value::Array(Vec::new()),
+                            );
+                        }
                     }
                     if let Some(recipes) = ctx.craft_by_quest.get(&qid) {
                         if current != "Success" && final_status == "Success" {

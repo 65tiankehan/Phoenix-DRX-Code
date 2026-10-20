@@ -243,9 +243,9 @@ pub fn load_char(app: &AppHandle, id: &str) -> Option<CharData> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string(),
-        // 真实档案 aid 为字符串，兼容数字形态
-        aid: info
-            .and_then(|i| i.get("aid"))
+        // 真实档案 aid 挂角色根（Character.cs / 样本 4758 行），不在 Info 下；兼容数字形态
+        aid: pmc
+            .and_then(|p| p.get("aid"))
             .map(|v| match v {
                 Value::String(s) => s.clone(),
                 Value::Number(n) => n.to_string(),

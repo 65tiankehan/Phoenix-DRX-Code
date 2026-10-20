@@ -7,14 +7,14 @@
 
 ## 〇、项目边界（最优先）【领域】
 
-**主项目就是 `e:\WorldModelGeneraor\Phoenix-DRX`（SPT 4.0.x 免费存档编辑器：Phoenix 暗黑沉浸外壳 + 参考 4.0.1 功能全集）。**
+**主项目就是 `e:\WorldModelGeneraor\Phoenix-DRX`（SPT 存档编辑器：Phoenix 暗黑沉浸外壳 + 参考 4.1.1 功能全集；SPT 版本基准已裁决升 4.1.x（2026-10-20），数据层按 4.1.1 参考校准）。**
 
 工作区里还挂着别的仓库，它们的规则文件**与本项目无关，不要读、不要遵守、不要引用**：
 
 - `e:\WorldModelGeneraor\Phoenix-master` —— 旧版 Phoenix（UI 供体）。只读参考：提炼视觉 token 与布局语言。其激活码/VIP 系统已裁决移除，**禁止捡回**；不许改动它的任何文件。
-- `e:\WorldModelGeneraor\SPT-AKI-Profile-Editor-4.0.1` —— SkiTles55 参考编辑器（功能基准）。只读参考：功能全集、SPT 数据结构（Models/Core）、问题诊断规则的对照标准；不许改动。
+- `e:\WorldModelGeneraor\SPT-AKI-Profile-Editor-4.1.1` —— SkiTles55 参考编辑器（功能基准，2026-10-20 由 4.0.1 升级；4.0.1 旧仓保留只读可对照）。只读参考：功能全集、SPT 数据结构（Models/Core）、问题诊断规则的对照标准；不许改动。
 - `D:\TengriQaghan\Standard Project Goal` —— 项目开张白板（流程标准供体）。只在立规/开新基线文档时读模板；不参与日常开发。
-- `e:\WorldModelGeneraor\SPT-AKI-Profile-Editor-4.0.1\SPT-AKI-Profile-Editor-4.0.1\CHREADME.md` —— 参考仓库自述，同上只读。
+- `e:\WorldModelGeneraor\SPT-AKI-Profile-Editor-4.1.1\CHREADME.md` —— 参考仓库自述，同上只读。
 
 与本项目相关的文档只有以下几份：
 
@@ -90,7 +90,7 @@ UI 上出现的任何开关、按钮、数据，**必须有真实消费链路**�
 > 格式五件套：**规则 + 判据 + 正确做法 + 禁止 + 已发生的事故**。每次翻车后在此追加一条，并在门禁清单事故登记表记一行。
 
 - **存档写入前必须先自动备份**。判据：任何写入 profile JSON 的 IPC 通道，执行前必须先落备份文件（沿旧 Phoenix BackupService 模式）。正确做法：主进程统一封装 `backupBeforeWrite`。禁止：裸写 profile。事故：暂无（数据安全默认，先立后守）。
-- **SPT 数据结构以参考项目 Model / 真实服务器 database 为准，不许凭记忆写。** 判据：类型定义须对应 `SPT-AKI-Profile-Editor-4.0.1` 的 Models 或真实 profile/database 样本。禁止：拍脑袋造字段。事故：暂无。
+- **SPT 数据结构以参考项目 Model / 真实服务器 database 为准，不许凭记忆写。** 判据：类型定义须对应 `SPT-AKI-Profile-Editor-4.1.1` 的 ProfileClasses 或真实 profile/database 样本。禁止：拍脑袋造字段。事故：暂无。
 - **免费开源，无激活码/VIP/有效期系统。** 判据：仓库中不得出现 ActivationService、有效期徽章、VIP 文案。事故：旧 Phoenix 存在此系统，2026-10-16 裁决移除。
 - **面向用户的文案用平实中文，禁止技术黑话**（F30、JSON、IPC 等字眼不得出现在 UI）。判据：review 对照。事故：暂无。
 - **稿图上的每个元素都必须落地**（见 §五）。禁止：凭空删元素、自行替换实现。事故：暂无。

@@ -122,7 +122,7 @@
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.5);
-    animation: ann-overlay-in var(--phx-dur-norm) var(--phx-ease-out) both;
+    animation: ann-overlay-in var(--phx-dur-norm) var(--phx-ease-out) backwards;
   }
 
   @keyframes ann-overlay-in {
@@ -144,7 +144,7 @@
     box-shadow: var(--phx-shadow-win);
     border: 1px solid var(--phx-sep);
     overflow: hidden;
-    animation: ann-panel-in var(--phx-dur-norm) var(--phx-ease-emphasized) both;
+    animation: ann-panel-in var(--phx-dur-norm) var(--phx-ease-emphasized) backwards;
   }
 
   @keyframes ann-panel-in {

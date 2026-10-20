@@ -34,10 +34,12 @@ const RUBLE_TPL: &str = "5449016a4bdc2d6f028b456f";
 const DOLLAR_TPL: &str = "5696686a4bdc2da3298b456a";
 const EURO_TPL: &str = "569668774bdc2da2298b4568";
 
-/// 装备槽固定序（稿图 09 装备子页槽序；slotId 为存档字段名；11-scav 复用）
+/// 装备槽固定序（稿图 09 装备子页槽序；slotId 为存档字段名；11-scav 复用）。
+/// 槽名对照 4.1.1 参考：Earpiece（DefaultValues.EarpieceSlotId，旧名 Earmuffs 系笔误）、
+/// SecuredContainer（EquipmentAdapter 有此槽，漏了会导致安全容器不可见 / scav 清空装备漏删其内物品）
 pub(crate) const EQUIP_SLOTS: &[&str] = &[
     "Headwear",
-    "Earmuffs",
+    "Earpiece",
     "FaceCover",
     "ArmBand",
     "ArmorVest",
@@ -48,9 +50,25 @@ pub(crate) const EQUIP_SLOTS: &[&str] = &[
     "SecondPrimaryWeapon",
     "Holster",
     "Scabbard",
+    "SecuredContainer",
 ];
 
 // ———————— 类型 ————————
+
+/// 仓库附加行数：真值在角色 `Bonuses[]`（type="StashRows"）的 value。
+/// 参考 4.1.1 CharacterBonus.cs / Character.cs——`StashRowsBonusCount` 只是计算属性，
+/// 存档 JSON 里没有这个键（此前读幻键恒 0，已修）
+fn stash_rows_bonus(pmc: &Value) -> i64 {
+    pmc.get("Bonuses")
+        .and_then(|v| v.as_array())
+        .and_then(|arr| {
+            arr.iter()
+                .find(|b| b.get("type").and_then(|v| v.as_str()) == Some("StashRows"))
+        })
+        .and_then(|b| b.get("value"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0) as i64
+}
 
 /// 物品行（name 已本地化；count = StackObjectsCount 缺省 1）
 #[derive(Debug, Clone, Serialize)]
@@ -362,7 +380,7 @@ pub fn load_stash(app: &AppHandle, id: &str) -> Option<StashData> {
         rubles: money_sum(RUBLE_TPL),
         dollars: money_sum(DOLLAR_TPL),
         euros: money_sum(EURO_TPL),
-        bonus_rows: pmc.get("StashRowsBonusCount").and_then(|v| v.as_f64()).unwrap_or(0.0) as i64,
+        bonus_rows: stash_rows_bonus(pmc),
         has_modded: items_out.iter().any(|r| r.modded),
         items: items_out,
         equipment,
@@ -497,37 +515,84 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
         match op {
             StashOp::AddMoney { tpl, amount } => {
                 let amount = *amount;
-                // 表格口径简化：优先叠加现有货币堆（不占新格子），无堆则新建一捆
-                let items = raw
+                // 表格口径简化：优先叠加现有货币堆（不占新格子），无堆则走放置引擎开新捆
+                //（新捆带 location：参考 GetSlotsMap 定位路径，无 location 游戏内可能不可见）
+                let stacked = raw
                     .pointer_mut("/characters/pmc/Inventory/items")
-                    .and_then(|v| v.as_array_mut())
-                    .ok_or("Inventory.items 缺失")?;
-                let stack = items
+                    .and_then(Value::as_array_mut)
+                    .ok_or("Inventory.items 缺失")?
                     .iter_mut()
                     .find(|it| {
-                        it.get("_tpl").and_then(|v| v.as_str()) == Some(tpl.as_str())
-                            && it.get("parentId").and_then(|v| v.as_str()) == Some(stash_id.as_str())
+                        it.get("_tpl").and_then(Value::as_str) == Some(tpl.as_str())
+                            && it.get("parentId").and_then(Value::as_str) == Some(stash_id.as_str())
                     })
-                    .and_then(|it| it.pointer_mut("/upd/StackObjectsCount"));
-                if let Some(cur) = stack {
+                    .and_then(|it| it.pointer_mut("/upd/StackObjectsCount"))
+                    .map(|cur| {
+                        let cap = db.entries.get(tpl).map(|p| p.stack_max).unwrap_or(i64::MAX);
+                        let v = (cur.as_f64().unwrap_or(0.0) as i64 + amount.max(0)).min(cap);
+                        *cur = json!(v);
+                    });
+                if stacked.is_none() {
                     let cap = db.entries.get(tpl).map(|p| p.stack_max).unwrap_or(i64::MAX);
-                    let v = (cur.as_f64().unwrap_or(0.0) as i64 + amount.max(0)).min(cap);
-                    *cur = json!(v);
-                } else {
-                    let cap = db.entries.get(tpl).map(|p| p.stack_max).unwrap_or(i64::MAX);
+                    let count = amount.max(0).min(cap);
+                    let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
+                    let (place_x, place_y, rotated) =
+                        find_free_slot(&raw, &stash_id, tpl, &db_dir, &db)?;
+                    let items = raw
+                        .pointer_mut("/characters/pmc/Inventory/items")
+                        .and_then(Value::as_array_mut)
+                        .ok_or("Inventory.items 缺失")?;
                     items.push(json!({
                         "_id": new_item_id(seq as u32),
                         "_tpl": tpl,
                         "parentId": stash_id,
                         "slotId": "hideout",
-                        "upd": { "StackObjectsCount": amount.max(0).min(cap) }
+                        "location": { "x": place_x, "y": place_y, "r": if rotated { 1 } else { 0 } },
+                        "upd": { "StackObjectsCount": count }
                     }));
                 }
             }
             StashOp::SetBonusRows { count } => {
-                let count = *count;
-                if let Some(pmc) = raw.pointer_mut("/characters/pmc") {
-                    pmc["StashRowsBonusCount"] = json!(count.max(0));
+                // 真值在 Bonuses[]（type="StashRows"）：0 → 删项、奇数 → 进位偶数、无项 → 建项
+                //（对照 4.1.1 Character.cs setter + ProfileSaver.WriteStashBonus；
+                //  此前写幻键 StashRowsBonusCount，游戏不认）
+                let count = {
+                    let c = (*count).max(0);
+                    if c % 2 > 0 { c + 1 } else { c }
+                };
+                let Some(pmc) = raw.pointer_mut("/characters/pmc") else {
+                    return Err("characters/pmc 缺失".into());
+                };
+                if !pmc.get("Bonuses").map(Value::is_array).unwrap_or(false) {
+                    if count == 0 {
+                        continue;
+                    }
+                    pmc["Bonuses"] = json!([]);
+                }
+                let Some(bonuses) = pmc.get_mut("Bonuses").and_then(Value::as_array_mut) else {
+                    return Err("Bonuses 非数组".into());
+                };
+                match bonuses
+                    .iter()
+                    .position(|b| b.get("type").and_then(Value::as_str) == Some("StashRows"))
+                {
+                    Some(i) if count == 0 => {
+                        bonuses.remove(i);
+                    }
+                    Some(i) => {
+                        bonuses[i]["value"] = json!(count);
+                    }
+                    None if count > 0 => {
+                        bonuses.push(json!({
+                            "id": "fac7b58e9883cd4945a8d5b0",
+                            "value": count,
+                            "type": "StashRows",
+                            "passive": true,
+                            "visible": true,
+                            "production": false
+                        }));
+                    }
+                    None => {}
                 }
             }
             StashOp::RemoveItems { ids } => {
@@ -627,9 +692,9 @@ fn find_free_slot(
         .ok_or("仓库容器缺模板")?;
     let (rows, cols) = stash_grid_size(db_dir, stash_tpl)?;
     let bonus = raw
-        .pointer("/characters/pmc/StashRowsBonusCount")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(0.0) as i64;
+        .pointer("/characters/pmc")
+        .map(stash_rows_bonus)
+        .unwrap_or(0);
 
     let rows_total = (rows + bonus).max(h);
     let cols_total = cols.max(w);

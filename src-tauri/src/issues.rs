@@ -336,13 +336,13 @@ fn scan_issues(raw: &Value, ctx: &IssuesCtx) -> Vec<IssueRow> {
 
     if let Some(r) = dup_row(
         "PMC",
-        pmc.pointer("/Inventory/Items").and_then(|v| v.as_array()),
+        pmc.pointer("/Inventory/items").and_then(|v| v.as_array()),
     ) {
         rows.push(r);
     }
     if let Some(r) = dup_row(
         "Scav",
-        raw.pointer("/characters/scav/Inventory/Items")
+        raw.pointer("/characters/scav/Inventory/items")
             .and_then(|v| v.as_array()),
     ) {
         rows.push(r);
@@ -737,7 +737,8 @@ pub fn issues_fix(app: &AppHandle, id: &str, issue_ids: &[String]) -> Result<Iss
                     .and_then(|q| q.as_array_mut())
                 {
                     for q in quests.iter_mut() {
-                        if q.get("_id").and_then(|v| v.as_str()) != Some(target_qid.as_str()) {
+                        // 任务条目主键是 qid（CharacterQuest.cs），不是 _id——此前永不命中
+                        if q.get("qid").and_then(|v| v.as_str()) != Some(target_qid.as_str()) {
                             continue;
                         }
                         if let Some(obj) = q.as_object_mut() {
@@ -803,12 +804,12 @@ pub fn issues_fix(app: &AppHandle, id: &str, issue_ids: &[String]) -> Result<Iss
                     changed = true;
                 }
             }
-            // DuplicateItemsIDIssue：BFS 展开子树后整体移除
+            // DuplicateItemsIDIssue：BFS 展开子树后整体移除（Inventory.items 小写，与存档一致）
             "dup" if row.side.as_deref() == Some("PMC") => {
                 if let Some(items) = characters
                     .as_mut()
                     .and_then(|c| c.get_mut("pmc"))
-                    .and_then(|p| p.pointer_mut("/Inventory/Items"))
+                    .and_then(|p| p.pointer_mut("/Inventory/items"))
                     .and_then(|v| v.as_array_mut())
                 {
                     if remove_duplicated_items(items) {
@@ -820,7 +821,7 @@ pub fn issues_fix(app: &AppHandle, id: &str, issue_ids: &[String]) -> Result<Iss
                 if let Some(items) = characters
                     .as_mut()
                     .and_then(|c| c.get_mut("scav"))
-                    .and_then(|p| p.pointer_mut("/Inventory/Items"))
+                    .and_then(|p| p.pointer_mut("/Inventory/items"))
                     .and_then(|v| v.as_array_mut())
                 {
                     if remove_duplicated_items(items) {

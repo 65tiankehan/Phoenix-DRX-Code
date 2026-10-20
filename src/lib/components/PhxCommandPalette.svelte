@@ -255,7 +255,7 @@
     justify-content: center;
     padding-top: 108px;
     background: rgba(0, 0, 0, 0.5);
-    animation: cmdk-overlay-in var(--phx-dur-norm) var(--phx-ease-out) both;
+    animation: cmdk-overlay-in var(--phx-dur-norm) var(--phx-ease-out) backwards;
   }
   @keyframes cmdk-overlay-in {
     from {
@@ -278,7 +278,7 @@
       0 24px 64px rgba(0, 0, 0, 0.55),
       0 0 0 0.5px var(--phx-sep-strong);
     overflow: hidden;
-    animation: cmdk-panel-in var(--phx-dur-norm) var(--phx-ease-emphasized) both;
+    animation: cmdk-panel-in var(--phx-dur-norm) var(--phx-ease-emphasized) backwards;
   }
   @keyframes cmdk-panel-in {
     from {

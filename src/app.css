@@ -378,7 +378,9 @@ button:active {
 }
 
 .phx-fade-in {
-  animation: phx-fade-in var(--phx-dur-norm) var(--phx-ease-out) both;
+  /* fill 用 backwards：终态=基态，结束后不保留动画值——both 会让 Chromium 保留恒等矩阵
+     （computed transform ≠ none），把元素变成 fixed 后代的包含块，劫持浮层定位（真机实坑） */
+  animation: phx-fade-in var(--phx-dur-norm) var(--phx-ease-out) backwards;
 }
 
 /* ---- 骨架层（感官层基线 §二）：镜像页面真实布局的加载占位 ----
@@ -567,7 +569,7 @@ button:active {
   justify-content: center;
   padding: 0 32px 130px;
   text-align: center;
-  animation: ob-in 500ms var(--phx-ease-out) both;
+  animation: ob-in 500ms var(--phx-ease-out) backwards;
 }
 
 .ob-hero {

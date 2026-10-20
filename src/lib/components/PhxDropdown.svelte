@@ -37,8 +37,17 @@
 
   // 菜单浮层用 fixed 定位：absolute 会被滚动容器与卡片 overflow:hidden 裁剪（设置页实坑）。
   // open 后等 DOM 挂载，按触发钮矩形定位：默认下方 6px（设置页右对齐 / bare 左对齐），下方放不下且上方够用则向上翻。
+  // 滚动/窗口缩放期间持续重算（capture 捕获任意容器滚动，scroll 不冒泡）——fixed 浮层不随内容滚动，
+  // 只在打开瞬间定位一次会悬空错位（真机实坑：设置页滚动后菜单钉在旧视口坐标，偏移随滚动量增大）。
   $effect(() => {
-    if (open) void tick().then(placeMenu)
+    if (!open) return
+    void tick().then(placeMenu)
+    window.addEventListener('scroll', placeMenu, true)
+    window.addEventListener('resize', placeMenu)
+    return () => {
+      window.removeEventListener('scroll', placeMenu, true)
+      window.removeEventListener('resize', placeMenu)
+    }
   })
 
   function placeMenu(): void {
@@ -113,8 +122,8 @@
   }
 </script>
 
-<!-- capture 捕获任意容器滚动（scroll 不冒泡）：fixed 菜单不随滚动走，滚动即收起防悬空错位 -->
-<svelte:window onclick={onDocClick} onscrollcapture={() => (open = false)} onresize={() => (open = false)} />
+<!-- 外部点击收起；滚动/缩放重定位由上方 $effect 全程接管（capture 捕获任意容器滚动） -->
+<svelte:window onclick={onDocClick} />
 
 <div bind:this={rootEl} class="dd" class:bare>
   <button

@@ -166,8 +166,9 @@
     display: flex;
     flex-direction: column;
     padding: 40px 0 0;
-    /* 页面入场：随 {#key} 每次导航重放（感官层基线 §二） */
-    animation: phx-page-enter var(--phx-dur-norm) var(--phx-ease-out) both;
+    /* 页面入场：随 {#key} 每次导航重放（感官层基线 §二）；backwards 防动画结束后
+       保留恒等矩阵劫持 fixed 包含块（PhxDropdown 滚动错位实坑），终态=基态无需前向填充 */
+    animation: phx-page-enter var(--phx-dur-norm) var(--phx-ease-out) backwards;
   }
 
   /* 入场只动 opacity + translateY；reduced-motion 双通道降级为静态 */
