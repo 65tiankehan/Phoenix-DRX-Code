@@ -9,7 +9,7 @@
  */
 
 :root {
-  /* ---- 颜色（27，视觉基线 §三） ---- */
+  /* ---- 颜色（28，视觉基线 §三） ---- */
   --phx-win-bg: #09090b;
   --phx-surface: #101013;
   --phx-surface-2: #16161a;
@@ -17,6 +17,7 @@
   --phx-fill-quaternary: rgba(255, 255, 255, 0.08);
   --phx-fill-secondary: rgba(255, 255, 255, 0.14);
   --phx-glass: rgba(22, 22, 26, 0.72);
+  --phx-glass-float: rgba(22, 22, 26, 0.55);
   --phx-sep: rgba(255, 255, 255, 0.08);
   --phx-sep-strong: rgba(255, 255, 255, 0.14);
   --phx-text: rgba(255, 255, 255, 0.92);

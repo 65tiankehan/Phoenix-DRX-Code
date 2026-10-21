@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>21 · 更新薄窗 · 引导轮播</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-accent-mid: rgba(0,145,255,.45);
+    --phx-orange: #a78bfa;
+    --phx-orange-dim: rgba(167,139,250,.16);
+    --phx-yellow: #c4b5fd;
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-dur-fast: 0.16s;
+    --phx-dur-norm: 0.24s;
+    --phx-dur-slow: 0.4s;
+    --phx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --phx-ease-emphasized: cubic-bezier(0.65, 0, 0.35, 1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 48px 0 40px;
+  }
+  .stage { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap; justify-content: center; max-width: 1520px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; }
+  .spec {
+    margin-top: 34px; max-width: 720px; padding: 16px 20px;
+    background: var(--phx-surface); border-radius: var(--phx-r-card);
+    font-size: 12.5px; color: var(--phx-text-2); line-height: 1.9;
+  }
+  .spec b { color: var(--phx-text); font-weight: 600; }
+  .spec .k { color: var(--phx-accent); font-family: var(--phx-font-mono); font-size: 11.5px; }
+
+  /* ===== 更新薄窗（沿用 17 稿窗体骨架；本稿新增：下载中态轮播卡） ===== */
+  .upwin {
+    width: 420px;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .up-titlebar { height: 38px; display: flex; align-items: center; padding: 0 8px 0 16px; flex: none; }
+  .up-tb-label { font-size: 12px; font-weight: 600; color: var(--phx-text-3); }
+  .up-body { padding: 6px 20px 20px; display: flex; flex-direction: column; }
+  .up-head { display: flex; align-items: center; gap: 14px; }
+  .up-logo {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 23px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .up-h-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+  .up-h-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+
+  /* ===== 引导轮播卡（仅下载中态展示） ===== */
+  .carousel {
+    margin-top: 16px;
+    background: var(--phx-surface);
+    border-radius: var(--phx-r-card);
+    padding: 16px 16px 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .car-viewport { position: relative; height: 118px; }
+  .car-slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; gap: 16px;
+    opacity: 0;
+    transform: translateX(14px);
+    pointer-events: none;
+  }
+  .car-slide.on {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity var(--phx-dur-slow) var(--phx-ease-out),
+                transform var(--phx-dur-slow) var(--phx-ease-out);
+    pointer-events: auto;
+  }
+  .car-slide.leaving {
+    opacity: 0;
+    transform: translateX(-14px);
+    transition: opacity var(--phx-dur-slow) var(--phx-ease-out),
+                transform var(--phx-dur-slow) var(--phx-ease-out);
+  }
+  .car-art {
+    width: 92px; height: 92px; flex: none;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .car-art svg { width: 46px; height: 46px; position: relative; z-index: 1; }
+  .car-art::after {
+    content: ''; position: absolute; inset: -9px;
+    border-radius: 20px;
+    border: 1px dashed var(--phx-sep-strong);
+  }
+  .car-art::before {
+    content: ''; position: absolute; right: -15px; top: -6px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--phx-accent);
+    opacity: .55;
+  }
+  .car-copy { min-width: 0; }
+  .car-t { font-size: 15.5px; font-weight: 700; letter-spacing: -.2px; }
+  .car-s { font-size: 12px; color: var(--phx-text-2); line-height: 1.7; margin-top: 5px; }
+  /* 圆点指示器 */
+  .car-dots { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
+  .car-dot {
+    width: 6px; height: 6px; border-radius: 3px;
+    background: var(--phx-fill-quaternary);
+    border: none; padding: 0; cursor: pointer;
+    transition: background var(--phx-dur-fast) var(--phx-ease-out),
+                width var(--phx-dur-norm) var(--phx-ease-emphasized);
+  }
+  .car-dot:hover { background: var(--phx-sep-strong); }
+  .car-dot.on { width: 16px; background: var(--phx-accent); }
+
+  /* 进度区 / 按钮区（沿用 17 稿定稿值） */
+  .prog { margin-top: 16px; }
+  .prog-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .prog-pct { font-family: var(--phx-font-mono); font-size: 15px; font-weight: 700; }
+  .prog-speed { font-size: 11.5px; color: var(--phx-text-3); font-family: var(--phx-font-mono); }
+  .prog-track { height: 5px; border-radius: 3px; background: var(--phx-fill-tertiary); overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 3px; background: var(--phx-accent); transition: width .2s linear; }
+  .prog-sub { margin-top: 8px; font-size: 11.5px; color: var(--phx-text-3); }
+  .up-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn {
+    height: 34px; padding: 0 16px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: filter 0.12s, background 0.12s;
+  }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-ghost:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="col">
+    <div class="col-cap">下载中 · 引导轮播（420 × 自适应）</div>
+    <div class="upwin">
+      <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+      <div class="up-body">
+        <div class="up-head">
+          <div class="up-logo">P</div>
+          <div>
+            <div class="up-h-title">正在下载更新</div>
+            <div class="up-h-sub">下载完成后将自动准备安装</div>
+          </div>
+        </div>
+
+        <!-- 引导轮播卡：下载等待期介绍产品功能 -->
+        <div class="carousel">
+          <div class="car-viewport">
+            <div class="car-slide on" data-i="0">
+              <div class="car-art" style="background: var(--phx-accent-dim); color: var(--phx-accent);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3.3 8.4L12 13l8.7-4.6"/><path d="M12 13v9"/></svg>
+              </div>
+              <div class="car-copy">
+                <div class="car-t">仓库随心整理</div>
+                <div class="car-s">装备、背包、保险箱，打开就能直接编辑摆放</div>
+              </div>
+            </div>
+            <div class="car-slide" data-i="1">
+              <div class="car-art" style="background: var(--phx-orange-dim); color: var(--phx-orange);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+              </div>
+              <div class="car-copy">
+                <div class="car-t">人物一键养成</div>
+                <div class="car-s">等级、技能、身体状态，拖动数值立即生效</div>
+              </div>
+            </div>
+            <div class="car-slide" data-i="2">
+              <div class="car-art" style="background: var(--phx-green-dim); color: var(--phx-green);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5l2 2 4.5-5"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
+              </div>
+              <div class="car-copy">
+                <div class="car-t">任务进度自由调</div>
+                <div class="car-s">卡住的任务，状态和完成条件都能重置</div>
+              </div>
+            </div>
+            <div class="car-slide" data-i="3">
+              <div class="car-art" style="background: var(--phx-warn-bg); color: var(--phx-warn);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z"/><path d="M12 8v4l2.5 2.5"/></svg>
+              </div>
+              <div class="car-copy">
+                <div class="car-t">改档先自动备份</div>
+                <div class="car-s">每次保存前自动留底，随时一键回滚</div>
+              </div>
+            </div>
+          </div>
+          <div class="car-dots">
+            <button class="car-dot on" type="button" aria-label="第 1 页"></button>
+            <button class="car-dot" type="button" aria-label="第 2 页"></button>
+            <button class="car-dot" type="button" aria-label="第 3 页"></button>
+            <button class="car-dot" type="button" aria-label="第 4 页"></button>
+          </div>
+        </div>
+
+        <div class="prog">
+          <div class="prog-meta">
+            <span class="prog-pct" id="demo-pct">64%</span>
+            <span class="prog-speed">6.2 MB/s</span>
+          </div>
+          <div class="prog-track"><div class="prog-fill" id="demo-fill" style="width: 64%"></div></div>
+          <div class="prog-sub">9.1 MB / 14.2 MB · 剩余约 2 秒</div>
+        </div>
+        <div class="up-actions">
+          <button class="btn btn-ghost" type="button" style="flex:1">后台下载</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="spec">
+  <b>交互规格</b><br>
+  1. 轮播仅出现在「下载中」态；发现新版本 / 待重启两态维持 17 稿原布局（有版本说明卡与警示卡，不再叠加）。<br>
+  2. <span class="k">4s</span> 自动切换，淡入 + 轻位移（只动 transform / opacity）；圆点可点击切换，手动切换后重置计时。<br>
+  3. 圆点选中态拉伸为胶囊（宽 16px），强调色标示；悬停提亮。<br>
+  4. 插图全部为内联 SVG（token 色板），生产不引外部图片资源。<br>
+  5. <span class="k">prefers-reduced-motion</span> 与设置页「减少动态效果」任一命中 → 切换退化为瞬时显隐；入场动画 fill 一律 <span class="k">backwards</span>（恒等矩阵事故铁律）。<br>
+  6. 文案生产端走 i18n 两语同补（zh-CN / en-US），本稿为中文定稿候选。
+</div>
+
+<script>
+  (function () {
+    const slides = [...document.querySelectorAll('.car-slide')];
+    const dots = [...document.querySelectorAll('.car-dot')];
+    let cur = 0;
+    let timer = null;
+    const INTERVAL = 4000;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function go(i) {
+      if (i === cur) return;
+      const prev = slides[cur];
+      const next = slides[i];
+      prev.classList.remove('on');
+      prev.classList.add('leaving');
+      setTimeout(() => prev.classList.remove('leaving'), 420);
+      next.classList.add('on');
+      dots[cur].classList.remove('on');
+      dots[i].classList.add('on');
+      cur = i;
+    }
+    function resetTimer() {
+      clearInterval(timer);
+      if (!reduced) timer = setInterval(() => go((cur + 1) % slides.length), INTERVAL);
+    }
+    dots.forEach((d, i) => d.addEventListener('click', () => { go(i); resetTimer(); }));
+    if (reduced) {
+      slides.forEach((s, i) => s.style.transition = 'none');
+    } else {
+      resetTimer();
+    }
+
+    /* 演示：进度条缓动推进 */
+    let pct = 64;
+    setInterval(() => {
+      pct = Math.min(99, pct + 1);
+      document.getElementById('demo-pct').textContent = pct + '%';
+      document.getElementById('demo-fill').style.width = pct + '%';
+    }, 120);
+  })();
+</script>
+</body>
+</html>

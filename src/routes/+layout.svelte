@@ -1,6 +1,6 @@
 <script lang="ts">
   import '../app.css'
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import type { Snippet } from 'svelte'
   import { page } from '$app/state'
   import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -16,6 +16,7 @@
   import type { PhxUpdateStatus } from '$lib/ipc'
   import { seedAnnouncements } from '$lib/announcements.svelte'
   import { initSync } from '$lib/sync.svelte'
+  import { markVisit } from '$lib/recent.svelte'
   import { applyMotionClass } from '$lib/motion'
   import { toast } from '$lib/toast.svelte'
   import { t } from '$lib/i18n/i18n.svelte'
@@ -59,6 +60,14 @@
       disposed = true
       unlisten?.()
     }
+  })
+
+  /** 顶栏「常去」记录：导航屏每切一页记一次（非导航屏由 store 自行忽略）。
+   * untrack 必须有：markVisit 内部读写同一份 $state，否则本 effect 会把记录状态
+   * 也收成依赖，写一次触发一次重跑，形成自激循环（实测整窗变卡）。 */
+  $effect(() => {
+    const path = page.url.pathname
+    if (!bare && !isThin) untrack(() => markVisit(path))
   })
 
   /* 首启编排：Splash（首启 full ~2.9s / 回访 short ~1.5s）→ 引导页（仅首次） */

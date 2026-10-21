@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>23 · 顶栏最近访问 + dock 缩一号</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-fill-secondary: rgba(255,255,255,.14);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-brand: fantasy;
+    --phx-dur-fast: .12s;
+    --phx-dur-norm: .2s;
+    --phx-ease-out: cubic-bezier(.2,.8,.2,1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: var(--phx-font-sans); color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; gap: 26px;
+    padding: 40px 0 48px;
+  }
+  .col { width: 1016px; display: flex; flex-direction: column; gap: 10px; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; }
+  .col-cap em { font-style: normal; color: var(--phx-text-3); font-weight: 400; margin-left: 8px; }
+
+  /* ===== 主窗模拟 ===== */
+  .win {
+    position: relative; height: 470px; background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win); overflow: hidden;
+    box-shadow: 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  .win-head { padding: 52px 24px 0; }
+  .win-h { font-size: 26px; font-weight: 700; letter-spacing: -.6px; }
+  .win-meta { margin-top: 6px; font-size: 11.5px; color: var(--phx-text-3); }
+  .win-grid { margin: 18px 24px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .win-card { height: 84px; border-radius: var(--phx-r-card); background: var(--phx-surface); box-shadow: 0 0 0 .5px var(--phx-sep); }
+  .win-card.tall { height: 150px; }
+
+  /* ===== 顶栏（B 字标） ===== */
+  .tb { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; padding: 0 0 0 18px; }
+  .brand { display: flex; align-items: center; }
+  .wb { font-size: 11.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--phx-text); }
+  .dotmark { width: 4px; height: 4px; border-radius: 1px; background: var(--phx-accent); margin-right: 10px; flex: none; }
+  .tag { font-size: 11px; color: var(--phx-text-3); letter-spacing: .02em; }
+  .vsep { width: 1px; height: 11px; background: var(--phx-sep-strong); margin: 0 10px; flex: none; }
+  .caps { display: flex; align-self: stretch; margin-left: auto; position: relative; }
+  .caps button {
+    width: 46px; display: flex; align-items: center; justify-content: center;
+    color: var(--phx-text-2); background: none; border: 0; cursor: default;
+    transition: background var(--phx-dur-fast), color var(--phx-dur-fast);
+  }
+  .caps button:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .caps button svg { width: 10px; height: 10px; display: block; }
+  .caps button.narrow { width: 34px; }
+  .caps button.narrow svg { width: 14px; height: 14px; }
+  .caps .lead { position: absolute; left: 0; top: 13px; height: 14px; width: 1px; background: var(--phx-sep-strong); }
+
+  /* ===== 顶栏中间：最近访问 tab 组 ===== */
+  .tnav {
+    position: absolute; left: 0; right: 0; top: 0; height: 40px;
+    display: flex; align-items: center; justify-content: center; pointer-events: none;
+  }
+  .tnav .grp {
+    display: flex; align-items: center; gap: 2px; padding: 2px;
+    border-radius: 9px; background: var(--phx-fill-tertiary);
+    box-shadow: 0 0 0 .5px var(--phx-sep);
+    pointer-events: auto;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+    border-radius: 7px; font-size: 11px; font-weight: 500; color: var(--phx-text-2);
+    text-decoration: none; white-space: nowrap;
+    transition: background var(--phx-dur-fast) var(--phx-ease-out), color var(--phx-dur-fast);
+  }
+  .tab svg { width: 13px; height: 13px; flex: none; transition: color var(--phx-dur-fast); }
+  .tab:hover { background: var(--phx-fill-quaternary); color: var(--phx-text); }
+  .tab.on { background: var(--phx-fill-secondary); color: var(--phx-text); font-weight: 600; }
+  .tab.on svg { color: var(--phx-accent); }
+
+  /* ===== dock：现尺寸（对照） ===== */
+  .dock {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; background: var(--phx-glass);
+    border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+  }
+  .dock-logo {
+    border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center;
+    font-family: var(--phx-font-brand); font-style: italic; font-weight: 700;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .dock-sep { width: .5px; background: rgba(255,255,255,.16); flex: none; }
+  .dock a {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-decoration: none; color: var(--phx-text-2); flex: none;
+  }
+  .dock a svg { color: var(--phx-text-2); }
+  .dock a .lbl { font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a.on { background: var(--phx-fill-secondary); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+
+  /* 现尺寸 */
+  .dock.now { bottom: 18px; gap: 2px; padding: 6px; }
+  .dock.now .dock-logo { width: 34px; height: 34px; font-size: 19px; }
+  .dock.now .dock-sep { height: 26px; margin: 0 4px; }
+  .dock.now a { min-width: 56px; height: 46px; gap: 3px; border-radius: 10px; }
+  .dock.now a svg { width: 22px; height: 22px; }
+  .dock.now a .lbl { font-size: 10px; }
+
+  /* 缩一号 */
+  .dock.slim { bottom: 18px; gap: 2px; padding: 5px; border-radius: 13px; }
+  .dock.slim .dock-logo { width: 30px; height: 30px; border-radius: 8px; font-size: 17px; }
+  .dock.slim .dock-sep { height: 22px; margin: 0 3px; }
+  .dock.slim a { min-width: 50px; height: 42px; gap: 2px; border-radius: 9px; }
+  .dock.slim a svg { width: 19px; height: 19px; }
+  .dock.slim a .lbl { font-size: 10px; }
+
+  .dock-line { position: relative; height: 96px; background: var(--phx-win-bg); border-radius: var(--phx-r-win); box-shadow: 0 0 0 .5px rgba(255,255,255,.1); }
+  .dock-line .dock { position: absolute; }
+
+  /* ===== 标识变体：怎么说明“这是最近访问” ===== */
+  .strip {
+    position: relative; height: 40px; background: var(--phx-win-bg);
+    border-radius: 8px; box-shadow: 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  .strip .tb { position: absolute; }
+  /* N1 · 纯图标前缀（历史/时钟线稿） */
+  .ghost-ico { display: flex; align-items: center; padding: 0 5px 0 5px; color: var(--phx-text-3); flex: none; }
+  .ghost-ico svg { width: 12px; height: 12px; display: block; }
+  /* N2 · 图标 + 微型文字 */
+  .microcap {
+    font-size: 10px; color: var(--phx-text-3); letter-spacing: .04em;
+    padding: 0 1px 0 6px; white-space: nowrap; flex: none;
+  }
+  .mini-sep { width: .5px; height: 10px; background: var(--phx-sep-strong); margin: 0 4px 0 6px; flex: none; }
+  /* N3 · 组外独立小标签 */
+  .outtag {
+    display: inline-flex; align-items: center; height: 16px; padding: 0 6px;
+    border-radius: 4px; font-size: 9.5px; color: var(--phx-text-3);
+    background: var(--phx-fill-tertiary); box-shadow: 0 0 0 .5px var(--phx-sep);
+    margin-right: 6px; flex: none;
+  }
+
+  .note { width: 1016px; font-size: 12px; line-height: 1.9; color: var(--phx-text-3); }
+  .note b { color: var(--phx-text-2); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="col">
+  <div class="col-cap">整窗效果<em>顶栏 = B 字标 + 中间「最近访问」3 个 tab；dock 缩一号（图标 22→19、项宽 56→50、项高 46→42）</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-grid">
+        <div class="win-card"></div>
+        <div class="win-card tall"></div>
+        <div class="win-card"></div>
+        <div class="win-card"></div>
+      </div>
+    </div>
+
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span>
+        <span class="wb">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+
+      <div class="tnav">
+        <span class="grp">
+          <a class="tab" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+            <span>仓库</span>
+          </a>
+          <a class="tab" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+            <span>任务</span>
+          </a>
+          <a class="tab on" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+            <span>角色</span>
+          </a>
+        </span>
+      </div>
+
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+
+    <nav class="dock slim">
+      <div class="dock-logo">P</div>
+      <div class="dock-sep"></div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span class="lbl">首页</span></a>
+      <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span class="lbl">角色</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span class="lbl">任务</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="lbl">商人</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg><span class="lbl">藏身处</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span class="lbl">仓库</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg><span class="lbl">预设</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="lbl">备份</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">设置</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="lbl">关于</span></a>
+    </nav>
+  </div>
+</div>
+
+<div class="col">
+  <div class="col-cap">dock 尺寸对照<em>上=现尺寸（图标 22 / 项宽 56 / 项高 46）；下=缩一号（19 / 50 / 42），文字仍 10px 不缩（再小读不清）</em></div>
+  <div class="dock-line">
+    <nav class="dock now">
+      <div class="dock-logo">P</div>
+      <div class="dock-sep"></div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span class="lbl">首页</span></a>
+      <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span class="lbl">角色</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span class="lbl">任务</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="lbl">商人</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg><span class="lbl">藏身处</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span class="lbl">仓库</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg><span class="lbl">预设</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="lbl">备份</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg><span class="lbl">设置</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="lbl">关于</span></a>
+    </nav>
+  </div>
+</div>
+
+<div class="col">
+  <div class="col-cap">标识融合 · 三选<em>说明这组 tab 的身份；三种都只占组内一角，不改高度、不加外框</em></div>
+
+  <div class="strip">
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span><span class="wb">Phoenix</span>
+        <span class="vsep"></span><span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="tnav">
+        <span class="grp">
+          <span class="ghost-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7.5V12l3.5 2"/></svg></span>
+          <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span>仓库</span></a>
+          <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span>任务</span></a>
+          <a class="tab on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span>角色</span></a>
+        </span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+  </div>
+  <div class="col-cap" style="font-size:11.5px;color:var(--phx-text-3);margin:-3px 0 6px 2px">N1 · 纯图标前缀<em>历史箭头图标当语义前缀，最轻；老用户一眼懂，新用户靠悬停提示</em></div>
+
+  <div class="strip">
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span><span class="wb">Phoenix</span>
+        <span class="vsep"></span><span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="tnav">
+        <span class="grp">
+          <span class="microcap">最近</span>
+          <span class="ghost-ico" style="padding:0 2px 0 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7.5V12l3.5 2"/></svg></span>
+          <span class="mini-sep"></span>
+          <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span>仓库</span></a>
+          <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span>任务</span></a>
+          <a class="tab on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span>角色</span></a>
+        </span>
+      </div>
+      <div class="caps"><span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+  </div>
+  <div class="col-cap" style="font-size:11.5px;color:var(--phx-text-3);margin:-3px 0 6px 2px">N2 · 图标 + 微型文字<em>「最近」小字加图标，再用 0.5px 竖线隔开；语义最明确</em></div>
+
+  <div class="strip">
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span><span class="wb">Phoenix</span>
+        <span class="vsep"></span><span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="tnav">
+        <span class="outtag">最近访问</span>
+        <span class="grp">
+          <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span>仓库</span></a>
+          <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span>任务</span></a>
+          <a class="tab on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span>角色</span></a>
+        </span>
+      </div>
+      <div class="caps"><span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+  </div>
+  <div class="col-cap" style="font-size:11.5px;color:var(--phx-text-3);margin:-3px 0 6px 2px">N3 · 组外小标签<em>「最近访问」做成独立小标签悬在组左侧；层次最清楚，但多了个外框元素</em></div>
+</div>
+
+<div class="note">
+  <b>规格注记</b><br>
+  1. <b>最近访问</b>：真实记录（本地保存最近 6 个导航页，顶栏只展示 3 个；不含服务器选择/托盘/更新薄窗这类非导航屏）。切换页面即刷新，当前页在组内显示选中态（accent 图标 + 提亮底）。<br>
+  2. <b>与 dock 的关系</b>：两者共用同一路由高亮口径（含角色域 / 仓库域子页归并），不会出现顶栏亮一个、底栏亮另一个的矛盾。<br>
+  3. <b>顶栏 tab 组</b>：高 24px、圆角 7px、图标 13px、文字 11px；组底 <code>--phx-fill-tertiary</code> + 0.5px <code>--phx-sep</code> 描边，选中 <code>--phx-fill-secondary</code>。<br>
+  4. <b>dock 缩一号</b>：只动几何（图标 22→19、项宽 56→50、项高 46→42、logo 34→30、内边距 6→5），字号仍 10px（下限，再小中文读不清）；液体滑块与 hover 光斑规格不变。<br>
+  5. 拖拽：tab 组是交互元素，需 <code>no-drag</code>；顶栏其余区域仍整条可拖。<br>
+  6. 动效：tab 只在 hover/选中态动 background/color（--phx-dur-fast）；无新增位移动画，reduced-motion 无差异。<br>
+  7. 音效：点 tab 走 <code>playSound('nav')</code>，与 dock 同档。
+</div>
+
+</body>
+</html>

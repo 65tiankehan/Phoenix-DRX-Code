@@ -270,9 +270,9 @@
     max-height: min(560px, calc(100% - 108px - 16px));
     display: flex;
     flex-direction: column;
-    background: var(--phx-glass);
-    backdrop-filter: blur(28px) saturate(1.4);
-    -webkit-backdrop-filter: blur(28px) saturate(1.4);
+    background: var(--phx-glass-float);
+    backdrop-filter: blur(32px) saturate(1.5);
+    -webkit-backdrop-filter: blur(32px) saturate(1.5);
     border-radius: 14px;
     box-shadow:
       0 24px 64px rgba(0, 0, 0, 0.55),

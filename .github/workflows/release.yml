@@ -72,7 +72,7 @@ jobs:
             platforms = [ordered]@{
               'windows-x86_64' = [ordered]@{
                 signature = (Get-Content $nsisSig.FullName -Raw).Trim()
-                url       = "https://github.com/$env:RELEASE_REPO/releases/download/$tag/$exeName"
+                url       = "https://ghfast.top/https://github.com/$env:RELEASE_REPO/releases/download/$tag/$exeName"
               }
             }
           }

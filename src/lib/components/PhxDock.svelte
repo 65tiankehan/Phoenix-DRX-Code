@@ -3,31 +3,10 @@
   import { resolve } from '$app/paths'
   import { t } from '$lib/i18n/i18n.svelte'
   import { playSound } from '$lib/sound'
+  import { NAV, navIndex } from '$lib/nav'
 
-  /** 角色域子页：dock「角色」项按分区高亮（技能 / 健康 / 检视等角色域屏） */
-  const CHARACTER_SECTION = ['/character', '/skills', '/health']
-
-  /** 仓库域子页：dock「仓库」项按分区高亮（Scav 装备与 PMC 装备同款界面，也归仓库域） */
-  const STASH_SECTION = ['/stash', '/inspect', '/scav']
-
-  const charOn = $derived(CHARACTER_SECTION.includes(page.url.pathname))
-  const stashOn = $derived(STASH_SECTION.includes(page.url.pathname))
-
-  /** 当前激活 dock 项序号（与模板中 a 的书写顺序一一对应）；-1 = 未命中任何项 */
-  const onIdx = $derived.by(() => {
-    const p = page.url.pathname
-    if (p === '/home') return 0
-    if (charOn) return 1
-    if (p === '/quests') return 2
-    if (p === '/traders') return 3
-    if (p === '/hideout') return 4
-    if (stashOn) return 5
-    if (p === '/presets') return 6
-    if (p === '/backup') return 7
-    if (p === '/settings') return 8
-    if (p === '/about') return 9
-    return -1
-  })
+  /** 当前激活项序号（与 NAV 顺序一一对应，角色域 / 仓库域子页已归并）；-1 = 未命中 */
+  const onIdx = $derived(navIndex(page.url.pathname))
 
   let wrap = $state<HTMLElement>()
   let links: HTMLAnchorElement[] = []
@@ -83,105 +62,19 @@
     ></div>
   {/if}
 
-  <a
-    href={resolve('/home')}
-    class:on={page.url.pathname === '/home'}
-    onclick={() => go('/home')}
-    bind:this={links[0]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5" /><path d="M6.5 10.5V20h11v-9.5" /></svg>
-    <span class="lbl">{t('nav.home')}</span>
-  </a>
-
-  <a
-    href={resolve('/character')}
-    class:on={charOn}
-    onclick={() => go('/character')}
-    bind:this={links[1]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5" /></svg>
-    <span class="lbl">{t('nav.character')}</span>
-  </a>
-
-  <a
-    href={resolve('/quests')}
-    class:on={page.url.pathname === '/quests'}
-    onclick={() => go('/quests')}
-    bind:this={links[2]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8" /><path d="M4 12l1.4 1.4L8 10.8" /><path d="M4 18l1.4 1.4L8 16.8" /><path d="M11.5 6H20" /><path d="M11.5 12H20" /><path d="M11.5 18H20" /></svg>
-    <span class="lbl">{t('nav.quests')}</span>
-  </a>
-
-  <a
-    href={resolve('/traders')}
-    class:on={page.url.pathname === '/traders'}
-    onclick={() => go('/traders')}
-    bind:this={links[3]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /></svg>
-    <span class="lbl">{t('nav.traders')}</span>
-  </a>
-
-  <a
-    href={resolve('/hideout')}
-    class:on={page.url.pathname === '/hideout'}
-    onclick={() => go('/hideout')}
-    bind:this={links[4]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11" /><path d="M5.5 9.5V20h13V9.5" /><path d="M9.5 20v-5.5h5V20" /></svg>
-    <span class="lbl">{t('nav.hideout')}</span>
-  </a>
-
-  <a
-    href={resolve('/stash')}
-    class:on={stashOn}
-    onclick={() => go('/stash')}
-    bind:this={links[5]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1" /><path d="M3.5 11.5h17" /><path d="M9 7.5V4h6v3.5" /></svg>
-    <span class="lbl">{t('nav.stash')}</span>
-  </a>
-
-  <a
-    href={resolve('/presets')}
-    class:on={page.url.pathname === '/presets'}
-    onclick={() => go('/presets')}
-    bind:this={links[6]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" /></svg>
-    <span class="lbl">{t('nav.presets')}</span>
-  </a>
-
-  <a
-    href={resolve('/backup')}
-    class:on={page.url.pathname === '/backup'}
-    onclick={() => go('/backup')}
-    bind:this={links[7]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l4 2" /></svg>
-    <span class="lbl">{t('nav.backup')}</span>
-  </a>
-
-  <a
-    href={resolve('/settings')}
-    class:on={page.url.pathname === '/settings'}
-    onclick={() => go('/settings')}
-    bind:this={links[8]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
-    <span class="lbl">{t('nav.settings')}</span>
-  </a>
-
-  <a
-    href={resolve('/about')}
-    class:on={page.url.pathname === '/about'}
-    onclick={() => go('/about')}
-    bind:this={links[9]}
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-    <span class="lbl">{t('nav.about')}</span>
-  </a>
+  {#each NAV as item, i (item.path)}
+    <a
+      href={resolve(item.path)}
+      class:on={navIndex(item.path) === onIdx}
+      onclick={() => go(item.path)}
+      bind:this={links[i]}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        {#each item.icon as d (d)}<path d={d} />{/each}
+      </svg>
+      <span class="lbl">{t(item.key)}</span>
+    </a>
+  {/each}
 </nav>
 
 <style>
@@ -194,18 +87,18 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    padding: 6px;
+    padding: 5px;
     background: var(--phx-glass);
-    border-radius: 14px;
+    border-radius: 13px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 0.5px var(--phx-sep-strong);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
 
   .dock-logo {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     flex: none;
     display: flex;
     align-items: center;
@@ -213,16 +106,16 @@
     font-family: var(--phx-font-brand);
     font-style: italic;
     font-weight: 700;
-    font-size: 19px;
+    font-size: 17px;
     background: var(--phx-accent-dim);
     color: var(--phx-accent);
   }
 
   .dock-sep {
     width: 0.5px;
-    height: 26px;
+    height: 22px;
     background: rgba(255, 255, 255, 0.16);
-    margin: 0 4px;
+    margin: 0 3px;
   }
 
   .dock a {
@@ -232,10 +125,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    min-width: 56px;
-    height: 46px;
-    border-radius: 10px;
+    gap: 2px;
+    min-width: 50px;
+    height: 42px;
+    border-radius: 9px;
     text-decoration: none;
     overflow: hidden;
     transition:
@@ -248,8 +141,8 @@
   }
 
   .dock a svg {
-    width: 22px;
-    height: 22px;
+    width: 19px;
+    height: 19px;
     color: var(--phx-text-2);
     transition: color var(--phx-dur-fast) var(--phx-ease-out);
   }
@@ -290,10 +183,10 @@
   /* 液体滑块：{#if} 插入即终态；仅路由切换时产生过渡（--phx-dur-norm + emphasized，感官层基线档位） */
   .ind {
     position: absolute;
-    top: 6px;
-    bottom: 6px;
+    top: 5px;
+    bottom: 5px;
     left: 0;
-    border-radius: 10px;
+    border-radius: 9px;
     background: var(--phx-fill-secondary);
     pointer-events: none;
     transition:

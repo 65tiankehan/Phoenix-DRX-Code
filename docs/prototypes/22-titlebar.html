@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>22 · 顶栏品牌化</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-accent-mid: rgba(0,145,255,.45);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-brand: fantasy;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 48px; gap: 26px;
+  }
+  .col { width: 1016px; display: flex; flex-direction: column; gap: 10px; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; }
+  .col-cap em { font-style: normal; color: var(--phx-text-3); font-weight: 400; margin-left: 8px; }
+
+  /* ===== 模拟主窗：顶栏叠在内容上（无实体背景） ===== */
+  .win {
+    position: relative;
+    height: 190px;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    overflow: hidden;
+    box-shadow: 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  .win-head { padding: 52px 24px 0; }
+  .win-h { font-size: 26px; font-weight: 700; letter-spacing: -.6px; }
+  .win-meta { margin-top: 6px; font-size: 11.5px; color: var(--phx-text-3); }
+  .win-card {
+    margin: 18px 24px 0; height: 66px; border-radius: var(--phx-r-card);
+    background: var(--phx-surface); box-shadow: 0 0 0 .5px var(--phx-sep);
+  }
+
+  /* ===== 顶栏基座（40px，绝对定位，全条 drag） ===== */
+  .tb {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+  }
+  .brand { display: flex; align-items: center; }
+  .wb { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .tag { font-size: 11px; color: var(--phx-text-3); letter-spacing: .02em; }
+  .vsep { width: 1px; height: 11px; background: var(--phx-sep-strong); margin: 0 10px; flex: none; }
+  .caps { display: flex; align-self: stretch; margin-left: auto; position: relative; }
+  .caps button {
+    width: 46px; display: flex; align-items: center; justify-content: center;
+    color: var(--phx-text-2); background: none; border: 0; cursor: default;
+    transition: background .12s, color .12s;
+  }
+  .caps button:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .caps button svg { width: 10px; height: 10px; display: block; }
+  .caps button.narrow { width: 34px; }
+  .caps button.narrow svg { width: 14px; height: 14px; }
+  .caps .lead {
+    position: absolute; left: 0; top: 13px; height: 14px; width: 1px;
+    background: var(--phx-sep-strong); transform: translateX(-1px);
+  }
+
+  /* ===== A · 徽记款：凤凰羽翼线稿（accent）+ 字标 + 副标 ===== */
+  .mark { width: 16px; height: 16px; color: var(--phx-accent); margin-right: 9px; flex: none; }
+  .mark svg { width: 16px; height: 16px; display: block; }
+
+  /* ===== B · 字标款：仅字型强化（加粗 + 字距 + 大写），徽记退为一个小方点 ===== */
+  .wb.strong { font-size: 11.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--phx-text); }
+  .dotmark { width: 4px; height: 4px; border-radius: 1px; background: var(--phx-accent); margin-right: 10px; flex: none; }
+
+  /* ===== C · 水印款：右侧极弱羽翼纹样（不压内容层次） ===== */
+  .wm { position: absolute; right: 148px; top: -26px; width: 148px; height: 148px; color: var(--phx-text); opacity: .05; pointer-events: none; }
+  .wm svg { width: 100%; height: 100%; }
+
+  /* ===== D · 组合款：A 的徽记 + C 的水印 + 底部分隔 ===== */
+  .hair {
+    position: absolute; left: 0; right: 0; bottom: 0; height: .5px;
+    background: linear-gradient(90deg, transparent, var(--phx-sep) 18%, var(--phx-sep) 82%, transparent);
+  }
+
+  /* ===== 中间区填法（B 字标 + 中间三选一） ===== */
+  .mid {
+    position: absolute; left: 0; right: 0; top: 0; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  /* M1 · 当前存档胶囊 */
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; height: 23px; padding: 0 10px;
+    border-radius: 12px; background: var(--phx-fill-tertiary);
+    box-shadow: 0 0 0 .5px var(--phx-sep);
+  }
+  .chip .led {
+    width: 6px; height: 6px; border-radius: 50%; flex: none;
+    background: var(--phx-green); box-shadow: 0 0 0 3px var(--phx-green-dim);
+  }
+  .chip .nm { font-size: 11.5px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .02em; }
+  .chip .dv { width: 1px; height: 9px; background: var(--phx-sep-strong); flex: none; }
+  .chip .lv { font-size: 11px; color: var(--phx-text-3); font-variant-numeric: tabular-nums; }
+  /* M2 · 居中羽翼暗纹（对称品牌焦点） */
+  .wm-mid { width: 132px; height: 132px; color: var(--phx-text); opacity: .05; }
+  .wm-mid svg { width: 100%; height: 100%; }
+  /* M3 · 极细羽线：品牌右侧拉到图标前的渐隐横线 */
+  .featherline {
+    position: absolute; left: 132px; right: 208px; top: 19.5px; height: .5px;
+    background: linear-gradient(90deg, var(--phx-sep-strong), var(--phx-sep) 34%, transparent 78%);
+  }
+  /* M4 · 信任徽标：自动备份已开启（真实恒定行为，点击去备份页） */
+  .trust { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--phx-text-3); }
+  .trust svg { width: 12px; height: 12px; color: var(--phx-green); flex: none; }
+  .trust b { font-weight: 500; color: var(--phx-text-2); }
+
+  .note { width: 1016px; font-size: 12px; line-height: 1.9; color: var(--phx-text-3); }
+  .note b { color: var(--phx-text-2); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- A · 徽记款 -->
+<div class="col">
+  <div class="col-cap">A · 徽记款<em>凤凰羽翼线稿（accent 单色）+ 字标 + 副标；最像“品牌”，也最重</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="brand">
+        <span class="mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.2 19.4c2.4-6.6 7-11 13.6-12.6"/>
+            <path d="M7.6 19.6c1.7-4.7 4.8-7.9 9.4-9.4"/>
+            <path d="M11.2 19.8c1.1-2.9 3-4.9 6-6"/>
+            <path d="M4.2 19.4l-.9 1"/>
+          </svg>
+        </span>
+        <span class="wb">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+  </div>
+</div>
+
+<!-- B · 字标款 -->
+<div class="col">
+  <div class="col-cap">B · 字标款<em>不加图形，只把文字做成“商标感”：大写 + 拉开字距 + 小方点；最轻</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span>
+        <span class="wb strong">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+  </div>
+</div>
+
+<!-- C · 水印款 -->
+<div class="col">
+  <div class="col-cap">C · 水印款<em>左侧原样不动，右侧铺一层极弱的羽翼纹（5% 白），远看只是“有条不紊”，近看才认出品牌</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="wm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4.2 19.4c2.4-6.6 7-11 13.6-12.6"/>
+          <path d="M7.6 19.6c1.7-4.7 4.8-7.9 9.4-9.4"/>
+          <path d="M11.2 19.8c1.1-2.9 3-4.9 6-6"/>
+          <path d="M3.3 20.4c3.9-1.5 8.4-4.2 12.2-8.2"/>
+          <path d="M6.6 20.6c3.1-1.2 6.5-3.4 9.7-6.6"/>
+        </svg>
+      </div>
+      <div class="brand"><span class="wb">Phoenix</span></div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+    </header>
+  </div>
+</div>
+
+<!-- D · 组合款 -->
+<div class="col">
+  <div class="col-cap">D · 组合款<em>A 的徽记 + C 的水印 + 底边 0.5px 渐隐分隔线；三样都克制，整体最完整（我的推荐）</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="wm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4.2 19.4c2.4-6.6 7-11 13.6-12.6"/>
+          <path d="M7.6 19.6c1.7-4.7 4.8-7.9 9.4-9.4"/>
+          <path d="M11.2 19.8c1.1-2.9 3-4.9 6-6"/>
+          <path d="M3.3 20.4c3.9-1.5 8.4-4.2 12.2-8.2"/>
+          <path d="M6.6 20.6c3.1-1.2 6.5-3.4 9.7-6.6"/>
+        </svg>
+      </div>
+      <div class="brand">
+        <span class="mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.2 19.4c2.4-6.6 7-11 13.6-12.6"/>
+            <path d="M7.6 19.6c1.7-4.7 4.8-7.9 9.4-9.4"/>
+            <path d="M11.2 19.8c1.1-2.9 3-4.9 6-6"/>
+            <path d="M4.2 19.4l-.9 1"/>
+          </svg>
+        </span>
+        <span class="wb">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+      <span class="hair"></span>
+    </header>
+  </div>
+</div>
+
+<!-- ===== 以下：B 字标已选，中间区四选一 ===== -->
+<div class="col" style="margin-top:34px">
+  <div class="col-cap" style="color:var(--phx-accent)">B 已选 · 中间区四种填法<em>左右不动，只看中间</em></div>
+</div>
+
+<!-- M1 · 当前存档胶囊 -->
+<div class="col">
+  <div class="col-cap">M1 · 当前存档<em>显示“现在编的是哪个档”：昵称 · 阵营 · 等级，绿点=服务器读取正常；点它回服务器选择页换档</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span>
+        <span class="wb strong">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="mid">
+        <span class="chip">
+          <span class="led"></span>
+          <span class="nm">夜鹰</span>
+          <span class="dv"></span>
+          <span class="lv">PMC · Lv.42</span>
+        </span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+      <span class="hair"></span>
+    </header>
+  </div>
+</div>
+
+<!-- M2 · 居中羽翼暗纹 -->
+<div class="col">
+  <div class="col-cap">M2 · 居中暗纹<em>把 C 款的水印摆正中：对称焦点，左右留白自动平衡；纯装饰，不承载信息</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span>
+        <span class="wb strong">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="mid">
+        <span class="wm-mid">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.2 19.4c2.4-6.6 7-11 13.6-12.6"/>
+            <path d="M7.6 19.6c1.7-4.7 4.8-7.9 9.4-9.4"/>
+            <path d="M11.2 19.8c1.1-2.9 3-4.9 6-6"/>
+            <path d="M3.3 20.4c3.9-1.5 8.4-4.2 12.2-8.2"/>
+            <path d="M6.6 20.6c3.1-1.2 6.5-3.4 9.7-6.6"/>
+            <path d="M9.3 20.8c2.2-.8 4.4-2.2 6.6-4.2"/>
+          </svg>
+        </span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+      <span class="hair"></span>
+    </header>
+  </div>
+</div>
+
+<!-- M3 · 极细羽线 -->
+<div class="col">
+  <div class="col-cap">M3 · 极细羽线<em>不放内容，只拉一条从品牌出发、向右渐隐的 0.5px 线：空条被“收边”，最安静</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span>
+        <span class="wb strong">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <span class="featherline"></span>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+      <span class="hair"></span>
+    </header>
+  </div>
+</div>
+
+<!-- M4 · 信任徽标 -->
+<div class="col">
+  <div class="col-cap">M4 · 信任徽标<em>“每次保存自动留备份”是产品恒定行为（不是开关，无假承诺）；绿盾 + 灰字，点击去备份页</em></div>
+  <div class="win">
+    <div class="win-head">
+      <div class="win-h">角色</div>
+      <div class="win-meta">0.16.1.3.34619 · 档案已加载</div>
+      <div class="win-card"></div>
+    </div>
+    <header class="tb">
+      <div class="brand">
+        <span class="dotmark"></span>
+        <span class="wb strong">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="tag">SPT 存档编辑器</span>
+      </div>
+      <div class="mid">
+        <span class="trust">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6l7-3z"/><path d="M9.2 12l2 2 3.6-4"/></svg>
+          <span>保存前<b>自动备份</b>已开启</span>
+        </span>
+      </div>
+      <div class="caps">
+        <span class="lead"></span>
+        <button aria-label="搜索"><svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="6.6" cy="6.6" r="4.4"/><path d="M13.2 13.2 10 10"/></svg></button>
+        <button class="narrow" aria-label="公告"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.6a3.9 3.9 0 0 0-3.9 3.9c0 3-1.2 4.2-1.2 4.2h10.2s-1.2-1.2-1.2-4.2A3.9 3.9 0 0 0 7 1.6Z"/><path d="M5.9 11.9a1.2 1.2 0 0 0 2.2 0"/></svg></button>
+        <button aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></button>
+        <button aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></button>
+      </div>
+      <span class="hair"></span>
+    </header>
+  </div>
+</div>
+
+<div class="note">
+  <b>规格注记</b><br>
+  1. 不改结构：仍是 40px 绝对定位顶栏 + 整条 drag region，只加静态装饰层，无新增交互（不加假开关，符合诚实原则）。<br>
+  2. 颜色全取自既有 token：徽记用 <code>--phx-accent</code>，水印用 <code>--phx-text</code> 5%，分隔线用 <code>--phx-sep</code> / <code>--phx-sep-strong</code>，不新增色值。<br>
+  3. 水印层 <code>pointer-events: none</code>，不挡拖拽；尺寸溢出顶栏部分被窗口裁掉，不压内容可读性。<br>
+  4. 副标「SPT 存档编辑器」若采纳须进 i18n 两语（zh-CN / en-US），vitest 双语一致卡点。<br>
+  5. 动效：无（静态装饰），reduced-motion 无差异。<br>
+  6. 一期不启用光效模式：不用 glow / 发光阴影，仅线稿与极弱水印。
+</div>
+
+</body>
+</html>

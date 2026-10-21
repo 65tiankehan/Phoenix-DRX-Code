@@ -6,7 +6,7 @@ const css = readFileSync(resolve(import.meta.dirname, '../src/app.css'), 'utf-8'
 
 /** 视觉基线（docs/design/视觉基线.md §三）+ 感官层基线（§二）声明的全部 token 名 */
 const REQUIRED_TOKENS = [
-  // 颜色 26
+  // 颜色 27
   '--phx-win-bg',
   '--phx-surface',
   '--phx-surface-2',
@@ -14,6 +14,7 @@ const REQUIRED_TOKENS = [
   '--phx-fill-quaternary',
   '--phx-fill-secondary',
   '--phx-glass',
+  '--phx-glass-float',
   '--phx-sep',
   '--phx-sep-strong',
   '--phx-text',

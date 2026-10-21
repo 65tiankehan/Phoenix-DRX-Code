@@ -7,6 +7,8 @@
   import { phxUpdate, PHX_UPDATE_EVENT } from '$lib/ipc'
   import type { PhxUpdateStatus } from '$lib/ipc'
   import { t } from '$lib/i18n/i18n.svelte'
+  import { playSound } from '$lib/sound'
+  import { isReducedMotion } from '$lib/motion'
 
   /**
    * 更新薄窗（/update-window，独立 WebviewWindow）。
@@ -88,6 +90,84 @@
       : []
   )
 
+  /* ===== 引导轮播（仅下载中态展示；稿图 21-update-carousel.html） =====
+   * 全部 slide 常驻堆叠（绝对定位），on/leaving 双类做淡入+轻位移过渡；
+   * transition 由 app.css reduced-motion 双通道压平，isReducedMotion 只管自动轮播计时器。
+   * 插图为内联 SVG path 集（token 色板），不引外部图片。 */
+  type MsgKey = Parameters<typeof t>[0]
+  interface CarSlide {
+    t: MsgKey
+    s: MsgKey
+    cls: string
+    icon: string[]
+  }
+  const CAR: CarSlide[] = [
+    {
+      t: 'update.car.t0',
+      s: 'update.car.s0',
+      cls: 'car-a0',
+      icon: ['M21 8l-9-5-9 5v8l9 5 9-5V8z', 'M3.3 8.4L12 13l8.7-4.6', 'M12 13v9']
+    },
+    {
+      t: 'update.car.t1',
+      s: 'update.car.s1',
+      cls: 'car-a1',
+      icon: ['M12 4a4 4 0 1 0 0 8 4 4 0 1 0 0-8z', 'M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5']
+    },
+    {
+      t: 'update.car.t2',
+      s: 'update.car.s2',
+      cls: 'car-a2',
+      icon: ['M9 11.5l2 2 4.5-5', 'M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z']
+    },
+    {
+      t: 'update.car.t3',
+      s: 'update.car.s3',
+      cls: 'car-a3',
+      icon: ['M12 3l8 3v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z', 'M12 8v4l2.5 2.5']
+    }
+  ]
+  const CAR_INTERVAL = 4000
+
+  let carIdx = $state(0)
+  let carPrev = $state(-1)
+  let carTimer: ReturnType<typeof setInterval> | null = null
+  let carLeaveTimer: ReturnType<typeof setTimeout> | null = null
+
+  function carGo(i: number, byUser = false): void {
+    if (i === carIdx) return
+    carPrev = carIdx
+    carIdx = i
+    if (carLeaveTimer) clearTimeout(carLeaveTimer)
+    carLeaveTimer = setTimeout(() => {
+      carPrev = -1
+    }, 420)
+    if (byUser) {
+      playSound('ui')
+      carStartTimer() // 手动切换后重置计时
+    }
+  }
+  function carStopTimer(): void {
+    if (carTimer) {
+      clearInterval(carTimer)
+      carTimer = null
+    }
+  }
+  function carStartTimer(): void {
+    carStopTimer()
+    if (!isReducedMotion()) {
+      carTimer = setInterval(() => carGo((carIdx + 1) % CAR.length), CAR_INTERVAL)
+    }
+  }
+
+  /* 布尔派生而非 dl 本体：下载进度高频更新不应反复重启计时器 */
+  const isDl = $derived(dl !== null)
+  $effect(() => {
+    if (!isDl) return
+    carStartTimer()
+    return () => carStopTimer()
+  })
+
   /* 窗高自适应：Rust 只给初值，状态变化后按内容实测重设（宽 420 不变）。
    * 否则固定 380 高会在内容短的状态下（如单行公告）窗底留一大块空白。 */
   const WIN_W = 420
@@ -165,6 +245,29 @@
         <div>
           <div class="up-h-title">{t('update.dlTitle')}</div>
           <div class="up-h-sub">{t('update.dlSub')}</div>
+        </div>
+      </div>
+      <!-- 引导轮播：下载等待期轮播功能亮点（稿图 21-update-carousel.html） -->
+      <div class="carousel" aria-live="polite">
+        <div class="car-viewport">
+          {#each CAR as c, i (i)}
+            <div class="car-slide" class:on={i === carIdx} class:leaving={i === carPrev}>
+              <div class="car-art {c.cls}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  {#each c.icon as d (d)}<path d={d}/>{/each}
+                </svg>
+              </div>
+              <div class="car-copy">
+                <div class="car-t">{t(c.t)}</div>
+                <div class="car-s">{t(c.s)}</div>
+              </div>
+            </div>
+          {/each}
+        </div>
+        <div class="car-dots">
+          {#each CAR as c, i (i)}
+            <button class="car-dot" type="button" class:on={i === carIdx} aria-label={`${t('update.car.dot', { n: i + 1 })} · ${t(c.t)}`} onclick={() => carGo(i, true)}></button>
+          {/each}
         </div>
       </div>
       <div class="prog">
@@ -394,6 +497,139 @@
   .btn-ghost:hover {
     background: var(--phx-fill-tertiary);
     color: var(--phx-text);
+  }
+  /* ===== 引导轮播（稿图 21-update-carousel.html 定稿值） ===== */
+  .carousel {
+    margin-top: 16px;
+    background: var(--phx-surface);
+    border-radius: var(--phx-r-card);
+    padding: 16px 16px 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .car-viewport {
+    position: relative;
+    height: 118px;
+  }
+  .car-slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    transform: translateX(14px);
+    pointer-events: none;
+  }
+  .car-slide.on {
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      opacity var(--phx-dur-slow) var(--phx-ease-out),
+      transform var(--phx-dur-slow) var(--phx-ease-out);
+    pointer-events: auto;
+  }
+  .car-slide.leaving {
+    opacity: 0;
+    transform: translateX(-14px);
+    transition:
+      opacity var(--phx-dur-slow) var(--phx-ease-out),
+      transform var(--phx-dur-slow) var(--phx-ease-out);
+  }
+  .car-art {
+    width: 92px;
+    height: 92px;
+    flex: none;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .car-art svg {
+    width: 46px;
+    height: 46px;
+    position: relative;
+    z-index: 1;
+  }
+  .car-art::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
+    border-radius: 20px;
+    border: 1px dashed var(--phx-sep-strong);
+  }
+  .car-art::before {
+    content: '';
+    position: absolute;
+    right: -15px;
+    top: -6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--phx-accent);
+    opacity: 0.55;
+  }
+  .car-a0 {
+    background: var(--phx-accent-dim);
+    color: var(--phx-accent);
+  }
+  .car-a1 {
+    background: var(--phx-orange-dim);
+    color: var(--phx-orange);
+  }
+  .car-a1::before {
+    background: var(--phx-orange);
+  }
+  .car-a2 {
+    background: var(--phx-green-dim);
+    color: var(--phx-green);
+  }
+  .car-a2::before {
+    background: var(--phx-green);
+  }
+  .car-a3 {
+    background: var(--phx-warn-bg);
+    color: var(--phx-warn);
+  }
+  .car-a3::before {
+    background: var(--phx-warn);
+  }
+  .car-t {
+    font-size: 15.5px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  .car-s {
+    font-size: 12px;
+    color: var(--phx-text-2);
+    line-height: 1.7;
+    margin-top: 5px;
+  }
+  .car-dots {
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 12px;
+  }
+  .car-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--phx-fill-quaternary);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition:
+      background var(--phx-dur-fast) var(--phx-ease-out),
+      width var(--phx-dur-norm) var(--phx-ease-emphasized);
+  }
+  .car-dot:hover {
+    background: var(--phx-sep-strong);
+  }
+  .car-dot.on {
+    width: 16px;
+    background: var(--phx-accent);
   }
   .prog {
     margin-top: 18px;
