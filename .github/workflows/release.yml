@@ -8,6 +8,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: '要构建发布的 tag（如 v0.1.6）。手动触发时填此项即可走完整构建+发布；留空则仅跑 verify。'
+        required: false
+        default: ''
 
 env:
   RELEASE_REPO: 65tiankehan/Phoenix-DRX-releases
@@ -27,12 +32,14 @@ jobs:
       - run: npm run test
 
   build-windows:
-    # 仅 tag 构建发布：日常 push / PR 只验证
-    if: startsWith(github.ref, 'refs/tags/v')
+    # tag 推送 或 手动传入 tag 才构建发布；日常 push / PR 只验证
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
     needs: verify
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -42,6 +49,13 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+
+      - name: 解析发布 tag
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { '${{ github.event.inputs.tag }}' } else { '${{ github.ref_name }}' }
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8NoBOM
+          Write-Host "RELEASE_TAG=$tag"
 
       - name: 检查签名密钥存在
         shell: pwsh
@@ -60,7 +74,7 @@ jobs:
       - name: 生成更新清单 latest.json
         shell: pwsh
         run: |
-          $tag = '${{ github.ref_name }}'
+          $tag = $env:RELEASE_TAG
           $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
           $nsisSig = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter '*-setup.exe.sig' | Select-Object -First 1
           if (-not $nsisSig) { Write-Error '缺少 nsis 签名文件' }
@@ -97,7 +111,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASES_PAT }}
         run: |
-          $tag = '${{ github.ref_name }}'
+          $tag = $env:RELEASE_TAG
           $files = Get-ChildItem src-tauri/target/release/bundle -Recurse -Include *.msi,*.exe,*.sig,latest.json |
             ForEach-Object { $_.FullName }
           gh release create $tag --repo $env:RELEASE_REPO --title $tag --notes "Phoenix-DRX $tag，由发布流水线自动构建发布；latest.json 供应用内更新使用。" @files
