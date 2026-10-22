@@ -59,6 +59,9 @@
               <div class="ann-head">
                 <span class="ann-unread" class:read={announcements.readIds.has(a.id)}></span>
                 <h3 class="ann-title">{a.title}</h3>
+                {#if a.kind === 'sponsor'}
+                  <span class="ann-tag">{t('announce.sponsored')}</span>
+                {/if}
               </div>
               <p class="ann-body">{a.body}</p>
               {#if a.actionUrl}
@@ -287,6 +290,20 @@
     font-size: 14.5px;
     font-weight: 600;
     color: var(--phx-text);
+  }
+
+  /* 推广小标：warn 色系角标，必带（赞助红线：推广内容必须显式标识） */
+  .ann-tag {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: var(--phx-warn);
+    background: var(--phx-warn-bg);
+    border: 0.5px solid var(--phx-warn-bd);
   }
 
   .ann-body {

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 26 · 角色信息 · 空白填充</title>
+<!--
+  26 稿图说明（2026-10-22 用户裁决：角色页红框空白空虚 → 三处填充）
+  · 基于 03 角色结构（5fr 7fr 双列四卡），只做填空，不改既有元素；token 全部 Gen B，无新色
+  · 三处填充：① 成长卡经验下方「本级范围 + 距下一级」脚注；② 外观与装备卡口袋行下「装备速览」只读三行 + 前往仓库；③ Scav 基本信息卡补「账号 ID / 游戏版本」两行只读
+  · chrome 与 25 稿一致：44px 悬浮标题栏 + 品牌区 + 中部「常去」组 + dock 缩一号 11 项（稿图 24 几何）
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    /* Gen B 基座，与 src/app.css 现行值一致 */
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-fill-secondary: rgba(255,255,255,.14);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.1);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  body {
+    min-height: 100vh;
+    background: #060608;
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; inset: 0;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+  }
+  /* ===== 44px 悬浮标题栏：品牌区 + 中部「常去」组 + 右上三键（视觉基线 §六） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 30;
+    display: flex; align-items: center; padding-left: 18px;
+  }
+  .tb-brand { display: flex; align-items: center; gap: 10px; }
+  .tb-brand .bdot { width: 4px; height: 4px; border-radius: 1px; background: var(--phx-accent); }
+  .tb-brand .word { font-size: 11.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--phx-text); }
+  .tb-brand .vsep { width: 1px; height: 14px; background: var(--phx-sep-strong); }
+  .tb-brand .sub { font-size: 11px; color: var(--phx-text-2); }
+  .tb-recent {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 2px; padding: 2px;
+    background: var(--phx-fill-tertiary); border-radius: 10px;
+    box-shadow: inset 0 0 0 .5px var(--phx-sep);
+  }
+  .tb-recent .rh { display: flex; align-items: center; gap: 5px; padding: 0 7px 0 6px; font-size: 10px; color: var(--phx-text-3); }
+  .tb-recent .rh svg { width: 12px; height: 12px; }
+  .tb-recent .tsep { width: .5px; height: 16px; background: var(--phx-sep); margin: 0 2px; }
+  .tb-tab {
+    display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px;
+    border-radius: 8px; font-size: 11px; color: var(--phx-text-2); cursor: pointer;
+    transition: background .12s;
+  }
+  .tb-tab svg { width: 14px; height: 14px; }
+  .tb-tab:hover { background: var(--phx-fill-quaternary); }
+  .tb-tab.on { background: var(--phx-fill-secondary); color: var(--phx-text); font-weight: 600; }
+  .tb-tab.on svg { color: var(--phx-accent); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 页面骨架 ===== */
+  .page { position: absolute; inset: 44px 0 0; display: flex; flex-direction: column; }
+  .main-head {
+    padding: 18px 24px 0;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  }
+  .large-title { font-size: 26px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { margin-top: 5px; font-size: 12px; color: var(--phx-text-2); }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 4px; }
+  .scroll { flex: 1; min-height: 0; overflow: hidden; padding: 0 24px 20px; }
+  /* ===== PMC / Scav 页签分段（Gen B：容器 fill-tertiary + 内描边，指示器 fill-secondary） ===== */
+  .seg { display: flex; padding: 2px; background: var(--phx-fill-tertiary); border-radius: 9px; box-shadow: inset 0 0 0 .5px var(--phx-sep); }
+  .seg button {
+    height: 28px; padding: 0 18px; border: none; background: transparent; border-radius: 7px;
+    color: var(--phx-text-2); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .seg button.on { background: var(--phx-fill-secondary); box-shadow: inset 0 0 0 .5px var(--phx-sep); color: var(--phx-text); font-weight: 600; }
+  /* ===== 信息卡（panel）：Gen B surface 底 + 内描边 ===== */
+  .panel {
+    background: var(--phx-surface);
+    border-radius: var(--phx-r-card);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    padding: 2px 14px 12px; min-width: 0;
+  }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 10px 0 8px; }
+  .panel-head .t { font-size: 13px; font-weight: 600; color: var(--phx-text-2); }
+  .panel-head .n { font-size: 12px; color: var(--phx-text-3); }
+  .frow { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  .frow + .frow { border-top: .5px solid var(--phx-sep); }
+  .frow .k { width: 60px; flex: none; font-size: 13px; color: var(--phx-text-2); }
+  .field {
+    flex: 1; min-width: 0; height: 32px; padding: 0 10px;
+    border: none; outline: none; border-radius: 8px;
+    background: var(--phx-fill-secondary); color: var(--phx-text);
+    font-family: var(--phx-font-mono); font-size: 14px;
+    transition: box-shadow .15s;
+  }
+  .field:focus { box-shadow: 0 0 0 3px var(--phx-accent-dim); }
+  .read { flex: 1; min-width: 0; font-family: var(--phx-font-mono); font-size: 13px; color: var(--phx-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ro-tag { flex: none; margin-left: auto; padding: 2px 6px; border: .5px solid var(--phx-sep-strong); border-radius: 5px; font-size: 11px; color: var(--phx-text-3); }
+  /* 卡内子分组标题（装备速览） */
+  .sub-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 11px 0 0; border-top: .5px solid var(--phx-sep); }
+  .sub-head .st { font-size: 11px; font-weight: 600; color: var(--phx-text-3); }
+  .sub-head a { font-size: 12px; color: var(--phx-accent); text-decoration: none; cursor: pointer; }
+  .sub-head + .frow { border-top: .5px solid var(--phx-sep); }
+  /* 装备速览行：物品名用界面字体（区别于 mono 的 ID 类只读项） */
+  .frow.eq .read { font-family: inherit; font-size: 13px; }
+  /* 等级步进器（94×29，两段各半；Gen B 底色） */
+  .stepper { margin-left: auto; display: flex; width: 94px; height: 29px; background: var(--phx-fill-secondary); border-radius: 8px; overflow: hidden; }
+  .stepper button { flex: 1; border: none; background: transparent; color: var(--phx-text); font-size: 16px; line-height: 1; cursor: pointer; }
+  .stepper button + button { border-left: .5px solid var(--phx-sep-strong); }
+  .stepper button:active { background: var(--phx-fill-quaternary); }
+  .range { flex: none; margin-left: 10px; font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text-3); }
+  /* 经验：输入 + 滑条 */
+  .exp .field { flex: none; width: 110px; text-align: center; }
+  .slider { position: relative; flex: 1; height: 20px; display: flex; align-items: center; }
+  .slider .track { width: 100%; height: 4px; border-radius: 2px; background: var(--phx-fill-quaternary); }
+  .slider .fill { position: absolute; left: 0; top: 8px; height: 4px; border-radius: 2px; background: var(--phx-accent); }
+  .slider .thumb { position: absolute; left: 62%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  /* 经验脚注（新增填充）：本级经验区间 + 距下一级差额 */
+  .exp-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; padding: 7px 10px; background: var(--phx-surface-2); border-radius: 8px; font-size: 12px; color: var(--phx-text-2); }
+  .exp-foot b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .hint { padding: 8px 0 2px; font-size: 11px; color: var(--phx-text-3); }
+  /* 下拉（自绘，选项来自服务器数据目录） */
+  .fselect {
+    flex: 1; max-width: 240px; margin-left: auto; height: 32px; padding: 0 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border: none; border-radius: 8px; background: var(--phx-fill-secondary);
+    color: var(--phx-text); font-family: inherit; font-size: 14px; cursor: pointer;
+  }
+  .fselect .cv { font-size: 11px; color: var(--phx-text-3); }
+  /* ===== 健康 3×3：部位 + 当前/最大 + 血条 ===== */
+  .hgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 4px; }
+  .hcell { background: var(--phx-surface-2); border-radius: 9px; padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .hcell .hn { font-size: 12px; color: var(--phx-text-2); }
+  .hcell .hp { display: flex; align-items: center; gap: 6px; }
+  .hcell input {
+    flex: 1 1 0; width: 0; min-width: 0; padding: 2px 0;
+    border: none; outline: none; background: transparent; border-bottom: 1px solid transparent;
+    color: var(--phx-text); font-family: var(--phx-font-mono);
+    font-size: 14px; text-align: center; transition: border-color .15s;
+  }
+  .hcell input:focus { border-bottom-color: var(--phx-accent); }
+  .hcell .sep { font-size: 12px; color: var(--phx-text-3); }
+  .hcell .bar { height: 3px; border-radius: 2px; background: var(--phx-fill-quaternary); overflow: hidden; }
+  .hcell .bar .fill { display: block; height: 100%; background: var(--phx-accent); }
+  /* ===== 仪表台 2×2（行1：基本信息+成长 / 行2：外观与装备+健康） ===== */
+  .dash { margin-top: 16px; display: grid; grid-template-columns: 5fr 7fr; gap: 14px; }
+  /* 页签显隐：PMC 专属行随 Scav 隐藏；Scav 卡反向仅在 Scav 页显示 */
+  .window.scav .pmc-only { display: none; }
+  .window:not(.scav) .scav-only { display: none; }
+  /* ===== 底部 dock（缩一号几何，24 稿口径：50/42/19/10） ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35;
+    display: flex; align-items: center; gap: 2px; padding: 5px;
+    background: var(--phx-glass); border-radius: 13px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .dock-logo {
+    width: 30px; height: 30px; border-radius: 8px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 17px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .dock-sep { width: .5px; height: 24px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-width: 50px; height: 42px; border-radius: 9px; text-decoration: none;
+    transition: background .12s;
+  }
+  .dock a svg { width: 19px; height: 19px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 设计说明（供评审，不进入生产代码） ===== */
+  .notes { width: 1180px; margin: 18px auto 0; font-size: 12px; line-height: 1.9; color: var(--phx-text-2); }
+  .notes li { margin: 0 0 10px; }
+  .notes b { color: var(--phx-text); font-weight: 600; }
+  .notes code { font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text); background: var(--phx-fill-tertiary); border-radius: 4px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="window" id="win">
+    <!-- 标题栏：品牌区 + 中部「常去」组（角色不在组内，无选中态）+ 右上三键 -->
+    <div class="titlebar">
+      <div class="tb-brand">
+        <span class="bdot"></span>
+        <span class="word">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="sub">SPT 存档编辑器</span>
+      </div>
+      <div class="tb-recent">
+        <span class="rh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7.5V12l3.5 2"/></svg>常去</span>
+        <span class="tsep"></span>
+        <a class="tb-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>仓库</a>
+        <a class="tb-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>藏身处</a>
+        <a class="tb-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>商人</a>
+      </div>
+      <div class="capbtns">
+        <a><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+        <a><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg></a>
+        <a class="cap-close"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+      </div>
+    </div>
+
+    <!-- 底部 dock：24 稿缩一号几何，角色选中 -->
+    <nav class="dock">
+      <div class="dock-logo">P</div>
+      <div class="dock-sep"></div>
+      <a href="25-home-fill.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span class="lbl">首页</span></a>
+      <a class="on" href="26-character-fill.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span class="lbl">角色</span></a>
+      <a href="05-quests.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span class="lbl">任务</span></a>
+      <a href="04-traders.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="lbl">商人</span></a>
+      <a href="08-hideout.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg><span class="lbl">藏身处</span></a>
+      <a href="09-stash.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span class="lbl">仓库</span></a>
+      <a href="12-presets.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg><span class="lbl">预设</span></a>
+      <a href="14-backup.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="lbl">备份</span></a>
+      <a href="24-account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V6A1.5 1.5 0 0 1 4 4.5z"/><circle cx="9.5" cy="12.4" r="2.2"/><path d="M6.5 18.4c.7-2.2 1.9-3.2 3-3.2s2.3 1 3 3.2"/><path d="M15 10h4"/><path d="M15 13.2h4"/></svg><span class="lbl">账号</span></a>
+      <a href="15-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg><span class="lbl">设置</span></a>
+      <a href="16-about.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="lbl">关于</span></a>
+    </nav>
+
+    <div class="page">
+      <div class="main-head">
+        <div>
+          <div class="large-title">角色信息</div>
+          <div class="head-meta">游戏版本 0.16.1.2 · 档案已加载</div>
+        </div>
+        <div class="head-actions">
+          <div class="seg" id="seg-mode">
+            <button class="on" data-mode="pmc">PMC</button>
+            <button data-mode="scav">Scav</button>
+          </div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="dash">
+            <!-- 基本信息 -->
+            <section class="panel">
+              <div class="panel-head"><span class="t">基本信息</span><span class="n">只读项不可编辑</span></div>
+              <div class="frow">
+                <span class="k">昵称</span>
+                <input class="field" value="Dragoon">
+              </div>
+              <div class="frow pmc-only">
+                <span class="k">阵营</span>
+                <div class="seg mini">
+                  <button>BEAR</button>
+                  <button class="on">USEC</button>
+                </div>
+              </div>
+              <div class="frow pmc-only">
+                <span class="k">角色 ID</span>
+                <span class="read">0251b1f0b8a2d9c41e77a4f3</span>
+                <span class="ro-tag">只读</span>
+              </div>
+              <div class="frow pmc-only">
+                <span class="k">游戏版本</span>
+                <span class="read">0.16.1.2.33565</span>
+                <span class="ro-tag">只读</span>
+              </div>
+              <!-- Scav 卡（新增填充）：仅 Scav 页签显示，补齐左右两栏高度 -->
+              <div class="frow scav-only">
+                <span class="k">账号 ID</span>
+                <span class="read">665c1f8a9b2d4e5f6a7b8c9d</span>
+                <span class="ro-tag">只读</span>
+              </div>
+              <div class="frow scav-only">
+                <span class="k">游戏版本</span>
+                <span class="read">0.16.1.2.33565</span>
+                <span class="ro-tag">只读</span>
+              </div>
+            </section>
+            <!-- 成长 -->
+            <section class="panel">
+              <div class="panel-head"><span class="t">成长</span><span class="n">等级 ↔ 经验联动</span></div>
+              <div class="frow">
+                <span class="k">等级</span>
+                <span style="margin-left:auto;font-family:var(--phx-font-mono);font-size:14px;">42</span>
+                <div class="stepper"><button>−</button><button>+</button></div>
+                <span class="range">1 – 79</span>
+              </div>
+              <div class="frow exp">
+                <span class="k">经验</span>
+                <input class="field" value="6,358,240">
+                <div class="slider">
+                  <div class="track"></div>
+                  <div class="fill" style="width:62%;"></div>
+                  <div class="thumb"></div>
+                </div>
+              </div>
+              <!-- 经验脚注（新增填充）：本级经验区间 + 距下一级差额；满级时整行改为「已达最高等级」 -->
+              <div class="exp-foot">
+                <span>本级 <b>6,240,000 – 6,600,000</b></span>
+                <span>距下一级还差 <b>241,760</b> 经验</span>
+              </div>
+              <div class="hint">经验与等级双向联动（按服务器经验表换算）</div>
+            </section>
+            <section class="panel" id="panel-appearance">
+              <div class="panel-head">外观与装备</div>
+              <div class="frow">
+                <span class="k">语音</span>
+                <button class="fselect"><span>Usec_2</span><span class="cv">▾</span></button>
+              </div>
+              <div class="frow">
+                <span class="k">头型</span>
+                <button class="fselect"><span>头型 3</span><span class="cv">▾</span></button>
+              </div>
+              <div class="frow">
+                <span class="k">口袋</span>
+                <button class="fselect"><span>口袋 · 标准</span><span class="cv">▾</span></button>
+              </div>
+              <div class="sub-head">
+                <span class="st">装备速览</span>
+                <a href="09-stash.html">前往仓库 ›</a>
+              </div>
+              <div class="frow eq">
+                <span class="k">主武器</span>
+                <span class="read" id="eq-weapon">M4A1 5.56x45 突击步枪</span>
+                <span class="ro-tag">只读</span>
+              </div>
+              <div class="frow eq">
+                <span class="k">护甲</span>
+                <span class="read" id="eq-armor">6B43 Zabralo-Sh 防弹背心</span>
+                <span class="ro-tag">只读</span>
+              </div>
+              <div class="frow eq">
+                <span class="k">头盔</span>
+                <span class="read" id="eq-helmet">Ops-Core Fast MT 盔</span>
+                <span class="ro-tag">只读</span>
+              </div>
+            </section>
+            <section class="panel" id="panel-health">
+              <div class="panel-head">健康状态</div>
+              <div class="hgrid">
+                <div class="hcell"><span class="hn">头部</span><span class="hp"><input value="85"><span class="sep">/</span><input value="85"></span><span class="bar"><i class="fill" style="width:100%;"></i></span></div>
+                <div class="hcell"><span class="hn">胸腔</span><span class="hp"><input value="76"><span class="sep">/</span><input value="85"></span><span class="bar"><i class="fill" style="width:89%;"></i></span></div>
+                <div class="hcell"><span class="hn">胃部</span><span class="hp"><input value="85"><span class="sep">/</span><input value="85"></span><span class="bar"><i class="fill" style="width:100%;"></i></span></div>
+                <div class="hcell"><span class="hn">右手</span><span class="hp"><input value="44"><span class="sep">/</span><input value="60"></span><span class="bar"><i class="fill" style="width:73%;"></i></span></div>
+                <div class="hcell"><span class="hn">左手</span><span class="hp"><input value="60"><span class="sep">/</span><input value="60"></span><span class="bar"><i class="fill" style="width:100%;"></i></span></div>
+                <div class="hcell"><span class="hn">右腿</span><span class="hp"><input value="35"><span class="sep">/</span><input value="70"></span><span class="bar"><i class="fill" style="width:50%;"></i></span></div>
+                <div class="hcell"><span class="hn">左腿</span><span class="hp"><input value="70"><span class="sep">/</span><input value="70"></span><span class="bar"><i class="fill" style="width:100%;"></i></span></div>
+                <div class="hcell"><span class="hn">水分</span><span class="hp"><input value="62"><span class="sep">/</span><input value="100"></span><span class="bar"><i class="fill" style="width:62%;"></i></span></div>
+                <div class="hcell"><span class="hn">能量</span><span class="hp"><input value="88"><span class="sep">/</span><input value="100"></span><span class="bar"><i class="fill" style="width:88%;"></i></span></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <ol>
+      <li><b>本稿是什么</b>：角色页三处填充对照稿，基于 <code>03-character.html</code> 只填不改——①成长卡经验条下方新增脚注条；②外观与装备卡口袋行下方新增「装备速览」组；③Scav 页签下基本信息卡补「账号 ID」「游戏版本」两行（PMC 下隐藏）。</li>
+      <li><b>成长脚注</b>：左右两段按服务器经验表实算——「本级 6,240,000 – 6,600,000」为当前级经验区间，「距下一级还差 241,760 经验」为下级门槛减当前值；满级时整行改显示「已达最高等级」。</li>
+      <li><b>装备速览</b>：展示主武器 / 护甲 / 头盔三格，随 PMC / Scav 页签切换实读对应角色装备；生产需在角色页新增 <code>phxStash.load(id)</code> 调用（角色页目前不加载仓库），数据来自仓库装备槽。</li>
+      <li><b>Scav 卡两行</b>：账号 ID 取档案 <code>meta.aid</code>，游戏版本取 <code>meta.gameVersion</code>；账号 ID 与 PMC 角色 ID 是不同字段（示意值 665c…c9d 仅供视觉参照）。</li>
+      <li><b>窗口外观</b>：Gen B 视觉基线（表面分层 + 44px 标题栏 + 底部 dock 缩一号），舞台 1180×820，与首页稿 <code>25-home-fill.html</code> 同基线。</li>
+      <li><b>示意数据</b>：健康九格与装备速览均为示意值，仅演示排布；生产按真实档案渲染。</li>
+      <li><b>待拍板</b>：①速览三格选哪几格（暂定主武器 / 护甲 / 头盔）；②「前往仓库 ›」入口是否保留在速览组标题右侧。</li>
+    </ol>
+  </div>
+
+  <script>
+    (function () {
+      function fit() {
+        var stage = document.querySelector('.stage');
+        if (!stage) return;
+        var s = Math.min(window.innerWidth / 1180, (window.innerHeight - 40) / 820);
+        stage.style.transform = 'scale(' + s + ')';
+        stage.style.transformOrigin = 'top center';
+        document.body.style.height = 820 * s + 60 + 'px';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+
+      var EQ = {
+        pmc: ['M4A1 5.56x45 突击步枪', '6B43 Zabralo-Sh 防弹背心', 'Ops-Core Fast MT 盔'],
+        scav: ['MP-153 12x70 半自动霰弹枪', 'PACA 软质防弹背心', 'SSh-68 钢盔']
+      };
+      var seg = document.getElementById('seg-mode');
+      var win = document.getElementById('win');
+      var ids = ['eq-weapon', 'eq-armor', 'eq-helmet'];
+      if (seg) {
+        seg.addEventListener('click', function (e) {
+          var btn = e.target.closest('button');
+          if (!btn) return;
+          seg.querySelectorAll('button').forEach(function (b) { b.classList.remove('on'); });
+          btn.classList.add('on');
+          var scav = btn.dataset.mode === 'scav';
+          if (win) win.classList.toggle('scav', scav);
+          ids.forEach(function (id, i) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = EQ[scav ? 'scav' : 'pmc'][i];
+          });
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

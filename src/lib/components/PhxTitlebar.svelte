@@ -26,6 +26,36 @@
       .filter((n): n is (typeof NAV)[number] => n !== undefined)
   )
 
+  /* 常去组液体滑块（与 dock 同款口径）：测激活 tab 的 offsetLeft/Width，路由切换时滑动过渡 */
+  let grp = $state<HTMLElement>()
+  let tabs: HTMLAnchorElement[] = []
+  /** 激活 tab 下标；-1 = 当前页不在常去组 */
+  const onTab = $derived(often.findIndex((n) => navIndex(n.path) === onIdx))
+  /** 滑块几何：null = 未命中或未首测（不渲染，插入即终态，避免从 0 滑入的跳变） */
+  let tind = $state<{ left: number; width: number } | null>(null)
+
+  function measureTab(): void {
+    const el = onTab >= 0 ? tabs[onTab] : undefined
+    if (!el) {
+      tind = null
+      return
+    }
+    tind = { left: el.offsetLeft, width: el.offsetWidth }
+  }
+
+  // 激活项 / 常去序列变化（路由切换、项增删换序）时重测定位（onTab 读取自动追踪）
+  $effect(() => {
+    measureTab()
+  })
+
+  // 组尺寸变化（窗口缩放等）时防止滑块漂移
+  $effect(() => {
+    if (!grp) return
+    const ro = new ResizeObserver(measureTab)
+    ro.observe(grp)
+    return () => ro.disconnect()
+  })
+
   /** 顶栏 tab 切页音效：仅路由真正变化时响；同时打「顶栏点入」标记（打分权重更高） */
   function goNav(target: string): void {
     if (page.url.pathname !== target) {
@@ -34,8 +64,10 @@
     }
   }
 
-  /** 铃铛未读点：有任一未读公告时亮起（关闭面板即全量标记已读，点随之熄灭） */
-  const hasUnread = $derived(announcements.list.some((a) => !announcements.readIds.has(a.id)))
+  /** 铃铛未读点：有任一未读公告/小贴士时亮起；推广永不点亮（关闭面板即全量标记已读，点随之熄灭） */
+  const hasUnread = $derived(
+    announcements.list.some((a) => a.kind !== 'sponsor' && !announcements.readIds.has(a.id))
+  )
 
   $effect(() => {
     let unlisten: (() => void) | null = null
@@ -74,7 +106,14 @@
        后者只有当前页一项时没有跳转价值，只会重复 dock。 -->
   {#if !bare && often.length > 1}
     <nav class="tnav" aria-label={t('nav.often')}>
-      <div class="grp">
+      <div class="grp" bind:this={grp}>
+        {#if tind}
+          <div
+            class="tind"
+            style:transform={`translateX(${tind.left}px)`}
+            style:width={`${tind.width}px`}
+          ></div>
+        {/if}
         <span class="grp-cap" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v5h5" />
@@ -84,12 +123,13 @@
           <span class="grp-txt">{t('nav.often')}</span>
         </span>
         <span class="grp-sep" aria-hidden="true"></span>
-        {#each often as item (item.path)}
+        {#each often as item, i (item.path)}
           <a
             class="ttab"
             class:on={navIndex(item.path) === onIdx}
             href={resolve(item.path)}
             onclick={() => goNav(item.path)}
+            bind:this={tabs[i]}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
               {#each item.icon as d (d)}<path d={d} />{/each}
@@ -187,7 +227,8 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 40px;
+    /* 44px（2026-10-22 用户反馈「常去组贴顶太近」）：组高 32px 居中后上下各 6px */
+    height: 44px;
     z-index: var(--phx-z-header);
     display: flex;
     align-items: center;
@@ -239,7 +280,7 @@
     left: 0;
     right: 0;
     top: 0;
-    height: 40px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -247,11 +288,12 @@
   }
 
   .tnav .grp {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 2px;
     padding: 2px;
-    border-radius: 9px;
+    border-radius: 10px;
     background: var(--phx-fill-tertiary);
     box-shadow: 0 0 0 0.5px var(--phx-sep);
     pointer-events: auto;
@@ -288,9 +330,9 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 24px;
-    padding: 0 9px;
-    border-radius: 7px;
+    height: 28px;
+    padding: 0 11px;
+    border-radius: 8px;
     font-size: 11px;
     font-weight: 500;
     color: var(--phx-text-2);
@@ -302,8 +344,8 @@
   }
 
   .ttab svg {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
     flex: none;
     transition: color var(--phx-dur-fast) var(--phx-ease-out);
   }
@@ -313,14 +355,27 @@
     color: var(--phx-text);
   }
 
+  /* 选中胶囊底色由 .tind 滑块承担（随路由滑动），tab 本体只管文字与图标态 */
   .ttab.on {
-    background: var(--phx-fill-secondary);
     color: var(--phx-text);
     font-weight: 600;
   }
 
   .ttab.on svg {
     color: var(--phx-accent);
+  }
+
+  .tind {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 0;
+    border-radius: 8px;
+    background: var(--phx-fill-secondary);
+    pointer-events: none;
+    transition:
+      transform var(--phx-dur-norm) var(--phx-ease-emphasized),
+      width var(--phx-dur-norm) var(--phx-ease-emphasized);
   }
 
   .capbtns {

@@ -30,6 +30,7 @@
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
   import PhxIssueSheet from '$lib/components/PhxIssueSheet.svelte'
+  import PhxHomeFeed from '$lib/components/PhxHomeFeed.svelte'
 
   /** 骨架镜像占位行序号（boot 层内部件用） */
   const skRows = (n: number) => [...Array(n).keys()]
@@ -53,6 +54,7 @@
     encyclopedia:
       '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>',
     inspect: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+    dataDir: '<path d="M3.5 7.5c0-1.1.9-2 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7.5Z"/>',
     issues: '<path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4M12 16.8v.2"/>',
     backup:
       '<rect x="4" y="5" width="16" height="4" rx="1"/><path d="M6 9v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9"/><path d="M12 12v4M10 14l2 2 2-2"/>',
@@ -107,7 +109,8 @@
         { key: 'stash', to: '/stash' },
         { key: 'pockets', soon: true },
         { key: 'encyclopedia', soon: true },
-        { key: 'inspect', to: '/inspect' }
+        { key: 'inspect', to: '/inspect' },
+        { key: 'dataDir' }
       ]
     },
     {
@@ -194,7 +197,9 @@
             { cls: 'q-lock', w: (lock / total) * 100, n: lock }
           ].filter((s) => s.n > 0)
         : []
-    return { total, done, fin, run, ava, lock, segs }
+    // 可交付引导行：最早一条可交付任务名（rows 顺序即存档内顺序）
+    const finFirst = rows.find((r) => r.status === 'AvailableForFinish')?.questName ?? ''
+    return { total, done, fin, run, ava, lock, segs, finFirst }
   })
 
   // 藏身处前 6 行（pips 预计算：'on' 已点亮 / 'max' 满级 / '' 未点亮）
@@ -216,15 +221,24 @@
       done: hideout.areas.filter((a) => a.maxLevel > 0 && a.level >= a.maxLevel).length
     }
   })
+  // 下一处可升级：第一个未满级区域名（t-foot 右项引导）
+  const hideoutNext = $derived.by(() => {
+    if (!hideout) return ''
+    return hideout.areas.find((a) => a.maxLevel > 0 && a.level < a.maxLevel)?.name ?? ''
+  })
 
-  // 仓库（02b 稿注 ③：无上限数据，不画占用率）
+  // 仓库（02b 稿注 ③：无上限数据，不画占用率；25 稿补身上装备/口袋两行）
   const stashStats = $derived.by(() => {
     if (!stash) return null
     return {
       count: stash.items.length,
       bonus: stash.bonusRows,
       weapons: stash.items.filter((i) => i.isWeapon).length,
-      modded: stash.items.filter((i) => i.modded).length
+      modded: stash.items.filter((i) => i.modded).length,
+      // 身上装备：装备槽非空计数 / 总槽数
+      equip: stash.equipment.filter((e) => e.item).length,
+      equipTotal: stash.equipment.length,
+      pockets: stash.pockets.length
     }
   })
 
@@ -248,7 +262,7 @@
     }
   })
 
-  // 技能 top3（过滤 bot 内部技能；cap 防除零）
+  // 技能 top4（25 稿：top3 → top4；过滤 bot 内部技能；cap 防除零）
   const skillRows = $derived.by(() => {
     if (!skills) return []
     return skills.pmc.common
@@ -258,7 +272,7 @@
         pct: s.cap > 0 ? Math.min(100, Math.round((s.progress / s.cap) * 100)) : 0
       }))
       .sort((a, b) => b.pct - a.pct)
-      .slice(0, 3)
+      .slice(0, 4)
   })
   const skillAvg = $derived.by(() => {
     if (!skills) return null
@@ -294,6 +308,8 @@
       }
     })
   })
+  // 健康 t-foot 异常摘要：血量/水分/能量偏低的部位（25 稿新增）
+  const hpIssues = $derived(hpRows.filter((h) => h.cls !== ''))
 
   async function loadTiles(): Promise<void> {
     const id = currentId
@@ -416,6 +432,11 @@
       toast.warning(t('home.toast.soon'))
       return
     }
+    // 数据目录无落地屏：直接打开系统资源管理器（能力同设置页）
+    if (entry.key === 'dataDir') {
+      void phxSettings.openDataDir().then(() => toast.success(t('settings.toast.opened')))
+      return
+    }
     if (entry.to) void goto(resolve(entry.to))
   }
 
@@ -464,6 +485,12 @@
           </div>
           <i class="phx-sk hr-badge"></i>
         </section>
+        <!-- 动态条（span4）：34px 窄行占位 -->
+        <div class="feed sk-feed">
+          <i class="phx-sk slim" style="width:34px;height:18px"></i>
+          <i class="phx-sk slim grow"></i>
+          <i class="phx-sk slim" style="width:44px"></i>
+        </div>
         <!-- 任务（span2）：大数 + 五段分段条 + 图例 -->
         <section class="tile span2">
           <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
@@ -497,11 +524,13 @@
           {/each}
           <div class="t-foot"><i class="phx-sk slim" style="width:70px"></i><i class="phx-sk slim" style="width:44px"></i></div>
         </section>
-        <!-- 仓库：总数 + 三行统计 -->
+        <!-- 仓库：总数 + 五行统计 -->
         <section class="tile">
           <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
           <div class="s-big"><i class="phx-sk" style="width:64px"></i><i class="phx-sk slim" style="width:22px"></i></div>
           <div class="s-rows">
+            <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
+            <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
             <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
             <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
             <div class="s-row"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:40px"></i></div>
@@ -521,10 +550,10 @@
           {/each}
           <div class="t-foot"><i class="phx-sk slim" style="width:70px"></i><i class="phx-sk slim" style="width:44px"></i></div>
         </section>
-        <!-- 技能：top3 进度条 -->
+        <!-- 技能：top4 进度条 -->
         <section class="tile">
           <div class="t-head"><i class="phx-sk ic"></i><i class="phx-sk slim" style="width:64px"></i></div>
-          {#each skRows(3) as k (k)}
+          {#each skRows(4) as k (k)}
             <div class="sk-row">
               <div class="l"><i class="phx-sk slim grow"></i><i class="phx-sk slim" style="width:34px"></i></div>
               <div class="sk-bar"><i class="phx-sk slot" style="width:68%"></i></div>
@@ -548,7 +577,7 @@
         <!-- 入口（span4）：四组 2×2 chip -->
         <section class="tile entries">
           <div class="en-grid">
-            {#each [6, 5, 3, 3] as count, g (g)}
+            {#each [6, 6, 3, 3] as count, g (g)}
               <div class="en-group">
                 <div class="en-title"><i class="phx-sk slim" style="width:76px"></i></div>
                 <div class="en-chips">
@@ -616,6 +645,9 @@
         {/if}
       </section>
 
+      <!-- 动态条（25 稿，span4）：轮播 公告/小贴士/赞助；全空自动不渲染 -->
+      <PhxHomeFeed />
+
       <!-- 任务（span2）：五段分段条（前端口径聚合） -->
       <button type="button" class="tile span2" onclick={() => void goto(resolve('/quests'))}>
         <div class="t-head">
@@ -640,6 +672,13 @@
             <span><i class="q-ava"></i>{t('quests.st.AvailableForStart')} {qData.ava}</span>
             <span><i class="q-lock"></i>{t('quests.st.Locked')} {qData.lock}</span>
           </div>
+          {#if qData.fin > 0 && qData.finFirst}
+            <div class="q-next">
+              <span class="tag">{t('home.tile.qfin', { n: qData.fin })}</span>
+              <span class="txt">{t('home.tile.qnext')}<b>{qData.finFirst}</b></span>
+              <span class="arr">›</span>
+            </div>
+          {/if}
         {:else}
           <div class="t-none">—</div>
         {/if}
@@ -665,15 +704,17 @@
             </div>
           {/each}
           <div class="t-foot">
-            <span class:ok={hideoutMaxed.done > 0}>{t('home.maxed')}</span>
-            <b class:ok={hideoutMaxed.done > 0}>{hideoutMaxed.done} / {hideoutMaxed.total}</b>
+            <span><span class:ok={hideoutMaxed.done > 0}>{t('home.maxed')}</span> <b class:ok={hideoutMaxed.done > 0}>{hideoutMaxed.done} / {hideoutMaxed.total}</b></span>
+            {#if hideoutNext}
+              <span>{t('home.hideout.next')} <b>{hideoutNext}</b></span>
+            {/if}
           </div>
         {:else}
           <div class="t-none">—</div>
         {/if}
       </button>
 
-      <!-- 仓库：总数 + 三行统计（02b 稿注 ③：无上限数据，不画占用率） -->
+      <!-- 仓库：总数 + 五行统计（02b 稿注 ③：无上限数据，不画占用率；25 稿补身上装备/口袋） -->
       <button type="button" class="tile" onclick={() => void goto(resolve('/stash'))}>
         <div class="t-head">
           <span class="t-ic"><PhxIcon markup={ICON.stash} /></span>
@@ -689,6 +730,8 @@
             <div class="s-row"><span>{t('home.stash.bonus')}</span><b class="hl">+{stashStats.bonus}</b></div>
             <div class="s-row"><span>{t('home.stash.weapons')}</span><b>{stashStats.weapons}</b></div>
             <div class="s-row"><span>{t('home.stash.modded')}</span><b>{stashStats.modded}</b></div>
+            <div class="s-row"><span>{t('home.stash.equip')}</span><b>{stashStats.equip} / {stashStats.equipTotal}</b></div>
+            <div class="s-row"><span>{t('home.stash.pockets')}</span><b>{stashStats.pockets} {t('home.stash.unitShort')}</b></div>
           </div>
         {:else}
           <div class="t-none">—</div>
@@ -763,6 +806,12 @@
               </div>
             {/each}
           </div>
+          {#if hpIssues.length > 0}
+            <div class="t-foot">
+              <span class="pair"><i class="wdot"></i>{t('home.health.low', { n: hpIssues.length })}</span>
+              <b>{hpIssues.map((h) => `${t(h.key)} ${h.cur}/${h.max}`).join(' · ')}</b>
+            </div>
+          {/if}
         {:else}
           <div class="t-none">—</div>
         {/if}
@@ -1144,6 +1193,45 @@
     border-radius: 2px;
   }
 
+  /* 可交付引导行（25 稿新增填充） */
+  .q-next {
+    margin-top: 9px;
+    padding-top: 7px;
+    border-top: 0.5px solid var(--phx-sep);
+    font-size: 11px;
+    color: var(--phx-text-2);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .q-next .tag {
+    flex: none;
+    height: 17px;
+    padding: 0 7px;
+    border-radius: 5px;
+    background: var(--phx-accent-dim);
+    color: var(--phx-accent);
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+  }
+  .q-next .txt {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .q-next .txt b {
+    color: var(--phx-text);
+    font-weight: 600;
+  }
+  .q-next .arr {
+    flex: none;
+    color: var(--phx-text-3);
+  }
+
   /* —— 藏身处/商人行 —— */
   .h-row {
     height: 23px;
@@ -1196,6 +1284,19 @@
   }
   .t-foot b.ok {
     color: var(--phx-green);
+  }
+  /* 异常摘要行（25 稿新增填充）：偏低计数圆点 + 明细 */
+  .t-foot .pair {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .wdot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--phx-warn);
+    flex: none;
   }
   .t-foot span.ok {
     color: var(--phx-green);
@@ -1337,6 +1438,18 @@
     grid-column: span 4;
     cursor: default;
   }
+  /* 动态条骨架占位（34px 窄行，镜像 PhxHomeFeed 几何） */
+  .sk-feed {
+    grid-column: span 4;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--phx-surface);
+    box-shadow: inset 0 0 0 0.5px var(--phx-sep);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+  }
   .en-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1362,10 +1475,13 @@
     color: var(--phx-text);
     font-size: 12px;
     font-family: inherit;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
+    /* 25 稿：chip 等宽 3/行铺满（组内 6 项 = 2 行，3 项 = 1 行） */
+    flex: 1 1 calc(33.33% - 3px);
+    white-space: nowrap;
   }
   .chip:hover {
     background: var(--phx-fill-tertiary);

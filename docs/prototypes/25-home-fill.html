@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix-DRX 稿图 25 · 首页便当 · 空白填充 + 动态条</title>
+<!--
+  25 稿图说明（2026-10-22 用户裁决：便当格空白空虚 → 照单全收填充 + 公告/赞助动态条）
+  · 基于 02b 便当结构，只做填空与新增，不改既有元素；token 全部 Gen B，无新色
+  · chrome 按视觉基线 §六现行规格：44px 悬浮标题栏 + 品牌区 + 中部「常去」组 + dock 缩一号 11 项（稿图 24 几何）
+  · 新增动态条（feed）：hero 下方 span4 窄行，轮播 公告 / 小贴士 / 赞助；sponsor 带黄「推广」角标
+  · 赞助红线见页脚稿注 4
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    /* Gen B 基座，与 src/app.css 现行值一致 */
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-fill-secondary: rgba(255,255,255,.14);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.1);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  body {
+    min-height: 100vh;
+    background: #060608;
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 64px;
+  }
+  .stage { width: 1180px; height: 980px; position: relative; flex: none; }
+  .window {
+    position: absolute; inset: 0;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+  }
+  /* ===== 44px 悬浮标题栏：品牌区 + 中部「常去」组 + 右上三键（视觉基线 §六） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 30;
+    display: flex; align-items: center; padding-left: 18px;
+  }
+  .tb-brand { display: flex; align-items: center; gap: 10px; }
+  .tb-brand .bdot { width: 4px; height: 4px; border-radius: 1px; background: var(--phx-accent); }
+  .tb-brand .word { font-size: 11.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--phx-text); }
+  .tb-brand .vsep { width: 1px; height: 14px; background: var(--phx-sep-strong); }
+  .tb-brand .sub { font-size: 11px; color: var(--phx-text-2); }
+  .tb-recent {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 2px; padding: 2px;
+    background: var(--phx-fill-tertiary); border-radius: 10px;
+    box-shadow: inset 0 0 0 .5px var(--phx-sep);
+  }
+  .tb-recent .rh { display: flex; align-items: center; gap: 5px; padding: 0 7px 0 6px; font-size: 10px; color: var(--phx-text-3); }
+  .tb-recent .rh svg { width: 12px; height: 12px; }
+  .tb-recent .tsep { width: .5px; height: 16px; background: var(--phx-sep); margin: 0 2px; }
+  .tb-tab {
+    display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px;
+    border-radius: 8px; font-size: 11px; color: var(--phx-text-2); cursor: pointer;
+    transition: background .12s;
+  }
+  .tb-tab svg { width: 14px; height: 14px; }
+  .tb-tab:hover { background: var(--phx-fill-quaternary); }
+  .tb-tab.on { background: var(--phx-fill-secondary); color: var(--phx-text); font-weight: 600; }
+  .tb-tab.on svg { color: var(--phx-accent); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 页面骨架（稿图一屏展示：scroll 底 padding 收窄；生产版 104px） ===== */
+  .page { position: absolute; inset: 44px 0 0; display: flex; flex-direction: column; }
+  .main-head {
+    padding: 18px 24px 0;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  }
+  .large-title { font-size: 26px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { margin-top: 5px; font-size: 12px; color: var(--phx-text-2); }
+  .head-actions { display: flex; gap: 8px; padding-bottom: 4px; }
+  .btn {
+    height: 32px; padding: 0 15px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .btn.primary { background: var(--phx-accent); color: #fff; }
+  .btn.secondary { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .scroll { flex: 1; min-height: 0; overflow: hidden; padding: 0 24px 20px; }
+  /* ===== 便当网格 ===== */
+  .bento { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .span2 { grid-column: span 2; }
+  .tile {
+    background: var(--phx-surface-2);
+    border-radius: var(--phx-r-card);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    padding: 11px 14px 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .tile:hover { filter: brightness(1.12); }
+  .t-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .t-ic { width: 24px; height: 24px; border-radius: 7px; background: var(--phx-accent-dim); color: var(--phx-accent);
+          display: flex; align-items: center; justify-content: center; flex: none; }
+  .t-ic svg { width: 13px; height: 13px; }
+  .t-name { font-size: 13px; font-weight: 600; }
+  .t-chev { margin-left: auto; color: var(--phx-text-3); font-size: 15px; line-height: 1; }
+  .t-num { font-family: var(--phx-font-mono); font-weight: 600; letter-spacing: -.3px; }
+  /* ===== hero 档案条（span4） ===== */
+  .hero { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: default; }
+  .hero:hover { background: var(--phx-surface-2); }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%; background: var(--phx-accent-dim); color: var(--phx-accent);
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .avatar svg { width: 19px; height: 19px; }
+  .hr-label { font-size: 12px; color: var(--phx-text-2); }
+  .hr-id { margin-top: 3px; font-family: var(--phx-font-mono); font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  .hr-id .dd { color: var(--phx-text-3); font-size: 11px; margin-left: 4px; }
+  .hr-lvl { font-size: 13px; color: var(--phx-text-2); margin-left: 6px; }
+  .hero-stats { display: flex; gap: 0; margin-left: 18px; padding-left: 18px; border-left: .5px solid var(--phx-sep-strong); flex: 1; }
+  .stat { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .stat .k { font-size: 11px; color: var(--phx-text-2); }
+  .stat .v { font-family: var(--phx-font-mono); font-size: 16px; font-weight: 600; }
+  .hero-badge {
+    flex: none; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
+    border-radius: 15px; background: var(--phx-danger-bg); color: var(--phx-danger);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .hero-badge.ok { background: var(--phx-green-dim); color: var(--phx-green); }
+  /* ===== 动态条（新增，span4）：轮播 公告/小贴士/赞助 ===== */
+  .feed {
+    display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px;
+    border-radius: 10px; background: var(--phx-surface);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep);
+    cursor: pointer;
+  }
+  .feed:hover { background: var(--phx-surface-2); }
+  .feed-tag { flex: none; height: 18px; padding: 0 7px; border-radius: 5px; font-size: 10px; font-weight: 700; display: flex; align-items: center; }
+  .feed-tag.up { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .feed-tag.tip { background: var(--phx-green-dim); color: var(--phx-green); }
+  .feed-tag.sp { background: var(--phx-warn-bg); color: var(--phx-warn); box-shadow: inset 0 0 0 .5px var(--phx-warn-bd); }
+  .feed-text { flex: 1; min-width: 0; font-size: 12px; color: var(--phx-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .feed-text b { color: var(--phx-text); font-weight: 600; }
+  .feed-dots { flex: none; display: flex; gap: 4px; }
+  .feed-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--phx-fill-quaternary); }
+  .feed-dots i.on { background: var(--phx-text-3); }
+  .feed-arr { flex: none; color: var(--phx-text-3); font-size: 14px; line-height: 1; }
+  /* ===== 任务 tile：五段状态分段条 + 可交付引导行（新增填充） ===== */
+  .q-big { display: flex; align-items: baseline; gap: 8px; }
+  .q-big .n { font-size: 30px; color: var(--phx-text); }
+  .q-big .d { font-size: 16px; color: var(--phx-text-3); }
+  .q-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 10px 0 9px; gap: 2px; }
+  .q-bar i { display: block; height: 100%; }
+  /* 五段颜色映射（全现有 token）：已完成=green 可交付=accent 进行中=accent 45% 可开始=fill-secondary 未解锁=fill-tertiary */
+  .q-done { background: var(--phx-green); }
+  .q-fin { background: var(--phx-accent); }
+  .q-run { background: rgba(0,145,255,.45); }
+  .q-ava { background: var(--phx-fill-secondary); }
+  .q-lock { background: var(--phx-fill-tertiary); }
+  .q-legend { display: flex; gap: 14px; }
+  .q-legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--phx-text-2); }
+  .q-legend b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .q-legend i { width: 6px; height: 6px; border-radius: 2px; }
+  .q-next { margin-top: 9px; padding-top: 7px; border-top: .5px solid var(--phx-sep); font-size: 11px; color: var(--phx-text-2); display: flex; align-items: center; gap: 7px; }
+  .q-next .tag { flex: none; height: 17px; padding: 0 7px; border-radius: 5px; background: var(--phx-accent-dim); color: var(--phx-accent); font-size: 10px; font-weight: 700; display: flex; align-items: center; }
+  .q-next .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .q-next .txt b { color: var(--phx-text); font-weight: 600; }
+  .q-next .arr { flex: none; color: var(--phx-text-3); }
+  /* ===== 藏身处 / 商人 tile：等级 pips ===== */
+  .h-row { display: flex; align-items: center; gap: 8px; height: 23px; }
+  .h-row .n { font-size: 12px; color: var(--phx-text); width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pips { display: flex; gap: 3px; }
+  .pips i { width: 14px; height: 5px; border-radius: 2.5px; background: var(--phx-fill-quaternary); }
+  .pips i.on { background: var(--phx-accent); }
+  .pips i.max { background: var(--phx-green); }
+  .h-row .lv { margin-left: auto; font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text-2); }
+  .tr-row { display: flex; align-items: center; gap: 8px; height: 23px; }
+  .tr-row .n { font-size: 12px; width: 70px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tr-row .lv { margin-left: auto; font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text-2); }
+  .t-foot { margin-top: 7px; padding-top: 6px; border-top: .5px solid var(--phx-sep); font-size: 11px; color: var(--phx-text-2); display: flex; justify-content: space-between; align-items: center; }
+  .t-foot b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .t-foot b.ok { color: var(--phx-green); }
+  .t-foot .pair { display: flex; align-items: center; gap: 6px; }
+  .wdot { width: 6px; height: 6px; border-radius: 50%; background: var(--phx-warn); flex: none; }
+  /* ===== 仓库 tile：真实指标堆叠（补身上装备 / 口袋两行） ===== */
+  .s-big { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+  .s-big .n { font-size: 30px; }
+  .s-big .u { font-size: 12px; color: var(--phx-text-2); }
+  .s-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+  .s-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--phx-text-2); }
+  .s-row b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text); }
+  .s-row b.hl { color: var(--phx-accent); }
+  /* ===== 技能 tile：top4 进度条 ===== */
+  .sk-row { margin-top: 7px; }
+  .sk-row:first-of-type { margin-top: 2px; }
+  .sk-row .l { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .sk-row .l b { font-family: var(--phx-font-mono); font-weight: 600; color: var(--phx-text-2); }
+  .sk-bar { height: 6px; border-radius: 3px; background: var(--phx-fill-quaternary); overflow: hidden; }
+  .sk-bar i { display: block; height: 100%; border-radius: 3px; background: var(--phx-accent); }
+  /* ===== 健康 tile：部位迷你血条 + 异常摘要行（新增填充） ===== */
+  .hp-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 6px; }
+  .hp-row { display: flex; align-items: center; gap: 7px; }
+  .hp-row .n { font-size: 11px; color: var(--phx-text-2); width: 30px; flex: none; }
+  .hp-bar { flex: 1; height: 5px; border-radius: 2.5px; background: var(--phx-fill-quaternary); overflow: hidden; }
+  .hp-bar i { display: block; height: 100%; border-radius: 2.5px; background: var(--phx-green); }
+  .hp-bar i.warn { background: var(--phx-warn); }
+  .hp-bar i.bad { background: var(--phx-danger); }
+  .hp-row .v { font-family: var(--phx-font-mono); font-size: 10px; color: var(--phx-text-2); width: 44px; text-align: right; flex: none; }
+  /* ===== 全部入口：四组紧凑 chip（等宽 3/行铺满，填充） ===== */
+  .entries { cursor: default; }
+  .en-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; row-gap: 4px; }
+  .en-group { display: flex; flex-direction: column; gap: 2px; }
+  .en-title { font-size: 11px; color: var(--phx-text-2); padding: 3px 0 2px; }
+  .en-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+    flex: 1 1 calc(33.33% - 3px); white-space: nowrap;
+    border: none; border-radius: 13px; background: transparent; color: var(--phx-text);
+    font-size: 12px; font-family: inherit; cursor: pointer;
+  }
+  .chip:hover { background: var(--phx-fill-quaternary); }
+  .chip svg { width: 13px; height: 13px; color: var(--phx-text-2); flex: none; }
+  .chip .soon { font-size: 9px; color: var(--phx-text-3); border: .5px solid var(--phx-sep-strong); border-radius: 6px; padding: 1px 4px; }
+  .chip .cnt { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--phx-danger); color: #fff;
+               font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  /* ===== 底部 dock（缩一号几何，24 稿口径：50/42/19/10） ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35;
+    display: flex; align-items: center; gap: 2px; padding: 5px;
+    background: var(--phx-glass); border-radius: 13px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .dock-logo {
+    width: 30px; height: 30px; border-radius: 8px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 17px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .dock-sep { width: .5px; height: 24px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-width: 50px; height: 42px; border-radius: 9px; text-decoration: none;
+    transition: background .12s;
+  }
+  .dock a svg { width: 19px; height: 19px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="window" id="win">
+    <!-- 标题栏：品牌区 + 中部「常去」组（首页不在组内，无选中态）+ 右上三键 -->
+    <div class="titlebar">
+      <div class="tb-brand">
+        <span class="bdot"></span>
+        <span class="word">Phoenix</span>
+        <span class="vsep"></span>
+        <span class="sub">SPT 存档编辑器</span>
+      </div>
+      <div class="tb-recent">
+        <span class="rh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7.5V12l3.5 2"/></svg>常去</span>
+        <span class="tsep"></span>
+        <a class="tb-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>仓库</a>
+        <a class="tb-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>藏身处</a>
+        <a class="tb-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>商人</a>
+      </div>
+      <div class="capbtns">
+        <a><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+        <a><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg></a>
+        <a class="cap-close"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="main-head">
+        <div>
+          <div class="large-title">首页</div>
+          <div class="head-meta">游戏版本 0.16.1.2 · 档案已加载</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn secondary">返回服务器选择</button>
+          <button class="btn primary">保存修改</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="bento">
+          <!-- hero 档案条（span4）：与角色页对齐「等级 42 · USEC」 -->
+          <div class="tile hero" style="grid-column: span 4;">
+            <div class="avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg></div>
+            <div>
+              <div class="hr-label">当前档案</div>
+              <div class="hr-id">mock-usec<span class="dd">⌄</span></div>
+            </div>
+            <div class="hr-lvl">等级 42 · USEC</div>
+            <div class="hero-stats">
+              <div class="stat"><div class="k">卢布 ₽</div><div class="v">8,240,000</div></div>
+              <div class="stat"><div class="k">美元 $</div><div class="v">17,750</div></div>
+              <div class="stat"><div class="k">欧元 €</div><div class="v">3,200</div></div>
+            </div>
+            <div class="hero-badge"><span class="dot"></span>3 项待处理</div>
+          </div>
+
+          <!-- 动态条（新增，span4）：轮播 公告→小贴士→赞助，当前展示第 3 条（赞助示意） -->
+          <div class="feed" style="grid-column: span 4;">
+            <span class="feed-tag sp">推广</span>
+            <span class="feed-text">由 <b>「信标通讯 Beacon」</b> 赞助 —— SPT 4.1 兼容模组合集已更新，前往了解</span>
+            <span class="feed-dots"><i></i><i></i><i class="on"></i></span>
+            <span class="feed-arr">›</span>
+          </div>
+
+          <!-- 任务 tile（span2）：五段条 + 底部可交付引导行（新增填充） -->
+          <div class="tile span2">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="m9.5 13 2 2 3.5-3.5"/></svg></span>
+              <span class="t-name">任务</span><span class="t-chev">›</span>
+            </div>
+            <div class="q-big"><span class="t-num n">42</span><span class="d">/ 85 已完成</span></div>
+            <div class="q-bar">
+              <i class="q-done" style="width: 49%"></i>
+              <i class="q-fin" style="width: 4%"></i>
+              <i class="q-run" style="width: 14%"></i>
+              <i class="q-ava" style="width: 21%"></i>
+              <i class="q-lock" style="width: 12%"></i>
+            </div>
+            <div class="q-legend">
+              <span><i class="q-done"></i>已完成 <b>42</b></span>
+              <span><i class="q-fin"></i>可交付 <b>3</b></span>
+              <span><i class="q-run"></i>进行中 <b>12</b></span>
+              <span><i class="q-ava"></i>可开始 <b>18</b></span>
+              <span><i class="q-lock"></i>未解锁 <b>10</b></span>
+            </div>
+            <div class="q-next"><span class="tag">可交付 3</span><span class="txt">最近的是<b>《供应商 —— 第一部分》</b></span><span class="arr">›</span></div>
+          </div>
+
+          <!-- 藏身处 tile：6 行 pips + 脚注补「下一处可升级」（新增填充） -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 19h17L12 5 3.5 19Z"/><path d="m9.5 19 2.5-5 2.5 5"/></svg></span>
+              <span class="t-name">藏身处</span><span class="t-chev">›</span>
+            </div>
+            <div class="h-row"><span class="n">发电机组</span><span class="pips"><i class="on max"></i><i class="on max"></i><i class="max"></i></span><span class="lv">3/3</span></div>
+            <div class="h-row"><span class="n">情报中心</span><span class="pips"><i class="on"></i><i class="on"></i><i></i></span><span class="lv">2/3</span></div>
+            <div class="h-row"><span class="n">医疗站</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="lv">2/4</span></div>
+            <div class="h-row"><span class="n">集水器</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="lv">3/3</span></div>
+            <div class="h-row"><span class="n">工作台</span><span class="pips"><i class="on"></i><i></i><i></i></span><span class="lv">1/3</span></div>
+            <div class="h-row"><span class="n">休息室</span><span class="pips"><i></i><i></i><i></i><i></i></span><span class="lv">0/4</span></div>
+            <div class="t-foot"><span>已满级 <b class="ok">2 / 6</b></span><span>下一处可升级 <b>情报中心</b></span></div>
+          </div>
+
+          <!-- 仓库 tile：指标 3 行 → 5 行（补身上装备 / 口袋，数据来自 PhxStashData） -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5v-7Z"/><path d="M3.5 8.5 12 13l8.5-4.5M12 13v7"/></svg></span>
+              <span class="t-name">仓库</span><span class="t-chev">›</span>
+            </div>
+            <div class="s-big"><span class="t-num n">213</span><span class="u">件物品</span></div>
+            <div class="s-rows">
+              <div class="s-row"><span>额外格数</span><b class="hl">+9</b></div>
+              <div class="s-row"><span>武器</span><b>41</b></div>
+              <div class="s-row"><span>非原版改件</span><b>3</b></div>
+              <div class="s-row"><span>身上装备</span><b>8 / 10</b></div>
+              <div class="s-row"><span>口袋</span><b>4 件</b></div>
+            </div>
+          </div>
+          <!-- 商人 tile：5 行信赖 pips（02b 原数据） -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>
+              <span class="t-name">商人</span><span class="t-chev">›</span>
+            </div>
+            <div class="tr-row"><span class="n">Prapor</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="lv">3/4</span></div>
+            <div class="tr-row"><span class="n">Therapist</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on max"></i></span><span class="lv">4/4</span></div>
+            <div class="tr-row"><span class="n">Skier</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="lv">2/4</span></div>
+            <div class="tr-row"><span class="n">Mechanic</span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="lv">3/4</span></div>
+            <div class="tr-row"><span class="n">Ragman</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="lv">2/4</span></div>
+            <div class="t-foot"><span>已满级 <b class="ok">1 / 5</b></span></div>
+          </div>
+
+          <!-- 技能 tile：top3 → top4（补压力管理 39%，新填充） -->
+          <div class="tile">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z"/></svg></span>
+              <span class="t-name">技能</span><span class="t-chev">›</span>
+            </div>
+            <div class="sk-row"><div class="l"><span>搜索</span><b>82%</b></div><div class="sk-bar"><i style="width:82%"></i></div></div>
+            <div class="sk-row"><div class="l"><span>活力</span><b>64%</b></div><div class="sk-bar"><i style="width:64%"></i></div></div>
+            <div class="sk-row"><div class="l"><span>后坐力控制</span><b>47%</b></div><div class="sk-bar"><i style="width:47%"></i></div></div>
+            <div class="sk-row"><div class="l"><span>压力管理</span><b>39%</b></div><div class="sk-bar"><i style="width:39%"></i></div></div>
+            <div class="t-foot"><span>PMC 平均进度</span><b>38%</b></div>
+          </div>
+
+          <!-- 健康 tile（span2）：8 部位血条 + 底部异常摘要行（新填充，数据来自 hpRows） -->
+          <div class="tile span2">
+            <div class="t-head">
+              <span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.5-7-9.5C5 7.5 7 6 9 6c1.4 0 2.4.7 3 1.7C12.6 6.7 13.6 6 15 6c2 0 4 1.5 4 4.5 0 5-7 9.5-7 9.5Z"/></svg></span>
+              <span class="t-name">健康</span><span class="t-chev">›</span>
+            </div>
+            <div class="hp-grid">
+              <div class="hp-row"><span class="n">头部</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">35/35</span></div>
+              <div class="hp-row"><span class="n">水分</span><div class="hp-bar"><i style="width:78%"></i></div><span class="v">2035/2600</span></div>
+              <div class="hp-row"><span class="n">胸腔</span><div class="hp-bar"><i class="warn" style="width:62%"></i></div><span class="v">51/85</span></div>
+              <div class="hp-row"><span class="n">能量</span><div class="hp-bar"><i style="width:91%"></i></div><span class="v">2300/2600</span></div>
+              <div class="hp-row"><span class="n">胃部</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">70/70</span></div>
+              <div class="hp-row"><span class="n">左臂</span><div class="hp-bar"><i class="bad" style="width:12%"></i></div><span class="v">7/60</span></div>
+              <div class="hp-row"><span class="n">右臂</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">60/60</span></div>
+              <div class="hp-row"><span class="n">双腿</span><div class="hp-bar"><i style="width:100%"></i></div><span class="v">85/85</span></div>
+            </div>
+            <div class="t-foot"><span class="pair"><i class="wdot"></i>2 处部位偏低</span><b>左臂 7/60 · 胸腔 51/85</b></div>
+          </div>
+
+          <!-- 全部入口（span4）：chip 等宽 3/行铺满（新填充）+ 物品与经济组补第 6 项「打开数据目录」（能力已有） -->
+          <div class="tile entries" style="grid-column: span 4;">
+            <div class="en-grid">
+              <div class="en-group">
+                <div class="en-title">角色数据</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>角色信息</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2Z"/></svg>角色技能</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>武器熟练度</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.5-7-9.5C5 7.5 7 6 9 6c1.4 0 2.4.7 3 1.7C12.6 6.7 13.6 6 15 6c2 0 4 1.5 4 4.5 0 5-7 9.5-7 9.5Z"/></svg>健康状态</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8.5 4 4 7l2 3 2-1v11h8V9l2 1 2-3-4.5-3c-1 1.4-2 2-3.5 2s-2.5-.6-3.5-2Z"/></svg>角色衣服</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/><path d="M15.5 5.6a3 3 0 1 1 1.5 5.7"/><path d="M16.5 14.8c2.2.5 3.7 1.9 4.4 4.2"/></svg>Scav 信息</button>
+                </div>
+              </div>
+              <div class="en-group">
+                <div class="en-title">物品与经济</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>商人信息</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 8.5 12 4l8.5 4.5v7L12 20l-8.5-4.5v-7Z"/></svg>仓库库存</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M15.5 11.5h5v3h-5a1.5 1.5 0 1 1 0-3Z"/></svg>口袋管理<span class="soon">即将开放</span></button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>物品图鉴<span class="soon">即将开放</span></button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>检视物品</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 7.5c0-1.1.9-2 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7.5Z"/></svg>打开数据目录</button>
+                </div>
+              </div>
+              <div class="en-group">
+                <div class="en-title">进度与任务</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="m9.5 13 2 2 3.5-3.5"/></svg>任务</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3.5 19h17L12 5 3.5 19Z"/></svg>藏身处</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="18" r="1.8"/></svg>武器预设</button>
+                </div>
+              </div>
+              <div class="en-group">
+                <div class="en-title">维护与工具</div>
+                <div class="en-chips">
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4M12 16.8v.2"/></svg>问题检测<span class="cnt">3</span></button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="4" rx="1"/><path d="M6 9v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9"/><path d="M12 12v4M10 14l2 2 2-2"/></svg>备份管理</button>
+                  <button class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>设置</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 底部 dock：24 稿缩一号几何，首页选中 -->
+    <nav class="dock">
+      <div class="dock-logo">P</div>
+      <div class="dock-sep"></div>
+      <a class="on" href="25-home-fill.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span class="lbl">首页</span></a>
+      <a href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span class="lbl">角色</span></a>
+      <a href="05-quests.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span class="lbl">任务</span></a>
+      <a href="04-traders.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="lbl">商人</span></a>
+      <a href="08-hideout.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg><span class="lbl">藏身处</span></a>
+      <a href="09-stash.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span class="lbl">仓库</span></a>
+      <a href="12-presets.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg><span class="lbl">预设</span></a>
+      <a href="14-backup.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="lbl">备份</span></a>
+      <a href="24-account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V6A1.5 1.5 0 0 1 4 4.5z"/><circle cx="9.5" cy="12.4" r="2.2"/><path d="M6.5 18.4c.7-2.2 1.9-3.2 3-3.2s2.3 1 3 3.2"/><path d="M15 10h4"/><path d="M15 13.2h4"/></svg><span class="lbl">账号</span></a>
+      <a href="15-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg><span class="lbl">设置</span></a>
+      <a href="16-about.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="lbl">关于</span></a>
+    </nav>
+  </div>
+</div>
+
+<style>
+  .notes { width: 1180px; margin: 18px auto 0; font-size: 12px; line-height: 1.9; color: var(--phx-text-2); }
+  .notes li { margin: 0 0 10px; }
+  .notes b { color: var(--phx-text); font-weight: 600; }
+  .notes code { font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text); background: var(--phx-fill-tertiary); border-radius: 4px; padding: 1px 5px; }
+</style>
+<ol class="notes">
+  <li><b>本稿是什么</b>：在 <code>02b</code> 首页便当结构上，按用户红框做填充并植入动态条。填充对照：任务卡底部新增「可交付 3」引导行；藏身处脚注补「下一处可升级 情报中心」；仓库统计 3 行 → 5 行（补「身上装备」「口袋」，生产取 <code>PhxStashData.equipment/.pockets</code>）；技能 top3 → top4（补压力管理）；健康卡底部新增异常摘要行（由部位血条状态汇总）；入口 chip 等宽 3/行铺满；物品与经济组补第 6 项「打开数据目录」（能力已在设置页存在，入口语义待拍板，见稿注 7）；hero 下新增动态条。stage 由 860 加高到 980。</li>
+  <li><b>动态条（轮播）</b>：三类内容 = 公告 / 小贴士 / 赞助（带「推广」角标）。轮播顺序 公告 → 小贴士 → 赞助，图中点亮第 3 颗与可见的赞助条对应；<code>›</code> 手动立即切下一条。自动轮换遵循感官层基线：系统减动效时停止自动轮换，仅手动切换。</li>
+  <li><b>变现路径（三层，全部走动态条，无弹窗/插屏/开屏）</b>：① 赞助位直售——动态条固定 1 个赞助槽位，按周/月售卖，文案由赞助方提供；② 联盟 CPS——赞助条外链带跟踪参数；③ 创作支持——关于页挂爱发电 / GitHub Sponsors，不占界面空间。</li>
+  <li><b>赞助红线（硬约束，违反即不上线）</b>：① 赞助内容只允许「标题 + 一句话 + 可选外链」的 JSON，本地渲染；禁止远程 HTML / iframe / 脚本 / 图片热链；② 不自动弹窗、不插屏、不开屏、不占模态；③ 不点亮铃铛未读、不进入未读自动弹列表；④ 同一时刻最多 1 条（轮播占比 ≤ 1/3）；⑤ 外链一律系统浏览器打开，必须带「推广」角标；⑥ 设置页提供「显示赞助推荐」开关，默认开、随时可关，关闭后槽位自动回退为公告 / 小贴士。</li>
+  <li><b>窗口外观</b>：标题栏 44px 悬浮式 = 品牌区 + 中部「常去」组（仓库 / 藏身处 / 商人，本页无选中态）+ 右上三键；dock 为 24 稿缩一号几何。滚动区左右内边距本稿收窄为示意，生产以视觉基线 §六口径为准。</li>
+  <li><b>示意数据</b>：等级 42、任务 42/85、仓库 213 件、货币数字等全部为示意值；生产一律从真实数据渲染（mock 必须来自真实 Rust 输出）。</li>
+  <li><b>待拍板</b>：① 「打开数据目录」放「物品与经济」组是否合适；② 动态条自动轮换间隔（暂定 8s）；③ 赞助条是否需要「隐藏此条」轻操作（一期建议不做）。</li>
+</ol>
+
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    var win = document.getElementById('win');
+    function fit() {
+      var s = Math.min(1, (document.documentElement.clientWidth - 80) / 1180, (window.innerHeight - 80) / 980);
+      stage.style.width = 1180 * s + 'px';
+      stage.style.height = 980 * s + 'px';
+      win.style.transform = 'scale(' + s + ')';
+    }
+    window.addEventListener('resize', fit);
+    fit();
+  })();
+</script>
+</body>
+</html>

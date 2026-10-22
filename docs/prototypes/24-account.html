@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>24 · 账号（独立页）</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-accent-mid: rgba(0,145,255,.32);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    transform-origin: top left;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== Win11 窗口 chrome（与 15 号稿图同一套） ===== */
+  .titlebar {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30;
+    display: flex; align-items: center; padding: 0 0 0 18px;
+    -webkit-app-region: drag; app-region: drag;
+  }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; -webkit-app-region: no-drag; app-region: no-drag; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); transition: background .12s, color .12s; }
+  .capbtns a svg { width: 10px; height: 10px; display: block; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .capbtns a.cap-close:hover { background: #c42b1c; color: #fff; }
+  /* ===== 底部 dock（缩一号几何，与视觉基线现行值一致：50/42/19/10） ===== */
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35;
+    display: flex; align-items: center; gap: 2px; padding: 5px;
+    background: var(--phx-glass); border-radius: 13px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .dock-logo {
+    width: 30px; height: 30px; border-radius: 8px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 17px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .dock-sep { width: .5px; height: 24px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-width: 50px; height: 42px; border-radius: 9px; text-decoration: none;
+    transition: background .12s;
+  }
+  .dock a svg { width: 19px; height: 19px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); letter-spacing: .02em; }
+  .dock a:hover { background: var(--phx-fill-quaternary); }
+  .dock a.on { background: var(--phx-glass); }
+  .dock a.on svg { color: var(--phx-accent); }
+  .dock a.on .lbl { color: var(--phx-text); font-weight: 600; }
+  /* ===== 主内容列 ===== */
+  .main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .pane { min-height: 100%; }
+  /* ===== 24 新组件：身份头卡（横幅底 + 大头像 + 统计 + 主操作） ===== */
+  .hero {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px; border-radius: var(--phx-r-card);
+    background:
+      radial-gradient(120% 160% at 0% 0%, var(--phx-accent-dim), transparent 58%),
+      var(--phx-surface);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep);
+  }
+  .pfp {
+    width: 64px; height: 64px; border-radius: 50%; flex: none; position: relative;
+    background: var(--phx-surface-2); box-shadow: inset 0 0 0 1px var(--phx-sep-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--phx-accent); overflow: hidden;
+  }
+  .pfp svg { width: 30px; height: 30px; }
+  .pfp .dot {
+    position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--phx-green); box-shadow: 0 0 0 2.5px var(--phx-surface);
+  }
+  .pfp.err .dot { background: var(--phx-danger); }
+  .hero-id { min-width: 0; }
+  .hero-name { font-size: 21px; font-weight: 700; letter-spacing: -.2px; display: flex; align-items: center; gap: 8px; }
+  .hero-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 4px; }
+  .stats { display: flex; gap: 26px; margin-left: 10px; padding-left: 26px; border-left: .5px solid var(--phx-sep); }
+  .stat .k { font-size: 10.5px; color: var(--phx-text-3); letter-spacing: .04em; }
+  .stat .v { font-size: 13px; font-weight: 600; margin-top: 4px; }
+  .stat .v.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  .hact { display: flex; gap: 8px; margin-left: auto; flex: none; }
+  /* ===== 按钮 ===== */
+  .btn {
+    height: 30px; padding: 0 14px; border: none; border-radius: var(--phx-r-btn); cursor: pointer;
+    font-size: 12.5px; font-weight: 600; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    background: var(--phx-accent); color: #fff;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .btn.ghost:hover { background: var(--phx-fill-quaternary); }
+  .btn.danger { background: transparent; color: var(--phx-text-3); }
+  .btn.danger:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .mbtn {
+    height: 26px; padding: 0 12px; border: none; border-radius: var(--phx-r-btn); cursor: pointer;
+    font-size: 12px; font-weight: 600; font-family: inherit;
+    display: inline-flex; align-items: center; text-decoration: none;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .mbtn:hover { filter: brightness(1.15); }
+  .mbtn.ghost { background: var(--phx-fill-tertiary); color: var(--phx-text); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .mbtn.danger { background: transparent; color: var(--phx-text-3); }
+  .mbtn.danger:hover { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .act { display: flex; gap: 8px; flex: none; }
+  /* ===== 双列卡片（沿用 15 / 16 号稿图语言） ===== */
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; margin-top: 16px; }
+  .scol { min-width: 0; }
+  .sgroup { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .sgroup + .sgroup { margin-top: 16px; }
+  .sgroup-h { padding: 14px 18px 2px; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+  .sgroup-sub { padding: 0 18px 12px; font-size: 11.5px; color: var(--phx-text-3); }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10.5px 18px; }
+  .srow + .srow, .sgroup-sub + .srow { border-top: .5px solid var(--phx-sep); }
+  .slabel { font-size: 13px; font-weight: 600; }
+  .sdesc { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; line-height: 1.5; }
+  /* ===== 徽章 / 稿图状态标签 ===== */
+  .badge {
+    height: 22px; padding: 0 10px; border-radius: 999px; flex: none;
+    display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  }
+  .badge.ok { background: var(--phx-green-dim); color: var(--phx-green); }
+  .badge.err { background: var(--phx-danger-bg); color: var(--phx-danger); }
+  .stag {
+    font-size: 10.5px; font-weight: 500; color: var(--phx-text-3);
+    border: .5px solid var(--phx-sep-strong); border-radius: 999px; padding: 2px 9px;
+  }
+  /* ===== 项目入口行（真外链，右箭头） ===== */
+  .lnkrow { display: flex; align-items: center; gap: 12px; padding: 11px 18px; text-decoration: none; transition: background .12s; }
+  .lnkrow + .lnkrow { border-top: .5px solid var(--phx-sep); }
+  .lnkrow:hover { background: var(--phx-fill-tertiary); }
+  .lnkrow .ico { width: 26px; height: 26px; border-radius: 7px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--phx-fill-tertiary); color: var(--phx-text-2); }
+  .lnkrow .ico svg { width: 14px; height: 14px; }
+  .lnkrow .t { font-size: 13px; font-weight: 600; color: var(--phx-text); }
+  .lnkrow .d { font-size: 11.5px; color: var(--phx-text-3); margin-top: 2px; }
+  .lnkrow .ar { margin-left: auto; color: var(--phx-text-3); font-size: 12px; flex: none; }
+  /* ===== 技术底座 chips ===== */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 18px 16px; }
+  .chips.inline { padding: 0; display: grid; grid-template-columns: repeat(3, auto); gap: 6px; justify-content: end; }
+  .chip {
+    height: 22px; padding: 0 9px; border-radius: 6px;
+    display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; color: var(--phx-text-2);
+    background: var(--phx-fill-tertiary); box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+  }
+  .chip.acc { background: var(--phx-accent-dim); color: var(--phx-accent); box-shadow: none; }
+  /* ===== 授权中：配对码 ===== */
+  .code-wrap { padding: 13px 18px 14px; border-top: .5px solid var(--phx-sep); }
+  .code-wrap + .srow { border-top: none; }
+  .code-box {
+    font-family: ui-monospace, Consolas, monospace; font-size: 24px; font-weight: 600; letter-spacing: .14em;
+    text-align: center; padding: 12px 10px;
+    background: var(--phx-surface-2); border-radius: var(--phx-r-btn);
+    box-shadow: inset 0 0 0 .5px var(--phx-sep-strong);
+    user-select: all;
+  }
+  .code-url { display: block; margin-top: 9px; text-align: center; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--phx-accent); text-decoration: none; }
+  .code-url:hover { text-decoration: underline; }
+  .stepn { color: var(--phx-accent); font-weight: 700; }
+  .cd { font-family: ui-monospace, Consolas, monospace; color: var(--phx-text); font-weight: 600; }
+  /* ===== 设计说明 ===== */
+  .notes { width: 860px; margin-top: 28px; font-size: 13px; line-height: 1.75; color: var(--phx-text-2); }
+  .notes b { color: var(--phx-text); }
+  .notes li { margin-left: 18px; }
+</style>
+</head>
+<body>
+  <!-- ===================== 屏 1 · 账号（已登录） ===================== -->
+  <div class="stage">
+    <div class="window">
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <!-- dock：账号插在「备份」与「设置」之间，共 11 项 -->
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>
+          <span class="lbl">首页</span>
+        </a>
+        <a href="03-character.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+          <span class="lbl">角色</span>
+        </a>
+        <a href="05-quests.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg>
+          <span class="lbl">任务</span>
+        </a>
+        <a href="04-traders.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="lbl">商人</span>
+        </a>
+        <a href="08-hideout.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="lbl">藏身处</span>
+        </a>
+        <a href="09-stash.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg>
+          <span class="lbl">仓库</span>
+        </a>
+        <a href="12-presets.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg>
+          <span class="lbl">预设</span>
+        </a>
+        <a href="14-backup.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          <span class="lbl">备份</span>
+        </a>
+        <a class="on" href="24-account.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V6A1.5 1.5 0 0 1 4 4.5z"/><circle cx="9.5" cy="12.4" r="2.2"/><path d="M6.5 18.4c.7-2.2 1.9-3.2 3-3.2s2.3 1 3 3.2"/><path d="M15 10h4"/><path d="M15 13.2h4"/></svg>
+          <span class="lbl">账号</span>
+        </a>
+        <a href="15-settings.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>
+          <span class="lbl">设置</span>
+        </a>
+        <a href="16-about.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="lbl">关于</span>
+        </a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">账号</div>
+            <div class="head-meta">登录 GitHub 后，偏好设置会跟着你走 —— 存档永远只留在本机。</div>
+          </div>
+        </div>
+
+        <div class="scroll">
+          <div class="pane">
+            <!-- 身份头卡：头像 / 昵称 / 状态徽章 / 三项真实统计 / 主操作 -->
+            <div class="hero">
+              <div class="pfp" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+                <span class="dot"></span>
+              </div>
+              <div class="hero-id">
+                <div class="hero-name">octocat <span class="badge ok">已同步</span></div>
+                <div class="hero-sub">GitHub 账号 · 已连接</div>
+              </div>
+              <div class="stats">
+                <div class="stat"><div class="k">最近同步</div><div class="v">今天 14:32</div></div>
+                <div class="stat"><div class="k">同步内容</div><div class="v">4 项偏好</div></div>
+                <div class="stat"><div class="k">本机版本</div><div class="v mono">v0.1.5</div></div>
+              </div>
+              <div class="hact">
+                <button class="btn" type="button">立即同步</button>
+                <button class="btn danger" type="button">退出登录</button>
+              </div>
+            </div>
+
+            <div class="g2">
+              <!-- 左列：同步设置（原设置页第 5 组搬到这里） -->
+              <div class="scol">
+                <section class="sgroup">
+                  <div class="sgroup-h">云同步</div>
+                  <div class="sgroup-sub">偏好设置自动同步 · 不含任何存档数据</div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">同步内容</div>
+                      <div class="sdesc">音效开关 · 动效开关 · 界面语言 · 公告已读记录</div>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">自动同步</div>
+                      <div class="sdesc">打开页面或修改设置后自动上传，不需要手动点。</div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="sgroup">
+                  <div class="sgroup-h">不上传的东西</div>
+                  <div class="sgroup-sub">同步范围之外，一条都不传</div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">存档数据</div>
+                      <div class="sdesc">任何存档、物品与任务进度都不会离开本机。</div>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">登录令牌</div>
+                      <div class="sdesc">只保存在本机，不随同步上传，也不出现在页面上。</div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <!-- 右列：项目入口 / 技术底座 -->
+              <div class="scol">
+                <section class="sgroup">
+                  <div class="sgroup-h">项目入口</div>
+                  <div class="sgroup-sub">作者与项目的真实入口</div>
+                  <a class="lnkrow" href="https://github.com/65tiankehan">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-4.5 1.5-4.5-2.5-6-3m12 6v-3.9c0-1.1.1-1.5-.5-2.1 2.8-.3 5.5-1.4 5.5-6a4.7 4.7 0 0 0-1.3-3.2 4.4 4.4 0 0 0-.1-3.3s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 1.2 5.4 1.5 5.4 1.5a4.4 4.4 0 0 0-.1 3.3 4.7 4.7 0 0 0-1.3 3.2c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2.1V22"/></svg></span>
+                    <span><span class="t">GitHub 主页</span><span class="d">github.com/65tiankehan</span></span>
+                    <span class="ar">↗</span>
+                  </a>
+                  <a class="lnkrow" href="https://github.com/65tiankehan/Phoenix-DRX">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4z"/><path d="M14 14h6v6h-6z"/><path d="M10 7h4v10"/></svg></span>
+                    <span><span class="t">源码仓库</span><span class="d">Phoenix-DRX</span></span>
+                    <span class="ar">↗</span>
+                  </a>
+                  <a class="lnkrow" href="https://github.com/65tiankehan/Phoenix-DRX-releases/releases">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/></svg></span>
+                    <span><span class="t">版本发布</span><span class="d">下载安装包 · 更新日志</span></span>
+                    <span class="ar">↗</span>
+                  </a>
+                  <a class="lnkrow" href="https://github.com/65tiankehan/Phoenix-DRX-releases/issues">
+                    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/><path d="M12 8v3"/><path d="M12 14h.01"/></svg></span>
+                    <span><span class="t">问题反馈</span><span class="d">Issues · 报错与建议</span></span>
+                    <span class="ar">↗</span>
+                  </a>
+                </section>
+
+                <!-- 技术底座：真实栈，单行收口 -->
+                <section class="sgroup">
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">技术底座</div>
+                      <div class="sdesc">这版编辑器跑在什么上面</div>
+                    </div>
+                    <div class="chips inline">
+                      <span class="chip acc">Tauri 2</span>
+                      <span class="chip">Svelte 5</span>
+                      <span class="chip">Rust</span>
+                      <span class="chip">TypeScript</span>
+                      <span class="chip">Vite 8</span>
+                      <span class="chip">SPT 4.1.x</span>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <!-- ===================== 屏 2 · 未登录 / 授权中 / 同步失败 ===================== -->
+  <div class="stage" style="margin-top: 28px;">
+    <div class="window">
+      <div class="titlebar">
+        <span class="tb-label">Phoenix</span>
+        <div class="capbtns">
+          <a aria-label="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" fill="none"/></svg></a>
+          <a aria-label="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" stroke="currentColor" fill="none"/></svg></a>
+          <a class="cap-close" aria-label="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" fill="none"/></svg></a>
+        </div>
+      </div>
+      <nav class="dock">
+        <div class="dock-logo">P</div>
+        <div class="dock-sep"></div>
+        <a href="02-card-home.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg><span class="lbl">首页</span></a>
+        <a href="03-character.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg><span class="lbl">角色</span></a>
+        <a href="05-quests.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 4.8"/><path d="M4 12l1.4 1.4L8 10.8"/><path d="M4 18l1.4 1.4L8 16.8"/><path d="M11.5 6H20"/><path d="M11.5 12H20"/><path d="M11.5 18H20"/></svg><span class="lbl">任务</span></a>
+        <a href="04-traders.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="lbl">商人</span></a>
+        <a href="08-hideout.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 3.5 20.5 11"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg><span class="lbl">藏身处</span></a>
+        <a href="09-stash.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7.5" width="17" height="12.5" rx="1"/><path d="M3.5 11.5h17"/><path d="M9 7.5V4h6v3.5"/></svg><span class="lbl">仓库</span></a>
+        <a href="12-presets.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/></svg><span class="lbl">预设</span></a>
+        <a href="14-backup.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span class="lbl">备份</span></a>
+        <a class="on" href="24-account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V6A1.5 1.5 0 0 1 4 4.5z"/><circle cx="9.5" cy="12.4" r="2.2"/><path d="M6.5 18.4c.7-2.2 1.9-3.2 3-3.2s2.3 1 3 3.2"/><path d="M15 10h4"/><path d="M15 13.2h4"/></svg><span class="lbl">账号</span></a>
+        <a href="15-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg><span class="lbl">设置</span></a>
+        <a href="16-about.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="lbl">关于</span></a>
+      </nav>
+
+      <main class="main">
+        <div class="main-head">
+          <div>
+            <div class="large-title">账号</div>
+            <div class="head-meta">三种非常驻状态 · 同一时刻只显示其中一种</div>
+          </div>
+        </div>
+
+        <div class="scroll">
+          <div class="pane">
+            <!-- 头卡变体：未登录（无绿点、无统计，主操作换成登录） -->
+            <div class="hero">
+              <div class="pfp" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+              </div>
+              <div class="hero-id">
+                <div class="hero-name">未登录 <span class="stag">状态 A</span></div>
+                <div class="hero-sub">登录后同步：音效开关 · 动效开关 · 界面语言 · 公告已读记录（不含任何存档）</div>
+              </div>
+              <div class="hact">
+                <button class="btn" type="button">登录 GitHub</button>
+              </div>
+            </div>
+
+            <div class="g2">
+              <div class="scol">
+                <!-- 状态 C · 授权中 -->
+                <section class="sgroup">
+                  <div class="sgroup-h">GitHub 账号 <span class="stag">状态 C · 授权中</span></div>
+                  <div class="sgroup-sub">在浏览器完成一次配对，登录自动完成</div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">完成授权</div>
+                      <div class="sdesc"><span class="stepn">1.</span> 复制下方配对码&ensp;<span class="stepn">2.</span> 在授权页面粘贴并确认&ensp;<span class="stepn">3.</span> 回到这里等待，登录自动完成</div>
+                    </div>
+                  </div>
+                  <div class="code-wrap">
+                    <div class="code-box">WDJB-MJHT</div>
+                    <a class="code-url" href="https://github.com/login/device">github.com/login/device</a>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">配对码有效期</div>
+                      <div class="sdesc">还剩 <span class="cd">14:32</span>，过期后可重新发起登录</div>
+                    </div>
+                    <div class="act">
+                      <button class="mbtn" type="button">复制配对码</button>
+                      <a class="mbtn ghost" href="https://github.com/login/device">打开授权页面</a>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">取消</div>
+                      <div class="sdesc">关闭授权流程，不做任何更改</div>
+                    </div>
+                    <button class="mbtn danger" type="button">取消登录</button>
+                  </div>
+                </section>
+              </div>
+
+              <div class="scol">
+                <!-- 状态 D · 同步失败（登录本身正常，只报这一次没传上去） -->
+                <section class="sgroup">
+                  <div class="sgroup-h">GitHub 账号 <span class="stag">状态 D · 同步失败</span></div>
+                  <div class="sgroup-sub">登录正常，只是这次没传上去</div>
+                  <div class="srow">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <div class="pfp err" style="width:28px;height:28px;">
+                        <svg style="width:15px;height:15px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
+                        <span class="dot" style="width:9px;height:9px;box-shadow:0 0 0 2px var(--phx-surface);"></span>
+                      </div>
+                      <div>
+                        <div class="slabel">octocat</div>
+                        <div class="sdesc">最近成功同步：今天 14:32</div>
+                      </div>
+                    </div>
+                    <span class="badge err">同步失败</span>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">发生了什么</div>
+                      <div class="sdesc">网络波动或 GitHub 暂时不可用。你的本机设置没有丢，重试一次通常就好。</div>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">重试</div>
+                      <div class="sdesc">重新把本机偏好推上去。</div>
+                    </div>
+                    <button class="mbtn" type="button">立即重试</button>
+                  </div>
+                  <div class="srow">
+                    <div>
+                      <div class="slabel">退出登录</div>
+                      <div class="sdesc">只清除本机登录状态，云端偏好保留。</div>
+                    </div>
+                    <button class="mbtn danger" type="button">退出登录</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== 设计说明 ===================== -->
+  <div class="notes">
+    <p><b>位置与导航</b>：新增独立页 <b>/account（账号）</b>，dock 第 9 项，插在「备份」与「设置」之间，共 11 项；顶栏「常去」tab 与命令面板共用同一份 <b>NAV</b>，自动跟着多一项。</p>
+    <p><b>搬家范围</b>：设置页第 5 组（GitHub 账号与云同步）整组迁出，设置页只剩 4 组；命令面板里「云同步」条目由「跳设置页并滚到 sync 分组」改为直接跳 <b>/account</b>。</p>
+    <p><b>四态不变</b>：A 未登录 / C 授权中 / B 已登录 / D 同步失败，仍是同一时刻只显示一种；C 态的配对码、倒计时、复制与打开授权页逻辑原样保留，登出二次确认弹窗也沿用。</p>
+    <p><b>头卡三项统计全部真实</b>：最近同步时间（<b>sync.lastSyncMs</b>）、同步内容 4 项偏好（固定清单）、本机版本（<b>getVersion()</b>）。没有「同步次数 / 在线天数」这类没数据支撑的数字。</p>
+    <p><b>「不上传的东西」是实话卡</b>：同步范围本来就只含四项偏好，写清楚不上传存档与令牌，比堆装饰更有用。</p>
+    <p><b>项目入口四个链接均真实存在</b>：GitHub 主页 / 源码仓库 / 版本发布 / Issues，走系统浏览器打开。</p>
+    <p><b>技术底座 chips</b>：Tauri 2 · Svelte 5 · Rust · TypeScript · Vite 8 · SPT 4.1.x，均为真实栈，放在右列项目入口下面收口。</p>
+    <p><b>不做 GitHub 数据卡</b>：「公开仓库 / 关注者 / 账号年龄」需要扩后端 <b>auth.rs</b> 的 <b>/user</b> 字段，已裁决删掉这张卡，页面不放没有数据支撑的数字。</p>
+    <p><b>头像</b>：稿图用占位人形；生产直接用登录后拿到的真实 GitHub 头像（<b>sync.avatarUrl</b>），加载失败再回落人形。</p>
+  </div>
+</body>
+</html>

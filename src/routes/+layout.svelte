@@ -168,13 +168,14 @@
   }
 
   /* main 直达窗口底：内容从悬浮 dock 底下穿过（通透布局，参考 Nowbar 式）。
-     dock 避让留白由各页 .scroll 的 padding-bottom 承担（104px = dock 76px 占位 + 28px 呼吸） */
+     顶部让位随标题栏 44px（2026-10-22）；dock 避让留白由各页 .scroll 的
+     padding-bottom 承担（104px = dock 76px 占位 + 28px 呼吸） */
   .main {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    padding: 40px 0 0;
+    padding: 44px 0 0;
     /* 页面入场：随 {#key} 每次导航重放（感官层基线 §二）；backwards 防动画结束后
        保留恒等矩阵劫持 fixed 包含块（PhxDropdown 滚动错位实坑），终态=基态无需前向填充 */
     animation: phx-page-enter var(--phx-dur-norm) var(--phx-ease-out) backwards;
@@ -192,8 +193,8 @@
     }
   }
 
-  /* bare 屏（01 稿图 .content padding 原值） */
+  /* bare 屏（01 稿图 .content padding 原值 +4 随标题栏 44px） */
   .main.bare {
-    padding: 50px 0 26px;
+    padding: 54px 0 26px;
   }
 </style>

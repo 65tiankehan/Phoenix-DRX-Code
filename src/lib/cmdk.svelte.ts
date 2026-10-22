@@ -1,7 +1,7 @@
 /**
  * 全局命令面板（Ctrl+K）状态与目的地索引。
  *
- * 索引一期只收主干：dock 10 页 + 设置页 5 分组 + 4 项操作
+ * 索引一期只收主干：dock 11 页 + 设置页 4 分组 + 4 项操作
  * （稿图 docs/prototypes/20-cmdk.html 场景 1/2；二期完整搜索页仅存稿图）。
  * 名称与描述全部存 i18n key，渲染时 t() 求值，语言切换即时生效。
  */
@@ -54,10 +54,11 @@ const IC = {
     '<path d="M4.2 3.2h2.6v2.6H4.2zM10.2 3.2h2.6v2.6h-2.6zM4.2 11.2h2.6v2.6H4.2zM10.2 11.2h2.6v2.6h-2.6z"/><path d="M5.5 5.8v5.4M11.5 5.8v5.4"/>',
   backup:
     '<path d="M8.5 2.5a6 6 0 1 1-6 6"/><path d="M8.5 5.4v3.1l2.2 1.4"/><path d="M2.5 3.2v3h3"/>',
+  account:
+    '<rect x="1.8" y="3.4" width="13.4" height="10.2" rx="1.2"/><circle cx="5.8" cy="7.4" r="1.6"/><path d="M3.8 12.4c.5-1.6 1.2-2.3 2-2.3s1.5.7 2 2.3"/><path d="M10.2 6.6h3.4M10.2 9.4h3.4"/>',
   gear: '<circle cx="8.5" cy="8.5" r="2.2"/><path d="M13.9 10.6a2 2 0 0 0 .4-2.1l-.1-.2.1-.2a2 2 0 0 0-.4-2.1l-.6-.2-.2-.6a2 2 0 0 0-2.1-.4l-.2.1-.2-.1a2 2 0 0 0-2.1.4l-.2.6-.6.2a2 2 0 0 0-.4 2.1l.1.2-.1.2a2 2 0 0 0 .4 2.1l.6.2.2.6a2 2 0 0 0 2.1.4l.2-.1.2.1a2 2 0 0 0 2.1-.4z" transform="translate(-2.5 -2.5) scale(1.18)"/>',
   about:
     '<circle cx="8.5" cy="8.5" r="6.2"/><path d="M8.5 11.9h.01M6.7 6.5c.2-1 1-1.6 1.8-1.6s1.6.7 1.6 1.5c0 1.1-1.6 1.3-1.6 2.4"/>',
-  sync: '<path d="M3 6.2h7.2M3 10.8h5.4"/><path d="M12.4 4.4v7.6M12.4 12l1.6-1.8M12.4 12l-1.6-1.8"/>',
   github:
     '<path d="M8.5 1.6a6.9 6.9 0 0 0-2.2 13.4c.3.1.5-.1.5-.3v-1.2c-1.9.4-2.3-.8-2.3-.8-.3-.8-.8-1-.8-1-.6-.4.1-.4.1-.4.7.1 1.1.7 1.1.7.6 1.1 1.6.8 2 .6.1-.5.3-.8.5-1-1.5-.2-3.2-.8-3.2-3.5 0-.8.3-1.4.7-1.9-.1-.2-.3-.9.1-1.9 0 0 .6-.2 2 .7a6.8 6.8 0 0 1 3.6 0c1.4-.9 2-.7 2-.7.4 1 .2 1.7.1 1.9.5.5.7 1.1.7 1.9 0 2.7-1.7 3.3-3.2 3.5.3.2.5.7.5 1.3v2c0 .2.2.4.5.3A6.9 6.9 0 0 0 8.5 1.6z"/>',
   server:
@@ -75,7 +76,7 @@ const IC = {
 
 /** 面板目的地索引（19 项，显示顺序即数组顺序） */
 export const CMDK_ENTRIES: readonly CmdkEntry[] = [
-  // ── 页面（dock 10 页）──
+  // ── 页面（dock 11 页）──
   { id: 'page-home', group: 'pages', nm: 'nav.home', ds: 'cmdk.desc.home', icon: IC.home, route: '/home' },
   { id: 'page-character', group: 'pages', nm: 'nav.character', ds: 'cmdk.desc.character', icon: IC.character, route: '/character' },
   { id: 'page-quests', group: 'pages', nm: 'nav.quests', ds: 'cmdk.desc.quests', icon: IC.quests, route: '/quests' },
@@ -84,6 +85,7 @@ export const CMDK_ENTRIES: readonly CmdkEntry[] = [
   { id: 'page-stash', group: 'pages', nm: 'nav.stash', ds: 'cmdk.desc.stash', icon: IC.stash, route: '/stash' },
   { id: 'page-presets', group: 'pages', nm: 'nav.presets', ds: 'cmdk.desc.presets', icon: IC.presets, route: '/presets' },
   { id: 'page-backup', group: 'pages', nm: 'nav.backup', ds: 'cmdk.desc.backup', icon: IC.backup, route: '/backup' },
+  { id: 'page-account', group: 'pages', nm: 'nav.account', ds: 'cmdk.desc.account', icon: IC.account, route: '/account' },
   { id: 'page-settings', group: 'pages', nm: 'nav.settings', ds: 'cmdk.desc.settings', icon: IC.gear, route: '/settings' },
   { id: 'page-about', group: 'pages', nm: 'nav.about', ds: 'cmdk.desc.about', icon: IC.about, route: '/about' },
   // ── 设置（分组级定位）──
@@ -91,7 +93,6 @@ export const CMDK_ENTRIES: readonly CmdkEntry[] = [
   { id: 'set-server', group: 'settings', nm: 'settings.group.server', ds: 'settings.group.server.sub', icon: IC.server, route: '/settings', anchor: 'server' },
   { id: 'set-behavior', group: 'settings', nm: 'settings.group.behavior', ds: 'settings.group.behavior.sub', icon: IC.sliders, route: '/settings', anchor: 'behavior' },
   { id: 'set-maintenance', group: 'settings', nm: 'settings.group.maintenance', ds: 'settings.group.maintenance.sub', icon: IC.wrench, route: '/settings', anchor: 'maintenance' },
-  { id: 'set-sync', group: 'settings', nm: 'sync.title', ds: 'sync.subA', icon: IC.sync, route: '/settings', anchor: 'sync' },
   // ── 操作 ──
   { id: 'act-check-update', group: 'actions', nm: 'cmdk.act.checkUpdate', ds: 'settings.checkNow.desc', icon: IC.refresh, action: 'check-update' },
   { id: 'act-open-github', group: 'actions', nm: 'cmdk.act.github', ds: 'cmdk.act.browser', icon: IC.github, fill: true, action: 'open-github' },

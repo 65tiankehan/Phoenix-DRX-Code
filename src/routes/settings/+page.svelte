@@ -3,10 +3,8 @@
   // 组1 含「检查更新」开关 + 手动检查入口（2026-10-19 更新链落地，推翻 10-18 的「砍开关」裁决）。
   // 保存语义（稿图 note7，对齐参考 NotifyPropertyChangedAndSave）：改动即时落盘 + 轻提示，页头无「保存」按钮。
   import { onMount, tick } from 'svelte'
-  import { SvelteDate } from 'svelte/reactivity'
   import { page } from '$app/state'
   import { resolve } from '$app/paths'
-  import { openUrl } from '@tauri-apps/plugin-opener'
   import { t, i18n, setLocale, type Locale } from '$lib/i18n/i18n.svelte'
   import { isSoundEnabled, setSoundEnabled } from '$lib/sound'
   import { isReducedMotion, setReducedMotion } from '$lib/motion'
@@ -20,7 +18,6 @@
     type PhxServerRow
   } from '$lib/ipc'
   import { toast } from '$lib/toast.svelte'
-  import { sync, confirmSync, startLogin, cancelLogin, logout } from '$lib/sync.svelte'
   import PhxSwitch from '$lib/components/PhxSwitch.svelte'
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
@@ -42,6 +39,7 @@
   let checkUpdates = $state(true)
   let autoAddMasterings = $state(false)
   let autoAddScavSkills = $state(false)
+  let showSponsor = $state(true)
   let issueHandling = $state<PhxIssueHandling>('ask')
 
   // armed 门：onMount 回填触发的 $effect 静默跑过，用户交互后才真正保存+提示。
@@ -51,10 +49,17 @@
     const c = checkUpdates
     const a = autoAddMasterings
     const s = autoAddScavSkills
+    const sp = showSponsor
     const h = issueHandling
     if (!armed) return
     void phxSettings
-      .set({ checkUpdates: c, autoAddMasterings: a, autoAddScavSkills: s, issueHandling: h })
+      .set({
+        checkUpdates: c,
+        autoAddMasterings: a,
+        autoAddScavSkills: s,
+        showSponsor: sp,
+        issueHandling: h
+      })
       .then(() => toast.success(t('settings.toast.saved')))
   })
 
@@ -81,6 +86,7 @@
       checkUpdates = settings.checkUpdates
       autoAddMasterings = settings.autoAddMasterings
       autoAddScavSkills = settings.autoAddScavSkills
+      showSponsor = settings.showSponsor
       issueHandling = settings.issueHandling
       serverRow = server
       profileId = pid
@@ -129,7 +135,6 @@
   }
 
   // 命令面板分组级定位（20 稿图场景 2）：/settings?group=<anchor> 滚到对应设置组。
-  // 组 5（sync）在 sessionLoaded 内，未登录时找不到元素静默跳过。
   $effect(() => {
     const g = page.url.searchParams.get('group')
     void loaded
@@ -152,39 +157,6 @@
       .catch(() => toast.error(t('settings.toast.resetFailed')))
   }
 
-  // —— GitHub 账号与云同步（19 稿图，四态互斥：A 未登录 / C 授权中 / B 已登录 / D 同步失败）——
-  let logoutOpen = $state(false)
-
-  /** 配对码倒计时 mm:ss */
-  const countdownText = $derived.by(() => {
-    if (!sync.flow) return ''
-    const m = Math.floor(sync.flow.remainingSec / 60)
-    const s = sync.flow.remainingSec % 60
-    return `${m}:${String(s).padStart(2, '0')}`
-  })
-
-  /** 最近一次成功同步的本地化时间（B/D 态身份行 sdesc 用） */
-  const lastSyncText = $derived.by(() => {
-    if (sync.lastSyncMs === null) return t('sync.neverSynced')
-    const d = new Date(sync.lastSyncMs)
-    const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-    const startToday = new SvelteDate().setHours(0, 0, 0, 0)
-    if (sync.lastSyncMs >= startToday) return t('sync.syncedToday', { time: hm })
-    if (sync.lastSyncMs >= startToday - 86400000) return t('sync.syncedYesterday', { time: hm })
-    return t('sync.syncedDate', { month: d.getMonth() + 1, day: d.getDate(), time: hm })
-  })
-
-  function copyUserCode(): void {
-    if (!sync.flow) return
-    void navigator.clipboard
-      .writeText(sync.flow.userCode)
-      .then(() => toast.success(t('sync.codeCopied')))
-      .catch(() => {})
-  }
-
-  function openVerifyPage(): void {
-    if (sync.flow) void openUrl(sync.flow.verificationUri).catch(() => {})
-  }
 </script>
 
 <main class="page">
@@ -205,6 +177,10 @@
             <div class="srow">
               <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
               <i class="phx-sk dd-sk"></i>
+            </div>
+            <div class="srow">
+              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
+              <i class="phx-sk sw-sk"></i>
             </div>
             <div class="srow">
               <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
@@ -259,19 +235,6 @@
             <div class="srow">
               <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
               <i class="phx-sk mbtn-sk"></i>
-            </div>
-            <div class="srow">
-              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
-              <i class="phx-sk mbtn-sk"></i>
-            </div>
-          </section>
-          <!-- 组 5 骨架（GitHub 账号，身份行形态） -->
-          <section class="sgroup">
-            <div class="sgroup-h"><i class="phx-sk gh-sk"></i></div>
-            <div class="sgroup-sub"><i class="phx-sk gs-sk"></i></div>
-            <div class="srow">
-              <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
-              <i class="phx-sk badge-sk"></i>
             </div>
             <div class="srow">
               <div class="stext"><i class="phx-sk sl-sk"></i><i class="phx-sk sd-sk"></i></div>
@@ -316,6 +279,13 @@
                 <div class="sdesc">{t('settings.checkUpdates.desc')}</div>
               </div>
               <PhxSwitch bind:checked={checkUpdates} label={t('settings.checkUpdates')} />
+            </div>
+            <div class="srow">
+              <div class="stext">
+                <div class="slabel">{t('settings.showSponsor')}</div>
+                <div class="sdesc">{t('settings.showSponsor.desc')}</div>
+              </div>
+              <PhxSwitch bind:checked={showSponsor} label={t('settings.showSponsor')} />
             </div>
             <div class="srow">
               <div class="stext">
@@ -401,151 +371,6 @@
             </div>
           </section>
 
-          <!-- 组 5 · GitHub 账号（19 稿图：四态同一时刻只显示一个，A 未登录 / C 授权中 / B 已登录 / D 同步失败） -->
-          {#if sync.sessionLoaded}
-            <section class="sgroup" data-group="sync">
-              <div class="sgroup-h">{t('sync.title')}</div>
-              {#if !sync.configured && sync.flow}
-                <!-- 状态 C · 授权中 -->
-                <div class="sgroup-sub">{t('sync.subC')}</div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.authLabel')}</div>
-                    <div class="sdesc">
-                      <span class="stepn">1.</span> {t('sync.authStep1')}&ensp;<span class="stepn">2.</span> {t('sync.authStep2')}&ensp;<span class="stepn">3.</span> {t('sync.authStep3')}
-                    </div>
-                  </div>
-                </div>
-                <div class="code-wrap">
-                  <div class="code-box">{sync.flow.userCode}</div>
-                  <button class="code-url" type="button" onclick={openVerifyPage}>
-                    github.com/login/device
-                  </button>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.codeValidLabel')}</div>
-                    <div class="sdesc">
-                      {t('sync.codeValidPrefix')}<span class="cd">{countdownText}</span>{t('sync.codeValidSuffix')}
-                    </div>
-                  </div>
-                  <div class="act">
-                    <button class="mbtn" type="button" onclick={copyUserCode}>
-                      {t('sync.btnCopyCode')}
-                    </button>
-                    <button class="mbtn ghost" type="button" onclick={openVerifyPage}>
-                      {t('sync.btnOpenPage')}
-                    </button>
-                  </div>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.cancelLabel')}</div>
-                    <div class="sdesc">{t('sync.cancelDesc')}</div>
-                  </div>
-                  <button class="mbtn danger" type="button" onclick={cancelLogin}>
-                    {t('sync.btnCancel')}
-                  </button>
-                </div>
-              {:else if !sync.configured}
-                <!-- 状态 A · 未登录 -->
-                <div class="sgroup-sub">{t('sync.subA')}</div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.cloudLabel')}</div>
-                    <div class="sdesc">{t('sync.cloudDesc')}</div>
-                  </div>
-                  <button class="mbtn" type="button" onclick={startLogin}>
-                    {t('sync.btnLogin')}
-                  </button>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.scopeLabel')}</div>
-                    <div class="sdesc">{t('sync.scopeDesc')}</div>
-                  </div>
-                </div>
-              {:else if sync.lastError}
-                <!-- 状态 D · 同步失败（登录状态正常，给安心话术） -->
-                <div class="sgroup-sub">{t('sync.subD')}</div>
-                <div class="srow">
-                  <div class="id">
-                    <div class="avatar" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
-                    </div>
-                    <div>
-                      <div class="slabel">{sync.login}</div>
-                      <div class="sdesc">{t('sync.lastSuccessSync', { text: lastSyncText })}</div>
-                    </div>
-                  </div>
-                  <span class="badge err">{t('sync.badgeErr')}</span>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.explainLabel')}</div>
-                    <div class="sdesc">{t('sync.explainDesc')}</div>
-                  </div>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.retryLabel')}</div>
-                    <div class="sdesc">{t('sync.retryDesc')}</div>
-                  </div>
-                  <button class="mbtn" type="button" disabled={sync.syncing} onclick={confirmSync}>
-                    {t('sync.btnRetry')}
-                  </button>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.logoutLabel')}</div>
-                    <div class="sdesc">{t('sync.logoutDesc')}</div>
-                  </div>
-                  <button class="mbtn danger" type="button" onclick={() => (logoutOpen = true)}>
-                    {t('sync.btnLogout')}
-                  </button>
-                </div>
-              {:else}
-                <!-- 状态 B · 已登录（badge 随最近一次同步结果切换，失败见状态 D） -->
-                <div class="sgroup-sub">{t('sync.subB')}</div>
-                <div class="srow">
-                  <div class="id">
-                    <div class="avatar" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5"/></svg>
-                    </div>
-                    <div>
-                      <div class="slabel">{sync.login}</div>
-                      <div class="sdesc">{t('sync.recentSync', { text: lastSyncText })}</div>
-                    </div>
-                  </div>
-                  <span class="badge ok">{t('sync.badgeOk')}</span>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.scopeLabel')}</div>
-                    <div class="sdesc">{t('sync.scopeDescAuto')}</div>
-                  </div>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.manualLabel')}</div>
-                    <div class="sdesc">{t('sync.manualDesc')}</div>
-                  </div>
-                  <button class="mbtn" type="button" disabled={sync.syncing} onclick={confirmSync}>
-                    {t('sync.btnSyncNow')}
-                  </button>
-                </div>
-                <div class="srow">
-                  <div class="stext">
-                    <div class="slabel">{t('sync.logoutLabel')}</div>
-                    <div class="sdesc">{t('sync.logoutDesc')}</div>
-                  </div>
-                  <button class="mbtn danger" type="button" onclick={() => (logoutOpen = true)}>
-                    {t('sync.btnLogout')}
-                  </button>
-                </div>
-              {/if}
-            </section>
-          {/if}
         </div>
       </div>
     </div>
@@ -560,15 +385,6 @@
   confirmText={t('settings.reset.confirm')}
   danger
   onconfirm={doReset}
-/>
-
-<PhxDialog
-  bind:open={logoutOpen}
-  heading={t('sync.logoutConfirmTitle')}
-  text={t('sync.logoutConfirmBody')}
-  confirmText={t('sync.logoutConfirmBtn')}
-  danger
-  onconfirm={logout}
 />
 
 <style>
@@ -747,100 +563,5 @@
     opacity: 0.5;
     cursor: default;
     pointer-events: none;
-  }
-  /* ===== 19 · GitHub 账号分区（token 均为视觉基线在册值） ===== */
-  .act {
-    display: flex;
-    gap: 8px;
-    flex: none;
-  }
-  .badge {
-    height: 22px;
-    padding: 0 10px;
-    border-radius: 999px;
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-  .badge.ok {
-    background: var(--phx-green-dim);
-    color: var(--phx-green);
-  }
-  .badge.err {
-    background: var(--phx-danger-bg);
-    color: var(--phx-danger);
-  }
-  .boot .badge-sk {
-    width: 56px;
-    height: 22px;
-    border-radius: 999px;
-    flex: none;
-  }
-  .id {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-  .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--phx-accent-dim);
-    color: var(--phx-accent);
-  }
-  .avatar svg {
-    width: 15px;
-    height: 15px;
-  }
-  .code-wrap {
-    padding: 13px 18px 14px;
-    border-top: 0.5px solid var(--phx-sep);
-  }
-  .code-wrap + .srow {
-    border-top: none;
-  }
-  .code-box {
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 24px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-align: center;
-    padding: 12px 10px;
-    background: var(--phx-surface-2);
-    border-radius: var(--phx-r-btn);
-    box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
-    user-select: all;
-  }
-  .code-url {
-    display: block;
-    margin-top: 9px;
-    margin-inline: auto;
-    border: none;
-    background: none;
-    padding: 0;
-    cursor: pointer;
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 12px;
-    color: var(--phx-accent);
-  }
-  .code-url:hover {
-    text-decoration: underline;
-  }
-  .stepn {
-    color: var(--phx-accent);
-    font-weight: 700;
-  }
-  .cd {
-    font-family: ui-monospace, Consolas, monospace;
-    color: var(--phx-text);
-    font-weight: 600;
   }
 </style>

@@ -595,6 +595,9 @@
   .car-a3::before {
     background: var(--phx-warn);
   }
+  .car-copy {
+    min-width: 0;
+  }
   .car-t {
     font-size: 15.5px;
     font-weight: 700;
@@ -632,7 +635,7 @@
     background: var(--phx-accent);
   }
   .prog {
-    margin-top: 18px;
+    margin-top: 16px; /* 21 稿定稿值：加轮播卡后进度区上间距 18→16 */
   }
   .prog-meta {
     display: flex;

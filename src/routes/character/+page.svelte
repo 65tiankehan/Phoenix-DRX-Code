@@ -1,15 +1,22 @@
 <script lang="ts">
   // 03 角色页：基本信息 / 成长 / 外观与装备 / 健康状态，按 docs/prototypes/03 稿图逐项落地
+  // 26 稿新增填充：成长经验脚注 / 装备速览（实读仓库装备槽）/ Scav 卡账号 ID 与版本
   import { onMount } from 'svelte'
+  import { goto } from '$app/navigation'
+  import { resolve } from '$app/paths'
   import { listen } from '@tauri-apps/api/event'
   import { t, type MessageKey } from '$lib/i18n/i18n.svelte'
   import { toast } from '$lib/toast.svelte'
   import {
     phxChar,
     phxProfile,
+    phxStash,
+    phxScav,
     type PhxCharHealth,
     type PhxCharOptions,
-    type PhxCharSide
+    type PhxCharSide,
+    type PhxStashData,
+    type PhxScavData
   } from '$lib/ipc'
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxSegmented from '$lib/components/PhxSegmented.svelte'
@@ -27,6 +34,9 @@
   let mode = $state<Mode>('pmc')
   let saving = $state(false)
   let booting = $state(true)
+  // 26 稿装备速览：PMC 走仓库装备槽，Scav 走侦察兵装备槽
+  let pmcStash = $state<PhxStashData | null>(null)
+  let scavEquip = $state<PhxScavData | null>(null)
   /** 经验输入框显示文本（千分位） */
   let expText = $state('')
 
@@ -106,12 +116,22 @@
       meta = null
       pmc = null
       scav = null
+      pmcStash = null
+      scavEquip = null
       syncExpText(null)
       booting = false
       return
     }
-    const [data, options] = await Promise.all([phxChar.load(currentId), phxChar.options()])
+    const [data, options, stashData, scavData] = await Promise.all([
+      phxChar.load(currentId),
+      phxChar.options(),
+      // 装备速览数据（26 稿）：仓库装备槽 + Scav 装备槽，随页签取用
+      phxStash.load(currentId),
+      phxScav.load(currentId)
+    ])
     opts = options
+    pmcStash = stashData
+    scavEquip = scavData
     if (!data) {
       meta = null
       pmc = null
@@ -184,6 +204,28 @@
     const end = expEnd(cur.level)
     const span = Math.max(1, end - start - 1)
     return Math.min(1, Math.max(0, (cur.experience - start) / span))
+  })
+
+  /** 成长脚注（26 稿）：本级经验区间 + 距下一级差额；满级时整行换「已达最高等级」 */
+  const expFoot = $derived.by(() => {
+    if (!cur) return null
+    return {
+      start: expStart(cur.level),
+      end: expEnd(cur.level),
+      left: Math.max(0, expEnd(cur.level) - cur.experience),
+      maxed: cur.level >= maxLevel
+    }
+  })
+
+  /** 装备速览三格（26 稿）：主武器/护甲/头盔，随 PMC/Scav 页签实读装备槽；空槽显示「未装备」 */
+  const EQ_SLOTS = ['FirstPrimaryWeapon', 'ArmorVest', 'Headwear'] as const
+  const eqRows = $derived.by(() => {
+    const list = mode === 'pmc' ? pmcStash?.equipment : scavEquip?.equipment
+    if (!list) return []
+    return EQ_SLOTS.map((slot) => ({
+      slot,
+      name: list.find((e) => e.slot === slot)?.item?.name ?? ''
+    }))
   })
 
   const metaText = $derived.by(() => {
@@ -300,6 +342,7 @@
             <i class="phx-sk expf"></i>
             <i class="phx-sk trk grow"></i>
           </div>
+          <div class="exp-foot"><i class="phx-sk slim" style="width:150px"></i><i class="phx-sk slim" style="width:120px"></i></div>
           <i class="phx-sk slim hint-sk" style="width:188px"></i>
         </section>
         <section class="panel">
@@ -312,6 +355,10 @@
               <i class="phx-sk slim k"></i>
               <i class="phx-sk fsel" style={`width:${190 + r * 22}px`}></i>
             </div>
+          {/each}
+          <div class="sub-head"><i class="phx-sk slim" style="width:56px"></i><i class="phx-sk slim" style="width:64px"></i></div>
+          {#each skRows(3) as r (r)}
+            <div class="frow"><i class="phx-sk slim k"></i><i class="phx-sk grow"></i><i class="phx-sk tag"></i></div>
           {/each}
         </section>
         <section class="panel">
@@ -371,6 +418,18 @@
               <span class="read">{meta?.gameVersion ?? '—'}</span>
               <span class="ro-tag">{t('char.ro')}</span>
             </div>
+          {:else}
+            <!-- Scav 卡（26 稿）：账号 ID 与游戏版本补齐左右两栏高度 -->
+            <div class="frow">
+              <span class="k">{t('char.f.aid')}</span>
+              <span class="read">{meta?.aid ?? '—'}</span>
+              <span class="ro-tag">{t('char.ro')}</span>
+            </div>
+            <div class="frow">
+              <span class="k">{t('char.f.version')}</span>
+              <span class="read">{meta?.gameVersion ?? '—'}</span>
+              <span class="ro-tag">{t('char.ro')}</span>
+            </div>
           {/if}
         </section>
 
@@ -414,6 +473,17 @@
               <div class="thumb" style={`left:${slideRatio * 100}%`}></div>
             </div>
           </div>
+          {#if expFoot}
+            <!-- 经验脚注（26 稿）：本级经验区间 + 距下一级差额；满级整行换文案 -->
+            <div class="exp-foot">
+              {#if expFoot.maxed}
+                <span>{t('char.exp.maxed')}</span>
+              {:else}
+                <span>{t('char.exp.range', { range: `${expFoot.start.toLocaleString('en-US')} – ${expFoot.end.toLocaleString('en-US')}` })}</span>
+                <span>{t('char.exp.left', { n: expFoot.left.toLocaleString('en-US') })}</span>
+              {/if}
+            </div>
+          {/if}
           <div class="hint">{t('char.exp.hint')}</div>
         </section>
 
@@ -445,6 +515,22 @@
               />
             </span>
           </div>
+          {#if eqRows.length > 0}
+            <!-- 装备速览（26 稿）：随 PMC/Scav 页签实读装备槽，只读展示 -->
+            <div class="sub-head">
+              <span class="st">{t('char.eq.title')}</span>
+              <button type="button" class="go" onclick={() => goto(resolve('/stash'))}>
+                {t('char.eq.gostash')} ›
+              </button>
+            </div>
+            {#each eqRows as eq (eq.slot)}
+              <div class="frow eq">
+                <span class="k">{t(`stash.slot.${eq.slot}` as MessageKey)}</span>
+                <span class="read">{eq.name || t('char.eq.empty')}</span>
+                <span class="ro-tag">{t('char.ro')}</span>
+              </div>
+            {/each}
+          {/if}
         </section>
 
         <!-- 健康状态 -->
@@ -787,6 +873,54 @@
     padding: 8px 0 4px;
     font-size: 11px;
     color: var(--phx-text-3);
+  }
+  /* 经验脚注（26 稿）：本级区间 + 距下一级差额，实心 surface-2 底 */
+  .exp-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 7px 10px;
+    background: var(--phx-surface-2);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--phx-text-2);
+  }
+  .boot .exp-foot {
+    margin-top: 10px;
+    min-height: 28px;
+  }
+  /* 装备速览小节（26 稿）：分组标题 + 前往仓库 + 三行只读 */
+  .sub-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 11px 0 0;
+    border-top: 0.5px solid var(--phx-sep);
+    margin-top: 4px;
+  }
+  .sub-head .st {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--phx-text-3);
+  }
+  .sub-head .go {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--phx-accent);
+    cursor: pointer;
+  }
+  .sub-head .go:hover {
+    filter: brightness(1.15);
+  }
+  .frow.eq .read {
+    font-family: inherit;
+    font-size: 13px;
   }
   /* 外观与装备：下拉容器对齐稿图 fselect（右对齐 240 上限） */
   .fsel {

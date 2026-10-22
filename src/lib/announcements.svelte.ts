@@ -31,11 +31,19 @@ export const announcements = $state({
   readIds: loadReadIds()
 })
 
-/** 启动拉取结果写入；含未读公告时自动弹出面板一次（已读则静默，不扰人） */
+/** 启动拉取结果写入；过滤已过期条目（until 按本地时间判定，格式无效视为长期有效） */
 export function seedAnnouncements(list: PhxAnnouncement[], source: string): void {
-  announcements.list = list
+  const now = Date.now()
+  announcements.list = list.filter((a) => {
+    if (!a.until) return true
+    const t = Date.parse(a.until)
+    return Number.isNaN(t) || t > now
+  })
   announcements.source = source
-  if (list.some((a) => !announcements.readIds.has(a.id))) announcements.open = true
+  // 未读自动弹只看常规公告与小贴士；推广永不自动弹（不插屏、不点亮铃铛未读）
+  if (announcements.list.some((a) => a.kind !== 'sponsor' && !announcements.readIds.has(a.id))) {
+    announcements.open = true
+  }
 }
 
 export function toggleAnnouncements(): void {

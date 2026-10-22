@@ -10,7 +10,7 @@ export interface NavItem {
   icon: string[]
 }
 
-/** 导航路由字面量联合：保证 resolve() 的强类型路由校验（NavItem 只允许这 10 条） */
+/** 导航路由字面量联合：保证 resolve() 的强类型路由校验（NavItem 只允许这 11 条） */
 export type NavPath =
   | '/home'
   | '/character'
@@ -20,6 +20,7 @@ export type NavPath =
   | '/stash'
   | '/presets'
   | '/backup'
+  | '/account'
   | '/settings'
   | '/about'
 
@@ -76,6 +77,17 @@ export const NAV: NavItem[] = [
     path: '/backup',
     key: 'nav.backup',
     icon: ['M3 3v5h5', 'M3.05 13A9 9 0 1 0 6 5.3L3 8', 'M12 7v5l4 2']
+  },
+  {
+    path: '/account',
+    key: 'nav.account',
+    icon: [
+      'M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V6A1.5 1.5 0 0 1 4 4.5z',
+      'M9.5 10.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 1 0 0-4.4z',
+      'M6.5 18.4c.7-2.2 1.9-3.2 3-3.2s2.3 1 3 3.2',
+      'M15 10h4',
+      'M15 13.2h4'
+    ]
   },
   {
     path: '/settings',

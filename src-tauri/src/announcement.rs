@@ -17,6 +17,10 @@ pub struct AnnouncementItem {
     pub id: String,
     pub title: String,
     pub body: String,
+    /// announce 常规公告 / tip 小贴士 / sponsor 推广；kind 缺失或未知值归一为 announce
+    pub kind: String,
+    /// 失效时间（ISO 8601 原文透传）；None 表示长期有效，过期判定由前端按本地时间做
+    pub until: Option<String>,
     pub action_label: Option<String>,
     pub action_url: Option<String>,
 }
@@ -66,10 +70,17 @@ fn parse_items(raw: &RawPayload) -> Vec<AnnouncementItem> {
             if id.is_empty() || title.is_empty() || body.is_empty() {
                 return None;
             }
+            // kind 缺失或未知值一律归一为 announce（宽容处理：旧格式公告照常展示）
+            let kind = match v.get("kind").and_then(|x| x.as_str()) {
+                Some(k @ ("announce" | "tip" | "sponsor")) => k.to_string(),
+                _ => "announce".to_string(),
+            };
             Some(AnnouncementItem {
                 id: id.to_string(),
                 title: title.to_string(),
                 body: body.to_string(),
+                kind,
+                until: v.get("until").and_then(|x| x.as_str()).map(str::to_string),
                 action_label: v.get("actionLabel").and_then(|x| x.as_str()).map(str::to_string),
                 action_url: v.get("actionUrl").and_then(|x| x.as_str()).map(str::to_string),
             })

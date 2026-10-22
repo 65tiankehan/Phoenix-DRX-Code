@@ -76,11 +76,17 @@ export const phxApp = {
 
 // —— 公告（Opendata 公开仓；启动 toast 消费）——
 
+/** 公告类型：announce 常规公告 / tip 小贴士 / sponsor 推广（首页动态条与未读判定按类型分流） */
+export type PhxAnnouncementKind = 'announce' | 'tip' | 'sponsor'
+
 /** 单条公告；字段名对齐 Rust AnnouncementItem serde camelCase 输出 */
 export interface PhxAnnouncement {
   id: string
   title: string
   body: string
+  kind: PhxAnnouncementKind
+  /** 失效时间（ISO 8601）；过期条目前端不展示，null 表示长期有效 */
+  until: string | null
   actionLabel: string | null
   actionUrl: string | null
 }
@@ -117,6 +123,8 @@ export interface PhxSettings {
   autoAddMasterings: boolean
   /** 自动补全缺失的 Scav 技能等级（对齐 Rust Settings autoAddScavSkills） */
   autoAddScavSkills: boolean
+  /** 首页动态条是否展示赞助推荐（关闭后槽位回退公告/小贴士；对齐 Rust Settings showSponsor） */
+  showSponsor: boolean
   issueHandling: PhxIssueHandling
 }
 
