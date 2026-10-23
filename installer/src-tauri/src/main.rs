@@ -492,7 +492,9 @@ fn uninstall_start(
 
 fn main() {
     webview2_guard();
-    let silent = std::env::args().any(|a| a.eq_ignore_ascii_case("/S"));
+    // 静默判定：/S（NSIS 静默）与 /P（tauri-plugin-updater passive 模式所用标志）均视为无 UI 全自动安装
+    let silent = std::env::args()
+        .any(|a| matches!(a.to_ascii_lowercase().as_str(), "/s" | "/p"));
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())

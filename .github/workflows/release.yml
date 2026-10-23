@@ -47,7 +47,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: |
+            src-tauri
+            installer/src-tauri
       - run: npm ci
 
       - name: 解析发布 tag
@@ -71,21 +73,50 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
 
+      - name: 构建 DRX-Setup 安装器壳
+        run: cargo build --release --manifest-path installer/src-tauri/Cargo.toml
+
+      - name: 拼接载荷生成自研安装包
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          $payload = 'src-tauri/target/release/payload'
+          New-Item -ItemType Directory -Force $payload | Out-Null
+          Copy-Item src-tauri/target/release/phoenix-drx.exe $payload/
+          $outDir = 'src-tauri/target/release/bundle/drx-setup'
+          New-Item -ItemType Directory -Force $outDir | Out-Null
+          node installer/scripts/append-payload.mjs $payload `
+            installer/src-tauri/target/release/phoenix-drx-setup.exe `
+            "$outDir/Phoenix-DRX_${version}_x64-installer.exe"
+
+      - name: 签名自研安装包（更新器校验用）
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          $installer = Get-ChildItem 'src-tauri/target/release/bundle/drx-setup' -Filter '*-installer.exe' | Select-Object -First 1
+          if (-not $installer) { Write-Error '缺少自研安装包' }
+          npx tauri signer sign $installer.FullName
+          if ($LASTEXITCODE -ne 0) { Write-Error '自研安装包签名失败' }
+          Get-ChildItem 'src-tauri/target/release/bundle/drx-setup'
+
       - name: 生成更新清单 latest.json
         shell: pwsh
         run: |
           $tag = $env:RELEASE_TAG
           $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          $nsisSig = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter '*-setup.exe.sig' | Select-Object -First 1
-          if (-not $nsisSig) { Write-Error '缺少 nsis 签名文件' }
-          $exeName = $nsisSig.Name -replace '\.sig$', ''
+          # 过渡期：latest.json 指向自研安装包（DRX-Setup，静默 /S /P 兼容 NSIS 参数）；
+          # 签名必须是安装包本体的 minisign 签名（更新器先验签再静默运行）
+          $installerSig = Get-ChildItem 'src-tauri/target/release/bundle/drx-setup' -Filter '*-installer.exe.sig' | Select-Object -First 1
+          if (-not $installerSig) { Write-Error '缺少自研安装包签名文件' }
+          $exeName = $installerSig.Name -replace '\.sig$', ''
           $json = [ordered]@{
             version   = $conf.version
             notes     = "Phoenix-DRX $tag 发布，详情见发布页。"
             pub_date  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
             platforms = [ordered]@{
               'windows-x86_64' = [ordered]@{
-                signature = (Get-Content $nsisSig.FullName -Raw).Trim()
+                signature = (Get-Content $installerSig.FullName -Raw).Trim()
                 url       = "https://ghfast.top/https://github.com/$env:RELEASE_REPO/releases/download/$tag/$exeName"
               }
             }
@@ -103,6 +134,7 @@ jobs:
           $files | ForEach-Object { Write-Host "$($_.FullName)  $([math]::Round($_.Length/1MB,1)) MB" }
           if (-not ($files | Where-Object Name -like '*.msi'))  { Write-Error '缺少 msi 安装包' }
           if (-not ($files | Where-Object Name -like '*-setup.exe')) { Write-Error '缺少 nsis 安装包' }
+          if (-not ($files | Where-Object Name -like '*-installer.exe')) { Write-Error '缺少自研安装包' }
           if (-not ($files | Where-Object Name -like '*.sig')) { Write-Error '缺少更新签名文件' }
           if (-not ($files | Where-Object Name -eq 'latest.json')) { Write-Error '缺少 latest.json 更新清单' }
 
