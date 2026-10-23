@@ -2,7 +2,6 @@
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
   import { getCurrentWindow } from '@tauri-apps/api/window'
-  import { LogicalSize } from '@tauri-apps/api/dpi'
   import { getVersion } from '@tauri-apps/api/app'
   import { phxUpdate, PHX_UPDATE_EVENT } from '$lib/ipc'
   import type { PhxUpdateStatus } from '$lib/ipc'
@@ -20,7 +19,7 @@
   let status = $state<PhxUpdateStatus>({ phase: 'idle' })
   let currentVer = $state('')
 
-  /* 下载速度：chunk 事件差分 + 指数滑动平均（B/s） */
+  /** 速度（B/s，指数滑动平均）：不再直接显示，用于推算剩余时间 */
   let speed = $state(0)
   let lastSample = { t: 0, r: 0 }
 
@@ -68,14 +67,14 @@
         }
       : null
   )
+  /** 目标版本号（dl 分支里 status 不被 TS 收窄，单独取） */
+  const dlVersion = $derived(status.phase === 'downloading' ? status.version : '')
 
   /** 字节 → MB 显示（1024 进位） */
   function mb(bytes: number): string {
     return (bytes / 1048576).toFixed(1)
   }
 
-  /** 速度显示（B/s → MB/s） */
-  const speedText = $derived(speed > 0 ? `${mb(speed)} MB/s` : '—')
   /** 剩余时间（秒 → 约 N 秒；速度未知或 total 未知时不显示） */
   const etaText = $derived.by(() => {
     if (!dl || !dl.total || speed <= 0) return null
@@ -83,9 +82,9 @@
     return t('update.eta', { seconds: Math.ceil(remain) })
   })
 
-  /** Release changelog 纯文本逐行 → 要点行（空行剔除，无富文本解析） */
+  /** Release changelog 纯文本逐行 → 要点行（空行剔除，无富文本解析）；available 主卡与 downloaded 回顾卡共用 */
   const noteLines = $derived(
-    status.phase === 'available'
+    (status.phase === 'available' || status.phase === 'downloaded') && status.notes
       ? status.notes.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
       : []
   )
@@ -130,18 +129,11 @@
   const CAR_INTERVAL = 4000
 
   let carIdx = $state(0)
-  let carPrev = $state(-1)
   let carTimer: ReturnType<typeof setInterval> | null = null
-  let carLeaveTimer: ReturnType<typeof setTimeout> | null = null
 
   function carGo(i: number, byUser = false): void {
     if (i === carIdx) return
-    carPrev = carIdx
     carIdx = i
-    if (carLeaveTimer) clearTimeout(carLeaveTimer)
-    carLeaveTimer = setTimeout(() => {
-      carPrev = -1
-    }, 420)
     if (byUser) {
       playSound('ui')
       carStartTimer() // 手动切换后重置计时
@@ -168,32 +160,9 @@
     return () => carStopTimer()
   })
 
-  /* 窗高自适应：Rust 只给初值，状态变化后按内容实测重设（宽 420 不变）。
-   * 否则固定 380 高会在内容短的状态下（如单行公告）窗底留一大块空白。
-   * 修三点（对齐托盘面板稳定实现）：
-   *   1. 测量用 rAF 延迟一帧——等字体/轮播/notes 渲染完成再测，避免同步测到半渲染高度；
-   *   2. 依赖收窄到 status.phase——状态切换才重测；下载进度(received/total)不影响内容高，不触发；
-   *   3. .up-body 设 flex:none——否则窗口初值矮于内容时会被压缩、offsetHeight 测小，setSize 永远偏小。
-   */
-  const WIN_W = 420
-  const TITLEBAR_H = 38
-  let appliedH = 0
-
-  $effect(() => {
-    void status.phase // 依赖 phase：状态切换才重测；下载进度(received/total)不影响内容高，不触发
-    const raf = requestAnimationFrame(() => {
-      const h = document.querySelector<HTMLElement>('.up-body')?.offsetHeight ?? 0
-      if (!h) return
-      const total = TITLEBAR_H + h
-      if (Math.abs(total - appliedH) < 1) return
-      appliedH = total
-      // 失败必须可见：曾被 capability 漏配 set-size 权限静默拒绝，窗高停死在初值（事故 §二.45）
-      getCurrentWindow()
-        .setSize(new LogicalSize(WIN_W, total))
-        .catch((e) => console.error('[update-window] 窗高自适应失败:', e))
-    })
-    return () => cancelAnimationFrame(raf)
-  })
+  /* 窗口尺寸恒定（420×396，Rust inner_size 定死，稿图 27）：三态同骨架同尺寸，
+   * 超长 notes 由 notes 卡内部滚动兜底——动态 setSize 通路整个移除，
+   * 曾经的 capability 漏配静默拒调问题（§二.45）随之失去存在场景。 */
 
   function closeWin(): void {
     void getCurrentWindow().close()
@@ -218,28 +187,32 @@
   </div>
 
   {#if status.phase === 'available'}
-    <!-- 状态一：发现新版本 -->
+    <!-- 状态一：发现新版本（稿图 27：箭头徽章 + 版本对进副题 + notes 占满内容槽） -->
     <div class="up-body">
       <div class="up-head">
-        <div class="up-logo">P</div>
+        <div class="badge badge-available">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v13"/><path d="M6 12l6 6 6-6"/></svg>
+        </div>
         <div>
           <div class="up-h-title">{t('update.foundTitle')}</div>
-          <div class="up-h-sub">{t('update.foundSub', { current: currentVer })}</div>
+          <div class="up-h-sub">
+            <span class="mono">{currentVer}</span>
+            <svg class="ver-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <span class="mono new">{status.version}</span>
+            <span class="sub-tail">，{t('update.subFoundTail')}</span>
+          </div>
         </div>
       </div>
-      <div class="up-vers">
-        <span class="ver-chip ver-old">{currentVer}</span>
-        <svg class="ver-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        <span class="ver-chip ver-new">{status.version}</span>
+      <div class="up-slot">
+        {#if noteLines.length > 0}
+          <div class="notes-card">
+            <div class="nc-h">{t('update.notesTitle')}</div>
+            {#each noteLines as line (line)}
+              <div class="nc-li"><span class="nc-dot"></span><span>{line}</span></div>
+            {/each}
+          </div>
+        {/if}
       </div>
-      {#if noteLines.length > 0}
-        <div class="notes-card">
-          <div class="nc-h">{t('update.notesTitle')}</div>
-          {#each noteLines as line (line)}
-            <div class="nc-li"><span class="nc-dot"></span><span>{line}</span></div>
-          {/each}
-        </div>
-      {/if}
       <div class="up-actions">
         <button class="btn btn-ghost" type="button" onclick={() => void phxUpdate.dismiss()}>
           {t('update.later')}
@@ -250,47 +223,55 @@
       </div>
     </div>
   {:else if dl}
-    <!-- 状态二：下载中（后台下载 = 关窗，Rust 下载任务独立于窗口继续） -->
+    <!-- 状态二：下载中（后台下载 = 关窗，Rust 下载任务独立于窗口继续；稿图 27：进度环徽章 + 进度主卡，轮播降条幅） -->
     <div class="up-body">
       <div class="up-head">
-        <div class="up-logo">P</div>
+        <div class="badge badge-ring">
+          <svg viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-sep-strong)" stroke-width="3.5"/>
+            <!-- 弧长 = 周长 2π×17 ≈ 106.8 × 进度 -->
+            <circle class="ring-fill" cx="22" cy="22" r="17" fill="none" stroke="var(--phx-accent)" stroke-width="3.5" stroke-linecap="round" transform="rotate(-90 22 22)" style="stroke-dasharray: {(dl.pct / 100) * 106.8} 106.8"/>
+          </svg>
+          <span class="ring-pct">{dl.pct > 0 ? Math.floor(dl.pct) : '—'}</span>
+        </div>
         <div>
           <div class="up-h-title">{t('update.dlTitle')}</div>
-          <div class="up-h-sub">{t('update.dlSub')}</div>
+          <div class="up-h-sub">
+            <span class="mono">{currentVer}</span>
+            <svg class="ver-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <span class="mono new">{dlVersion}</span>
+            <span class="sub-tail"> · {t('update.subDlTail')}</span>
+          </div>
         </div>
       </div>
-      <!-- 引导轮播：下载等待期轮播功能亮点（稿图 21-update-carousel.html） -->
-      <div class="carousel" aria-live="polite">
-        <div class="car-viewport">
-          {#each CAR as c, i (i)}
-            <div class="car-slide" class:on={i === carIdx} class:leaving={i === carPrev}>
-              <div class="car-art {c.cls}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  {#each c.icon as d (d)}<path d={d}/>{/each}
-                </svg>
-              </div>
-              <div class="car-copy">
-                <div class="car-t">{t(c.t)}</div>
-                <div class="car-s">{t(c.s)}</div>
-              </div>
-            </div>
-          {/each}
+      <div class="up-slot">
+        <!-- 引导条幅：下载等待期轮播功能亮点（稿图 27 由插画卡降为条幅，稿图 21 文案沿用） -->
+        <div class="car-strip" aria-live="polite">
+          <div class="car-ico {CAR[carIdx].cls}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              {#each CAR[carIdx].icon as d (d)}<path d={d}/>{/each}
+            </svg>
+          </div>
+          <div class="car-copy">
+            <div class="car-t">{t(CAR[carIdx].t)}</div>
+            <div class="car-s">{t(CAR[carIdx].s)}</div>
+          </div>
+          <div class="car-dots">
+            {#each CAR as c, i (i)}
+              <button class="car-dot" type="button" class:on={i === carIdx} aria-label={`${t('update.car.dot', { n: i + 1 })} · ${t(c.t)}`} onclick={() => carGo(i, true)}></button>
+            {/each}
+          </div>
         </div>
-        <div class="car-dots">
-          {#each CAR as c, i (i)}
-            <button class="car-dot" type="button" class:on={i === carIdx} aria-label={`${t('update.car.dot', { n: i + 1 })} · ${t(c.t)}`} onclick={() => carGo(i, true)}></button>
-          {/each}
-        </div>
-      </div>
-      <div class="prog">
-        <div class="prog-meta">
-          <span class="prog-pct">{dl.pct > 0 ? `${Math.floor(dl.pct)}%` : '—'}</span>
-          <span class="prog-speed">{speedText}</span>
-        </div>
-        <div class="prog-track"><div class="prog-fill" style="width: {dl.pct}%"></div></div>
-        <div class="prog-sub">
-          {dl.total ? `${mb(dl.received)} MB / ${mb(dl.total)} MB` : mb(dl.received) + ' MB'}
-          {#if etaText}· {etaText}{/if}
+        <!-- 进度主卡：大百分比 + 进度条 + MB 量词；速度不显示，换用户真正关心的剩余时间 -->
+        <div class="prog-card">
+          <div class="prog-meta-top">
+            <span class="prog-pct">{dl.pct > 0 ? `${Math.floor(dl.pct)}%` : '—'}</span>
+            {#if etaText}<span class="prog-eta">{etaText}</span>{/if}
+          </div>
+          <div class="prog-track"><div class="prog-fill" style="width: {dl.pct}%"></div></div>
+          <div class="prog-sub">
+            {dl.total ? `${mb(dl.received)} MB / ${mb(dl.total)} MB` : mb(dl.received) + ' MB'}
+          </div>
         </div>
       </div>
       <div class="up-actions">
@@ -300,10 +281,10 @@
       </div>
     </div>
   {:else if status.phase === 'downloaded'}
-    <!-- 状态三：下载完成，待重启 -->
+    <!-- 状态三：下载完成，待重启（稿图 27：提示卡 + 「本次更新内容」回顾卡填满内容槽，三态等高） -->
     <div class="up-body">
       <div class="up-head">
-        <div class="done-ring">
+        <div class="badge badge-ready">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
         </div>
         <div>
@@ -311,8 +292,18 @@
           <div class="up-h-sub">{t('update.readySub', { version: status.version })}</div>
         </div>
       </div>
-      <div class="done-note">
-        <b>{t('update.readyWarnLabel')}</b>{t('update.readyWarn')}
+      <div class="up-slot">
+        <div class="done-note">
+          <b>{t('update.readyWarnLabel')}</b>{t('update.readyWarn')}
+        </div>
+        {#if noteLines.length > 0}
+          <div class="notes-card review">
+            <div class="nc-h">{t('update.readyNotesTitle')}</div>
+            {#each noteLines as line (line)}
+              <div class="nc-li"><span class="nc-dot"></span><span>{line}</span></div>
+            {/each}
+          </div>
+        {/if}
       </div>
       <div class="up-actions">
         <button class="btn btn-ghost" type="button" onclick={closeWin}>
@@ -375,11 +366,19 @@
     color: var(--phx-text-3);
   }
   .up-body {
-    padding: 6px 20px 20px;
+    padding: 4px 20px 20px;
     display: flex;
     flex-direction: column;
-    /* 关键：禁止被窗口初值(380)压缩——否则 offsetHeight 测到压缩后高度，自适应 setSize 永远偏小 */
-    flex: none;
+    flex: 1;
+    min-height: 0;
+  }
+  /* 内容槽（稿图 27）：弹性主区，notes/进度卡占满，动作区贴底 */
+  .up-slot {
+    margin-top: 14px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
   .up-head {
     display: flex;
@@ -401,6 +400,44 @@
     background: var(--phx-accent-dim);
     color: var(--phx-accent);
   }
+  /* 状态徽章（稿图 27）：available 箭头 / downloading 进度环 / downloaded 绿勾，同形同位 */
+  .badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .badge svg {
+    width: 22px;
+    height: 22px;
+  }
+  .badge-available {
+    background: var(--phx-accent-dim);
+    color: var(--phx-accent);
+  }
+  .badge-ready {
+    background: var(--phx-green-dim);
+    color: var(--phx-green);
+  }
+  .badge-ring svg {
+    position: absolute;
+    inset: 0;
+    width: 44px;
+    height: 44px;
+  }
+  .ring-fill {
+    transition: stroke-dasharray 0.2s linear;
+  }
+  .ring-pct {
+    font-family: var(--phx-font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--phx-accent);
+  }
   .up-h-title {
     font-size: 17px;
     font-weight: 700;
@@ -410,46 +447,33 @@
     font-size: 12px;
     color: var(--phx-text-2);
     margin-top: 3px;
-    max-width: 300px;
+    max-width: 340px;
   }
-  .up-vers {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 16px;
-  }
-  .ver-chip {
-    height: 26px;
-    padding: 0 10px;
-    border-radius: 7px;
-    flex: none;
-    display: inline-flex;
-    align-items: center;
+  .up-h-sub .mono {
     font-family: var(--phx-font-mono);
-    font-size: 12.5px;
+    font-size: 11.5px;
     font-weight: 600;
-  }
-  .ver-old {
-    background: var(--phx-fill-tertiary);
     color: var(--phx-text-2);
   }
-  .ver-new {
-    background: var(--phx-accent-dim);
+  .up-h-sub .mono.new {
     color: var(--phx-accent);
   }
   .ver-arrow {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     color: var(--phx-text-3);
-    flex: none;
+    vertical-align: -2px;
   }
   .notes-card {
-    margin-top: 14px;
     background: var(--phx-surface);
     border-radius: var(--phx-r-card);
-    max-height: 150px;
     overflow-y: auto;
     padding: 12px 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  .notes-card.review {
+    margin-top: 10px;
   }
   .nc-h {
     font-size: 11.5px;
@@ -512,77 +536,28 @@
     background: var(--phx-fill-tertiary);
     color: var(--phx-text);
   }
-  /* ===== 引导轮播（稿图 21-update-carousel.html 定稿值） ===== */
-  .carousel {
-    margin-top: 16px;
+  /* ===== 引导条幅（稿图 27：由 21 稿插画卡降为条幅配角，文案沿用） ===== */
+  .car-strip {
     background: var(--phx-surface);
     border-radius: var(--phx-r-card);
-    padding: 16px 16px 12px;
-    overflow: hidden;
-    position: relative;
-  }
-  .car-viewport {
-    position: relative;
-    height: 118px;
-  }
-  .car-slide {
-    position: absolute;
-    inset: 0;
+    padding: 10px 14px;
     display: flex;
     align-items: center;
-    gap: 16px;
-    opacity: 0;
-    transform: translateX(14px);
-    pointer-events: none;
-  }
-  .car-slide.on {
-    opacity: 1;
-    transform: translateX(0);
-    transition:
-      opacity var(--phx-dur-slow) var(--phx-ease-out),
-      transform var(--phx-dur-slow) var(--phx-ease-out);
-    pointer-events: auto;
-  }
-  .car-slide.leaving {
-    opacity: 0;
-    transform: translateX(-14px);
-    transition:
-      opacity var(--phx-dur-slow) var(--phx-ease-out),
-      transform var(--phx-dur-slow) var(--phx-ease-out);
-  }
-  .car-art {
-    width: 92px;
-    height: 92px;
+    gap: 12px;
     flex: none;
-    border-radius: 14px;
+  }
+  .car-ico {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
   }
-  .car-art svg {
-    width: 46px;
-    height: 46px;
-    position: relative;
-    z-index: 1;
-  }
-  .car-art::after {
-    content: '';
-    position: absolute;
-    inset: -9px;
-    border-radius: 20px;
-    border: 1px dashed var(--phx-sep-strong);
-  }
-  .car-art::before {
-    content: '';
-    position: absolute;
-    right: -15px;
-    top: -6px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--phx-accent);
-    opacity: 0.55;
+  .car-ico svg {
+    width: 20px;
+    height: 20px;
   }
   .car-a0 {
     background: var(--phx-accent-dim);
@@ -592,46 +567,39 @@
     background: var(--phx-orange-dim);
     color: var(--phx-orange);
   }
-  .car-a1::before {
-    background: var(--phx-orange);
-  }
   .car-a2 {
     background: var(--phx-green-dim);
     color: var(--phx-green);
-  }
-  .car-a2::before {
-    background: var(--phx-green);
   }
   .car-a3 {
     background: var(--phx-warn-bg);
     color: var(--phx-warn);
   }
-  .car-a3::before {
-    background: var(--phx-warn);
-  }
   .car-copy {
     min-width: 0;
+    flex: 1;
   }
   .car-t {
-    font-size: 15.5px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: -0.2px;
+    letter-spacing: -0.1px;
   }
   .car-s {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--phx-text-2);
-    line-height: 1.7;
-    margin-top: 5px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .car-dots {
     display: flex;
-    justify-content: center;
-    gap: 7px;
-    margin-top: 12px;
+    gap: 5px;
+    flex: none;
   }
   .car-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 3px;
     background: var(--phx-fill-quaternary);
     border: none;
@@ -645,33 +613,42 @@
     background: var(--phx-sep-strong);
   }
   .car-dot.on {
-    width: 16px;
+    width: 14px;
     background: var(--phx-accent);
   }
-  .prog {
-    margin-top: 16px; /* 21 稿定稿值：加轮播卡后进度区上间距 18→16 */
+  /* 进度主卡（稿图 27）：大百分比 + 进度条 + MB 量词；速度不显示，换剩余时间 */
+  .prog-card {
+    margin-top: 10px;
+    background: var(--phx-surface);
+    border-radius: var(--phx-r-card);
+    padding: 16px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    min-height: 0;
   }
-  .prog-meta {
+  .prog-meta-top {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 8px;
   }
   .prog-pct {
     font-family: var(--phx-font-mono);
-    font-size: 15px;
+    font-size: 28px;
     font-weight: 700;
+    letter-spacing: -0.5px;
   }
-  .prog-speed {
+  .prog-eta {
     font-size: 11.5px;
     color: var(--phx-text-3);
-    font-family: var(--phx-font-mono);
   }
   .prog-track {
     height: 5px;
     border-radius: 3px;
     background: var(--phx-fill-tertiary);
     overflow: hidden;
+    margin-top: 10px;
   }
   .prog-fill {
     height: 100%;
@@ -684,23 +661,7 @@
     font-size: 11.5px;
     color: var(--phx-text-3);
   }
-  .done-ring {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--phx-green-dim);
-  }
-  .done-ring svg {
-    width: 22px;
-    height: 22px;
-    color: var(--phx-green);
-  }
   .done-note {
-    margin-top: 14px;
     padding: 10px 12px;
     border-radius: 10px;
     background: var(--phx-warn-bg);

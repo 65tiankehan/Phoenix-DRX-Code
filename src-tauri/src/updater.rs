@@ -17,9 +17,10 @@ use tauri_plugin_updater::UpdaterExt;
 pub const UPDATE_WIN: &str = "update";
 pub const EVENT_STATUS: &str = "update://status";
 
-/// 薄窗尺寸（420 宽；高度仅为初值，前端挂载后按内容实测回调 setSize 自适应）
+/// 薄窗尺寸（420×396 恒定，稿图 27：三态同骨架同尺寸，生命周期内不变高矮；
+/// 超长内容由 notes 卡内部滚动兜底，前端不再 setSize）
 const WIN_W: f64 = 420.0;
-const WIN_H: f64 = 380.0;
+const WIN_H: f64 = 396.0;
 
 // ----- 状态结构（serde camelCase，前端字段名以此为准） -----
 
@@ -37,14 +38,16 @@ pub enum UpdateStatus {
     },
     /// 已是最新
     NotAvailable,
-    /// 下载中（received/total 字节）
+    /// 下载中（received/total 字节；version 供薄窗副题版本对常驻，稿图 27）
     Downloading {
+        version: String,
         received: u64,
         total: Option<u64>,
     },
-    /// 下载完成，待重启安装
+    /// 下载完成，待重启安装（notes 供就绪态「本次更新内容」回顾卡复用，稿图 27）
     Downloaded {
         version: String,
+        notes: String,
     },
     /// 出错（启动静默检查失败不广播此态，静默回 idle）
     Error {
@@ -77,12 +80,15 @@ pub fn dev_mock(app: AppHandle, phase: String) -> Result<(), String> {
         "downloading" => broadcast(
             &app,
             &UpdateStatus::Downloading {
+                version: "0.1.8".into(),
                 received: 52_428_800,
                 total: Some(125_829_120),
             },
         ),
         "downloaded" => broadcast(&app, &UpdateStatus::Downloaded {
             version: "0.1.8".into(),
+            notes: "「常去」栏与操作按钮悬停提示\n更新薄窗排版修复\n内置数据对齐 SPT 4.1.1"
+                .into(),
         }),
         _ => return Err("未知 phase，可用：available | downloading | downloaded".into()),
     }
@@ -159,9 +165,18 @@ pub fn download(app: AppHandle) -> Result<(), String> {
     let Some(update) = update else {
         return Err("没有待下载的更新".to_string());
     };
-    broadcast(&app, &UpdateStatus::Downloading { received: 0, total: None });
+    let version = update.version.clone();
+    broadcast(
+        &app,
+        &UpdateStatus::Downloading {
+            version: version.clone(),
+            received: 0,
+            total: None,
+        },
+    );
     tauri::async_runtime::spawn(async move {
         let progress_app = app.clone();
+        let progress_version = version.clone();
         let mut received: u64 = 0;
         let result = update
             .download(
@@ -170,6 +185,7 @@ pub fn download(app: AppHandle) -> Result<(), String> {
                     broadcast(
                         &progress_app,
                         &UpdateStatus::Downloading {
+                            version: progress_version.clone(),
                             received,
                             total,
                         },
@@ -180,10 +196,10 @@ pub fn download(app: AppHandle) -> Result<(), String> {
             .await;
         match result {
             Ok(bytes) => {
-                let version = update.version.clone();
+                let notes = update.body.clone().unwrap_or_default();
                 *DOWNLOADED.lock().unwrap() = Some(bytes);
                 *PENDING.lock().unwrap() = Some(update);
-                broadcast(&app, &UpdateStatus::Downloaded { version });
+                broadcast(&app, &UpdateStatus::Downloaded { version, notes });
             }
             Err(e) => {
                 // 下载失败：载荷放回（重试可再取），状态回 available

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>27 · 更新薄窗重设计（三态统一骨架）</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-orange: #a78bfa;
+    --phx-orange-dim: rgba(167,139,250,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 0 40px;
+  }
+  .stage { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; }
+  .col-sub { font-size: 11.5px; color: var(--phx-text-3); max-width: 420px; text-align: center; line-height: 1.6; }
+
+  /* ===== 更新薄窗：三态同一骨架、同一尺寸（420×396 恒定，生命周期内不再变高矮） ===== */
+  .upwin {
+    width: 420px; height: 396px;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .up-titlebar { height: 38px; display: flex; align-items: center; padding: 0 8px 0 16px; flex: none; }
+  .up-tb-label { font-size: 12px; font-weight: 600; color: var(--phx-text-3); }
+  .up-body { padding: 4px 20px 20px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+  /* 状态头：徽章承载状态语义，版本信息三态常驻 */
+  .up-head { display: flex; align-items: center; gap: 14px; flex: none; }
+  .badge {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .badge svg { width: 22px; height: 22px; }
+  .badge-available { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .badge-ready { background: var(--phx-green-dim); color: var(--phx-green); }
+  .up-h-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+  .up-h-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+  .up-h-sub .mono { font-family: var(--phx-font-mono); font-size: 11.5px; font-weight: 600; color: var(--phx-text-2); }
+  .up-h-sub .mono.new { color: var(--phx-accent); }
+  .up-h-sub .arrow { color: var(--phx-text-3); margin: 0 2px; }
+  .up-h-sub .mono.new-dl { color: var(--phx-accent); }
+
+  /* 内容槽：弹性主区，占满剩余高度 */
+  .up-slot { margin-top: 14px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* 更新内容卡（available 主卡 / downloaded 回顾卡共用） */
+  .notes-card {
+    background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 12px 14px; overflow-y: auto; flex: 1; min-height: 0;
+  }
+  .notes-card::-webkit-scrollbar { width: 4px; }
+  .notes-card::-webkit-scrollbar-thumb { background: var(--phx-sep-strong); border-radius: 2px; }
+  .nc-h { font-size: 11.5px; font-weight: 700; color: var(--phx-text-3); letter-spacing: .06em; margin-bottom: 8px; }
+  .nc-li { display: flex; gap: 8px; font-size: 12.5px; color: var(--phx-text-2); line-height: 1.7; }
+  .nc-li + .nc-li { margin-top: 5px; }
+  .nc-dot { width: 4px; height: 4px; border-radius: 2px; background: var(--phx-accent); margin-top: 8px; flex: none; }
+
+  /* 进度主卡（downloading 主视觉）：大百分比 + 进度条 + 量词行 */
+  .prog-card {
+    margin-top: 10px;
+    background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 16px 16px 14px; display: flex; flex-direction: column; justify-content: center;
+    flex: 1; min-height: 0;
+  }
+  .prog-meta-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .prog-pct { font-family: var(--phx-font-mono); font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+  .prog-eta { font-size: 11.5px; color: var(--phx-text-3); }
+  .prog-track { height: 5px; border-radius: 3px; background: var(--phx-fill-tertiary); overflow: hidden; margin-top: 10px; }
+  .prog-fill { height: 100%; border-radius: 3px; background: var(--phx-accent); }
+  .prog-sub { margin-top: 8px; font-size: 11.5px; color: var(--phx-text-3); font-family: var(--phx-font-mono); }
+
+  /* 轮播条幅（downloading 配角）：图标 + 单行文案，不抢进度的戏 */
+  .car-strip {
+    background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex: none;
+  }
+  .car-ico {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--phx-orange-dim); color: var(--phx-orange);
+  }
+  .car-ico svg { width: 20px; height: 20px; }
+  .car-copy { min-width: 0; flex: 1; }
+  .car-t { font-size: 13px; font-weight: 700; letter-spacing: -.1px; }
+  .car-s { font-size: 11.5px; color: var(--phx-text-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .car-dots { display: flex; gap: 5px; flex: none; }
+  .car-dot { width: 5px; height: 5px; border-radius: 3px; background: var(--phx-fill-quaternary); }
+  .car-dot.on { width: 14px; background: var(--phx-accent); }
+
+  /* 提示卡（downloaded） */
+  .done-note {
+    margin-top: 0; padding: 10px 12px; border-radius: 10px; flex: none;
+    background: var(--phx-warn-bg);
+    box-shadow: inset 0 0 0 0.5px var(--phx-warn-bd);
+    font-size: 12px; color: var(--phx-text-2); line-height: 1.6;
+  }
+  .done-note b { color: var(--phx-warn); font-weight: 600; margin-right: 4px; }
+
+  /* 动作区：固定底部，主按钮右 / 次按钮左 */
+  .up-actions { display: flex; gap: 10px; margin-top: 16px; flex: none; }
+  .btn {
+    height: 34px; padding: 0 16px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: filter .12s, background .12s;
+  }
+  .btn-primary { background: var(--phx-accent); color: #fff; flex: 1; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-ghost:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+
+  /* ===== 设计注记 ===== */
+  .ann { max-width: 1380px; margin-top: 44px; }
+  .ann h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--phx-text); }
+  .ann ul { list-style: none; }
+  .ann li { font-size: 12.5px; color: var(--phx-text-2); line-height: 1.9; padding-left: 16px; position: relative; }
+  .ann li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 3px; background: var(--phx-accent); }
+  .ann b { color: var(--phx-text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- 状态一：发现新版本 -->
+  <div class="col">
+    <div class="upwin">
+      <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+      <div class="up-body">
+        <div class="up-head">
+          <div class="badge badge-available">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v13"/><path d="M6 12l6 6 6-6"/></svg>
+          </div>
+          <div>
+            <div class="up-h-title">发现新版本</div>
+            <div class="up-h-sub">当前运行 <span class="mono">0.1.7</span><span class="arrow">→</span><span class="mono new">0.1.8</span>，建议尽快更新</div>
+          </div>
+        </div>
+        <div class="up-slot">
+          <div class="notes-card">
+            <div class="nc-h">更新内容</div>
+            <div class="nc-li"><span class="nc-dot"></span><span>「常去」栏与操作按钮悬停提示</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>更新薄窗排版修复</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>内置数据对齐 SPT 4.1.1</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>首页动态栏新增公告与 sponsors 轮换</span></div>
+          </div>
+        </div>
+        <div class="up-actions">
+          <button class="btn btn-ghost" type="button">稍后提醒</button>
+          <button class="btn btn-primary" type="button">立即更新</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-cap">状态一 · 发现新版本</div>
+    <div class="col-sub">版本对进副题，三态常驻；notes 卡占满内容槽，超长内部滚动</div>
+  </div>
+
+  <!-- 状态二：下载中 -->
+  <div class="col">
+    <div class="upwin">
+      <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+      <div class="up-body">
+        <div class="up-head">
+          <div class="badge">
+            <svg viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-sep-strong)" stroke-width="3.5"/>
+              <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-accent)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="43.8 106.8" transform="rotate(-90 22 22)"/>
+            </svg>
+            <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--phx-font-mono); font-size:9.5px; font-weight:700; color:var(--phx-accent);">41</span>
+          </div>
+          <div>
+            <div class="up-h-title">正在下载更新</div>
+            <div class="up-h-sub"><span class="mono">0.1.7</span><span class="arrow">→</span><span class="mono new-dl">0.1.8</span> · 关闭窗口将转后台下载</div>
+          </div>
+        </div>
+        <div class="up-slot">
+          <div class="car-strip">
+            <div class="car-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3.3 8.4L12 13l8.7-4.6"/><path d="M12 13v9"/></svg>
+            </div>
+            <div class="car-copy">
+              <div class="car-t">仓库随心整理</div>
+              <div class="car-s">装备、背包、保险箱，打开就能直接编辑摆放</div>
+            </div>
+            <div class="car-dots"><span class="car-dot on"></span><span class="car-dot"></span><span class="car-dot"></span><span class="car-dot"></span></div>
+          </div>
+          <div class="prog-card">
+            <div class="prog-meta-top">
+              <span class="prog-pct">41%</span>
+              <span class="prog-eta">剩余约 20 秒</span>
+            </div>
+            <div class="prog-track"><div class="prog-fill" style="width:41%"></div></div>
+            <div class="prog-sub">50.0 MB / 120.0 MB</div>
+          </div>
+        </div>
+        <div class="up-actions">
+          <button class="btn btn-ghost" type="button" style="flex:1">后台下载</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-cap">状态二 · 下载中</div>
+    <div class="col-sub">进度环进徽章、进度升主卡；轮播降为条幅配角；速度改剩余时间</div>
+  </div>
+
+  <!-- 状态三：更新已就绪 -->
+  <div class="col">
+    <div class="upwin">
+      <div class="up-titlebar"><span class="up-tb-label">Phoenix 更新</span></div>
+      <div class="up-body">
+        <div class="up-head">
+          <div class="badge badge-ready">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+          </div>
+          <div>
+            <div class="up-h-title">更新已就绪</div>
+            <div class="up-h-sub"><span class="mono">0.1.8</span> 下载完成，重启后生效</div>
+          </div>
+        </div>
+        <div class="up-slot">
+          <div class="done-note"><b>提示</b>重启会关闭当前编辑中的存档，请先确认没有未保存的修改。</div>
+          <div class="notes-card" style="margin-top:10px; flex:1;">
+            <div class="nc-h">本次更新内容</div>
+            <div class="nc-li"><span class="nc-dot"></span><span>「常去」栏与操作按钮悬停提示</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>更新薄窗排版修复</span></div>
+            <div class="nc-li"><span class="nc-dot"></span><span>内置数据对齐 SPT 4.1.1</span></div>
+          </div>
+        </div>
+        <div class="up-actions">
+          <button class="btn btn-ghost" type="button">稍后自行重启</button>
+          <button class="btn btn-primary" type="button">立即重启安装</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-cap">状态三 · 更新已就绪</div>
+    <div class="col-sub">重启前回看更新内容（真实数据填充，消灭底部空白）；此卡去留待拍板</div>
+  </div>
+
+</div>
+
+<div class="ann">
+  <h2>设计注记（相对现版的改动）</h2>
+  <ul>
+    <li><b>窗口恒定尺寸</b>：三态同骨架、同尺寸 420×396，生命周期内不再变高矮——高度自适应从「常态机制」降级为「超长 notes 的滚动兜底」，彻底消灭底部空白/挤出一类问题。</li>
+    <li><b>状态徽章承载语义</b>：available 蓝色下行箭头 / downloading 进度环（环走进度、中心小百分比）/ downloaded 绿勾，同形同位（44px 圆角方），情绪由颜色表达。</li>
+    <li><b>版本对进副题、三态常驻</b>：`0.1.7 → 0.1.8` mono 排版，新版本号用主色；不再单独占一行 chips（available 独有的版本行取消）。</li>
+    <li><b>下载中：进度是主角</b>：进度环进徽章 + 进度主卡（28px 大百分比 / 进度条 / MB 量词）；轮播由 118px 插画卡降为 56px 条幅（小图标 + 单行文案 + 细点），安利不抢戏；右上角无意义的速度值改为「剩余约 N 秒」（速度未知时该位留空）。</li>
+    <li><b>「后台下载」语义前置</b>：下载中副题直接写明「关闭窗口将转后台下载」，按钮与关窗行为同义，不再是两个概念。</li>
+    <li><b>待拍板</b>：状态三新增「本次更新内容」回顾卡（复用 notes 真实数据、填满内容槽）——若嫌重启前多余可去掉，去掉后该态高度可比另两态矮（回到内容自适应）。</li>
+  </ul>
+</div>
+
+</body>
+</html>

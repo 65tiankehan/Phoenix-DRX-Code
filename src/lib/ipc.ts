@@ -576,8 +576,8 @@ export type PhxUpdateStatus =
   | { phase: 'checking' }
   | { phase: 'available'; version: string; notes: string }
   | { phase: 'notAvailable' }
-  | { phase: 'downloading'; received: number; total: number | null }
-  | { phase: 'downloaded'; version: string }
+  | { phase: 'downloading'; version: string; received: number; total: number | null }
+  | { phase: 'downloaded'; version: string; notes: string }
   | { phase: 'error'; message: string }
 
 /** 全局状态广播事件名（Rust app.emit；薄窗挂载先 getStatus 取快照再 listen） */
