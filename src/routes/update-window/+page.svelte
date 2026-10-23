@@ -187,7 +187,10 @@
       const total = TITLEBAR_H + h
       if (Math.abs(total - appliedH) < 1) return
       appliedH = total
-      void getCurrentWindow().setSize(new LogicalSize(WIN_W, total))
+      // 失败必须可见：曾被 capability 漏配 set-size 权限静默拒绝，窗高停死在初值（事故 §二.45）
+      getCurrentWindow()
+        .setSize(new LogicalSize(WIN_W, total))
+        .catch((e) => console.error('[update-window] 窗高自适应失败:', e))
     })
     return () => cancelAnimationFrame(raf)
   })

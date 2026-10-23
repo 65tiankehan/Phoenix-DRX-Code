@@ -121,6 +121,8 @@
 
   // 手动检查更新：notAvailable / error 用 toast 提示；available 时 Rust 侧已自动开薄窗
   let checking = $state(false)
+  /* dev-only 更新窗预览入口（正式构建静态剔除） */
+  const devBuild = import.meta.env.DEV
   function checkNow(): void {
     if (checking) return
     checking = true
@@ -296,6 +298,20 @@
                 {checking ? t('update.checking') : t('settings.checkNow.btn')}
               </button>
             </div>
+            {#if devBuild}
+              <!-- 仅开发构建渲染（vite 生产构建静态剔除）：更新薄窗三态视觉调试入口 -->
+              <div class="srow">
+                <div class="stext">
+                  <div class="slabel">更新窗预览（仅开发）</div>
+                  <div class="sdesc">广播假状态并打开更新薄窗，逐态核对高度自适应；正式包无此项。</div>
+                </div>
+                <div class="dev-mock">
+                  <button class="mbtn ghost" type="button" onclick={() => void phxUpdate.devMock('available')}>发现新版本</button>
+                  <button class="mbtn ghost" type="button" onclick={() => void phxUpdate.devMock('downloading')}>下载中</button>
+                  <button class="mbtn ghost" type="button" onclick={() => void phxUpdate.devMock('downloaded')}>待重启</button>
+                </div>
+              </div>
+            {/if}
           </section>
 
           <!-- 组 2 · 服务器与账号 -->
@@ -550,6 +566,11 @@
     background: var(--phx-fill-tertiary);
     color: var(--phx-text);
     box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
+  }
+  .dev-mock {
+    display: flex;
+    gap: 8px;
+    flex: none;
   }
   .mbtn.danger {
     background: transparent;

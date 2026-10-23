@@ -546,6 +546,20 @@ async fn update_get_status() -> updater::UpdateStatus {
     updater::current_status()
 }
 
+/// 【dev 专用】广播假更新状态并开薄窗（三态视觉调试）；正式包返回错误，无实际作用
+#[tauri::command]
+async fn update_dev_mock(app: AppHandle, phase: String) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    {
+        updater::dev_mock(app, phase)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, phase);
+        Err("仅开发构建可用".into())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -630,7 +644,7 @@ pub fn run() {
             auth_is_configured, auth_device_start, auth_device_cancel, auth_logout,
             sync_pull, sync_push,
             update_check, update_download, update_install, update_open_window, update_dismiss,
-            update_get_status
+            update_get_status, update_dev_mock
         ])
         .run(tauri::generate_context!())
         .expect("Phoenix-DRX 启动失败");

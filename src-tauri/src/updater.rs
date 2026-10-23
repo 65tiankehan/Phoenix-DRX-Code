@@ -61,6 +61,34 @@ static PENDING: Mutex<Option<tauri_plugin_updater::Update>> = Mutex::new(None);
 /// 当前状态快照（update_get_status 读取，薄窗挂载时先取快照再听广播）
 static CURRENT: Mutex<Option<UpdateStatus>> = Mutex::new(None);
 
+/// 【dev 专用】广播假更新状态并开薄窗，供三态视觉调试（无需真实新版本）。
+/// 仅 debug 构建编译；phase: available | downloading | downloaded。
+#[cfg(debug_assertions)]
+pub fn dev_mock(app: AppHandle, phase: String) -> Result<(), String> {
+    match phase.as_str() {
+        "available" => broadcast(
+            &app,
+            &UpdateStatus::Available {
+                version: "0.1.8".into(),
+                notes: "「常去」栏与操作按钮悬停提示\n更新薄窗排版修复\n内置数据对齐 SPT 4.1.1"
+                    .into(),
+            },
+        ),
+        "downloading" => broadcast(
+            &app,
+            &UpdateStatus::Downloading {
+                received: 52_428_800,
+                total: Some(125_829_120),
+            },
+        ),
+        "downloaded" => broadcast(&app, &UpdateStatus::Downloaded {
+            version: "0.1.8".into(),
+        }),
+        _ => return Err("未知 phase，可用：available | downloading | downloaded".into()),
+    }
+    open_window(&app)
+}
+
 /// 下载完成的安装包字节，install 时喂给 update.install
 static DOWNLOADED: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 

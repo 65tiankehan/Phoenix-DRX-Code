@@ -591,7 +591,10 @@ export const phxUpdate = {
   download: (): Promise<void> => invoke('update_download'),
   install: (): Promise<void> => invoke('update_install'),
   openWindow: (): Promise<void> => invoke('update_open_window'),
-  dismiss: (): Promise<void> => invoke('update_dismiss')
+  dismiss: (): Promise<void> => invoke('update_dismiss'),
+  /** 【dev 专用】广播假更新状态并开薄窗（三态视觉调试）；正式包返回错误 */
+  devMock: (phase: 'available' | 'downloading' | 'downloaded'): Promise<void> =>
+    invoke('update_dev_mock', { phase })
 }
 
 // —— 问题检测（13 屏：保存拦截弹窗 + 仪表台问题清单）——
