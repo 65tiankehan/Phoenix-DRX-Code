@@ -154,6 +154,38 @@ fn default_install_dir() -> PathBuf {
     Path::new(&local).join("Programs").join(&config().default_dir_name)
 }
 
+/// 升级迁移探测：机器上已有安装就用它的目录（覆盖升级），否则用我们的默认目录。
+/// 优先 NSIS 旧登记项（Tauri NSIS per-user 默认 `%LOCALAPPDATA%\{productName}`，无 Programs 子层，
+/// 与我们默认目录不同——v0.1.8 首次真机更新曾因此装出双份，快捷方式仍指旧家），其次自身登记项。
+#[cfg(windows)]
+fn detect_existing_install_dir(cfg: &Config) -> Option<PathBuf> {
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
+    use winreg::RegKey;
+    let root = RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Uninstall")
+        .ok()?;
+    for name in [cfg.display_name.as_str(), cfg.app_id.as_str()] {
+        if let Ok(k) = root.open_subkey_with_flags(name, KEY_READ) {
+            if let Ok(loc) = k.get_value::<String, _>("InstallLocation") {
+                let p = PathBuf::from(&loc);
+                if p.is_dir() && p.join(&cfg.exe_name).is_file() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(not(windows))]
+fn detect_existing_install_dir(_cfg: &Config) -> Option<PathBuf> {
+    None
+}
+
+fn resolve_default_dir() -> PathBuf {
+    detect_existing_install_dir(&config()).unwrap_or_else(default_install_dir)
+}
+
 /// 读自身 exe 尾部 trailer，取出载荷 zip 字节（开发模式未拼接时报错提示）
 fn read_payload() -> Result<Vec<u8>, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
@@ -286,11 +318,24 @@ fn create_shortcuts(cfg: &Config, target: &Path, desktop: bool, start_menu: bool
     Ok(())
 }
 
-/// 全流程：解压 90% → 登记 94% → 快捷方式 98% → done 100%。
-/// S3 待补：WebView2 检测补装（方案 §2.3）与卸载执行体。
-fn run_install(app: AppHandle, target: PathBuf, desktop_sc: bool, start_menu_sc: bool) {
+/// 全流程：结束主程序 → 解压 90% → 登记 94% → 快捷方式 98% → done 100%。
+/// 返回是否成功（静默更新链据此拉起新版）。
+fn run_install(app: AppHandle, target: PathBuf, desktop_sc: bool, start_menu_sc: bool) -> bool {
     let cfg = config();
-    match (|| -> Result<(), String> {
+    // 升级迁移：写新登记前先取旧自研登记的位置（v0.1.8 可能装在 Programs 子层的旧家）
+    let prev_own_dir: Option<PathBuf> = {
+        use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
+        use winreg::RegKey;
+        RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey_with_flags(
+                format!(r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}", cfg.app_id),
+                KEY_READ,
+            )
+            .ok()
+            .and_then(|k| k.get_value::<String, _>("InstallLocation").ok())
+            .map(PathBuf::from)
+    };
+    let ok = match (|| -> Result<(), String> {
         // 应用内更新链的主程序此刻还在运行（NSIS 由安装脚本杀进程，我们自己做）：
         // 静默安装开始前先结束主程序，否则解压必撞「文件被占用」
         let _ = cmd_hidden(&["/C", "taskkill", "/F", "/IM", &cfg.exe_name]);
@@ -298,7 +343,7 @@ fn run_install(app: AppHandle, target: PathBuf, desktop_sc: bool, start_menu_sc:
         fs::create_dir_all(&target).map_err(|e| e.to_string())?;
         let payload = read_payload()?;
         extract_payload(&payload, &target, &app)?;
-        // 卸载器 = 自身副本（带 --uninstall 参数启动进卸载模式，S3 落执行逻辑）
+        // 卸载器 = 自身副本（带 --uninstall 参数启动进卸载模式）
         let self_exe = std::env::current_exe().map_err(|e| e.to_string())?;
         fs::copy(&self_exe, target.join("Uninstall.exe")).map_err(|e| e.to_string())?;
         emit(&app, "registry", 94.0, "写入安装登记（添加/删除程序）");
@@ -307,12 +352,32 @@ fn run_install(app: AppHandle, target: PathBuf, desktop_sc: bool, start_menu_sc:
         create_shortcuts(&cfg, &target, desktop_sc, start_menu_sc)?;
         Ok(())
     })() {
-        Ok(()) => emit(&app, "done", 100.0, "安装完成"),
+        Ok(()) => {
+            // 迁移收编：清掉旧自研残留目录（与本次目标不同且确属我们的安装：主程序+卸载器俱全才动），
+            // 删 NSIS 旧登记键——自此「添加/删除程序」只剩我们一条
+            if let Some(prev) = prev_own_dir {
+                if prev != target && prev.join(&cfg.exe_name).is_file() && prev.join("Uninstall.exe").is_file() {
+                    rm_rf(&prev);
+                }
+            }
+            {
+                use winreg::enums::HKEY_CURRENT_USER;
+                use winreg::RegKey;
+                let _ = RegKey::predef(HKEY_CURRENT_USER).delete_subkey(format!(
+                    r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}",
+                    cfg.display_name
+                ));
+            }
+            emit(&app, "done", 100.0, "安装完成");
+            true
+        }
         Err(e) => {
             emit(&app, "error", 0.0, &e);
+            false
         }
-    }
+    };
     *app.state::<InstallState>().running.lock().unwrap() = false;
+    ok
 }
 
 #[tauri::command]
@@ -325,7 +390,7 @@ fn installer_info() -> LaunchInfo {
         .unwrap_or_default();
     LaunchInfo {
         config: config(),
-        default_dir: default_install_dir().to_string_lossy().to_string(),
+        default_dir: resolve_default_dir().to_string_lossy().to_string(),
         install_dir,
         launch_mode: mode.into(),
     }
@@ -509,16 +574,21 @@ fn main() {
         .setup(move |app| {
             apply_window_rounding(app.handle());
             if silent {
-                // 静默模式（/S，NSIS 参数兼容，服务应用内更新链）：无 UI，默认目录默认选项，装完即退
+                // 静默模式（/S /P，服务应用内更新链）：无 UI，迁移探测目录，装完拉起新版再退
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.hide();
                 }
                 let handle = app.handle().clone();
-                let dir = default_install_dir();
+                let dir = resolve_default_dir();
                 let sc = config().shortcuts;
                 tauri::async_runtime::spawn(async move {
-                    run_install(handle, dir, sc.desktop, sc.start_menu);
-                    std::process::exit(0); // 静默装完即退（error 亦退，退出码由后续版本细化）
+                    let ok = run_install(handle, dir.clone(), sc.desktop, sc.start_menu);
+                    // 「重启后生效」闭环：装成功才拉起新版（失败留给用户手动装，别拉起旧版装糊涂）
+                    if ok {
+                        let exe = dir.join(config().exe_name);
+                        let _ = std::process::Command::new(exe).spawn();
+                    }
+                    std::process::exit(0);
                 });
             }
             Ok(())
