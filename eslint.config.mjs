@@ -9,6 +9,7 @@ export default tseslint.config(
       '.svelte-kit/**',
       'node_modules/**',
       'src-tauri/target/**',
+      'installer/src-tauri/target/**',
       '.legacy/**',
       'docs/**',
       'out/**',

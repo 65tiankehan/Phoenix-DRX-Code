@@ -291,6 +291,10 @@ fn create_shortcuts(cfg: &Config, target: &Path, desktop: bool, start_menu: bool
 fn run_install(app: AppHandle, target: PathBuf, desktop_sc: bool, start_menu_sc: bool) {
     let cfg = config();
     match (|| -> Result<(), String> {
+        // 应用内更新链的主程序此刻还在运行（NSIS 由安装脚本杀进程，我们自己做）：
+        // 静默安装开始前先结束主程序，否则解压必撞「文件被占用」
+        let _ = cmd_hidden(&["/C", "taskkill", "/F", "/IM", &cfg.exe_name]);
+        std::thread::sleep(std::time::Duration::from_millis(300));
         fs::create_dir_all(&target).map_err(|e| e.to_string())?;
         let payload = read_payload()?;
         extract_payload(&payload, &target, &app)?;
