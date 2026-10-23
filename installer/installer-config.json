@@ -1,0 +1,31 @@
+{
+  "$comment": "DRX-Setup 复用模板的配置单一来源：新项目接入只改这份文件 + 换图标 + 换载荷（方案 §一）",
+  "appId": "{B7E1A4C2-93F0-4D8A-8C5B-2A1D4E6F8093}",
+  "displayName": "Phoenix-DRX",
+  "exeName": "phoenix-drx.exe",
+  "publisher": "Phoenix-DRX",
+  "version": "0.1.7",
+  "tagline": "SPT 存档编辑器 · 永久免费",
+  "defaultDirName": "Phoenix-DRX",
+  "payloadSizeMb": 12.4,
+  "shortcuts": {
+    "desktop": false,
+    "startMenu": true
+  },
+  "uninstall": {
+    "keepUserData": true,
+    "dataDirs": ["%APPDATA%/com.phoenixdrx.app"]
+  },
+  "webview2": {
+    "required": true
+  },
+  "ads": {
+    "enabled": true,
+    "slides": [
+      { "kind": "feature", "color": "warn", "title": "改档先自动备份", "desc": "每次保存前自动留底，随时一键回滚" },
+      { "kind": "feature", "color": "orange", "title": "仓库随心整理", "desc": "装备、背包、保险箱，打开就能直接编辑摆放" },
+      { "kind": "ad", "color": "accent", "title": "这里可以放你的广告", "desc": "模组作者、店铺、社区想来被玩家看到？赞助换取展示位，编辑器本身永久免费", "url": "https://github.com/65tiankehan/Phoenix-DRX-Opendata/issues" },
+      { "kind": "feature", "color": "green", "title": "人物一键养成", "desc": "等级、技能、身体状态，拖动数值立即生效" }
+    ]
+  }
+}

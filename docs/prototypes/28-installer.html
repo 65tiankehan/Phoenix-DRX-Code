@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>28 · 自研安装器 DRX-Setup（四态）</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-danger-bg: rgba(196,43,28,.18);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-orange: #a78bfa;
+    --phx-orange-dim: rgba(167,139,250,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: var(--phx-font-sans);
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 0 40px;
+  }
+  .stage { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; justify-content: center; max-width: 1560px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; }
+  .col-sub { font-size: 11.5px; color: var(--phx-text-3); max-width: 460px; text-align: center; line-height: 1.6; }
+
+  /* ===== 安装器窗：460×360 恒定，四态同骨架（同 27 号稿图哲学） ===== */
+  .suwin {
+    width: 460px; height: 460px;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .su-titlebar {
+    height: 38px; flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 6px 0 16px;
+  }
+  .su-tb-label { font-size: 12px; font-weight: 600; color: var(--phx-text-3); }
+  .su-close {
+    width: 28px; height: 26px; border: none; border-radius: 6px; cursor: pointer;
+    background: transparent; color: var(--phx-text-3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .su-close:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .su-body { padding: 4px 24px 20px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .su-slot { margin-top: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .su-actions { display: flex; gap: 10px; margin-top: 16px; flex: none; }
+
+  /* 状态头（同 27：徽章承载状态语义） */
+  .su-head { display: flex; align-items: center; gap: 14px; flex: none; }
+  .badge {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .badge svg { width: 22px; height: 22px; }
+  .badge-welcome { background: var(--phx-accent-dim); color: var(--phx-accent); font-family: fantasy; font-style: italic; font-weight: 700; font-size: 22px; }
+  .badge-installing { background: transparent; }
+  .badge-done { background: var(--phx-green-dim); color: var(--phx-green); }
+  .badge-uninstall { background: var(--phx-warn-bg); color: var(--phx-warn); }
+  .spin { animation: su-rot 1s linear infinite; transform-origin: 50% 50%; }
+  @keyframes su-rot { to { transform: rotate(360deg); } }
+  .su-h-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+  .su-h-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+  .su-h-sub .mono { font-family: var(--phx-font-mono); font-size: 11.5px; font-weight: 600; }
+
+  /* 卡片与行 */
+  .field-card {
+    background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 12px 14px; flex: none;
+  }
+  .f-label { font-size: 11.5px; font-weight: 700; color: var(--phx-text-3); letter-spacing: .06em; margin-bottom: 8px; }
+  .f-row { display: flex; align-items: center; gap: 8px; }
+  .f-path {
+    font-family: var(--phx-font-mono); font-size: 12px; color: var(--phx-text-2);
+    background: var(--phx-fill-tertiary); border-radius: 7px;
+    height: 28px; display: flex; align-items: center; padding: 0 10px;
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden;
+  }
+  .f-path .dim { color: var(--phx-text-3); }
+  .f-size { margin-top: 8px; font-size: 11px; color: var(--phx-text-3); }
+  .opt-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex: none; }
+  .opt-row:first-child { margin-top: 0; }
+  .opt-text { font-size: 12.5px; color: var(--phx-text-2); flex: 1; }
+  .opt-text .sub { display: block; font-size: 11px; color: var(--phx-text-3); margin-top: 1px; }
+
+  /* 开关（全站自绘 Switch 规格同款） */
+  .sw {
+    width: 36px; height: 20px; border-radius: 10px; flex: none; position: relative;
+    background: var(--phx-fill-quaternary); cursor: pointer;
+    transition: background var(--phx-dur-fast) var(--phx-ease-out);
+  }
+  .sw.on { background: var(--phx-accent); }
+  .sw::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff;
+    transition: transform var(--phx-dur-fast) var(--phx-ease-out);
+  }
+  .sw.on::after { transform: translateX(16px); }
+
+  /* 按钮（规格同 27） */
+  .btn {
+    height: 34px; padding: 0 16px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: filter .12s, background .12s;
+  }
+  .btn-primary { background: var(--phx-accent); color: #fff; flex: 1; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-ghost:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-danger { background: var(--phx-danger); color: #fff; flex: 1; }
+  .btn-danger:hover { filter: brightness(1.1); }
+  .btn-sm { height: 28px; padding: 0 12px; font-size: 12px; flex: none; }
+
+  /* ===== 引导条幅（安装中轮播：版本特色 + 预留广告位，样式同 27 号稿图） ===== */
+  .car-strip {
+    background: var(--phx-surface);
+    border-radius: var(--phx-r-card);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    flex: none;
+  }
+  .car-ico {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .car-ico svg { width: 22px; height: 22px; }
+  .car-copy { min-width: 0; flex: 1; }
+  .car-t { font-size: 14px; font-weight: 700; letter-spacing: -.1px; display: flex; align-items: center; gap: 6px; }
+  .car-s { font-size: 11.5px; color: var(--phx-text-2); margin-top: 3px; line-height: 1.6; }
+  .ad-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em;
+    padding: 1px 6px; border-radius: 5px; flex: none;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .car-dots { display: flex; gap: 5px; flex: none; }
+  .car-dot {
+    width: 5px; height: 5px; border-radius: 3px; border: none; padding: 0;
+    background: var(--phx-fill-quaternary); cursor: pointer;
+    transition: background var(--phx-dur-fast) var(--phx-ease-out), width var(--phx-dur-norm) var(--phx-ease-emphasized);
+  }
+  .car-dot:hover { background: var(--phx-sep-strong); }
+  .car-dot.on { width: 14px; background: var(--phx-accent); }
+  .sl-a { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .sl-o { background: var(--phx-orange-dim); color: var(--phx-orange); }
+  .sl-g { background: var(--phx-green-dim); color: var(--phx-green); }
+  .sl-w { background: var(--phx-warn-bg); color: var(--phx-warn); }
+  /* 常驻条幅在内容稀疏态吸附动作区上方：空闲区即广告位 */
+  .car-strip.bottom { margin-top: auto; }
+
+  /* ===== 状态二：安装中 —— 步骤清单 + 总进度 ===== */
+  .steps { display: flex; flex-direction: column; gap: 4px; flex: none; }
+  .step { display: flex; align-items: center; gap: 10px; height: 28px; }
+  .st-ico {
+    width: 20px; height: 20px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .st-ico svg { width: 11px; height: 11px; }
+  .st-ico.done { background: var(--phx-green-dim); color: var(--phx-green); }
+  .st-ico.active { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .st-ico.active::after {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--phx-accent); animation: su-rot 0s;
+  }
+  .st-ico.pending { background: var(--phx-fill-tertiary); }
+  .st-ico.pending::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--phx-sep-strong); }
+  .st-text { font-size: 12.5px; color: var(--phx-text-2); }
+  .step.done .st-text { color: var(--phx-text-3); }
+  .step.active .st-text { color: var(--phx-text); font-weight: 600; }
+  .prog-card {
+    margin-top: 12px; background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 14px 16px; flex: none;
+  }
+  .prog-meta { display: flex; justify-content: space-between; align-items: baseline; }
+  .prog-pct { font-family: var(--phx-font-mono); font-size: 22px; font-weight: 700; letter-spacing: -.5px; }
+  .prog-eta { font-size: 11.5px; color: var(--phx-text-3); }
+  .prog-track { height: 5px; border-radius: 3px; background: var(--phx-fill-tertiary); overflow: hidden; margin-top: 10px; }
+  .prog-fill { height: 100%; border-radius: 3px; background: var(--phx-accent); transition: width .2s linear; }
+  .prog-sub { margin-top: 8px; font-size: 11.5px; color: var(--phx-text-3); font-family: var(--phx-font-mono); }
+
+  /* 卸载警示卡 */
+  .warn-note {
+    padding: 10px 12px; border-radius: 10px; flex: none;
+    background: var(--phx-warn-bg); box-shadow: inset 0 0 0 0.5px var(--phx-warn-bd);
+    font-size: 12px; color: var(--phx-text-2); line-height: 1.6;
+  }
+  .warn-note b { color: var(--phx-warn); font-weight: 600; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- 状态一：欢迎（路径 + 选项） -->
+  <div class="col">
+    <div class="suwin">
+      <div class="su-titlebar">
+        <span class="su-tb-label">Phoenix-DRX 安装</span>
+        <button class="su-close" type="button"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+      </div>
+      <div class="su-body">
+        <div class="su-head">
+          <div class="badge badge-welcome">P</div>
+          <div>
+            <div class="su-h-title">欢迎安装 Phoenix-DRX</div>
+            <div class="su-h-sub">版本 <span class="mono">0.1.7</span> · SPT 存档编辑器 · 永久免费</div>
+          </div>
+        </div>
+        <div class="su-slot">
+          <div class="field-card">
+            <div class="f-label">安装位置</div>
+            <div class="f-row">
+              <div class="f-path"><span class="dim">C:\Users\你\AppData\Local\Programs\</span>Phoenix-DRX</div>
+              <button class="btn btn-ghost btn-sm" type="button">浏览…</button>
+            </div>
+            <div class="f-size">需要空间约 12.4 MB · 仅当前用户安装，无需管理员权限</div>
+          </div>
+          <div class="opt-row">
+            <span class="opt-text">创建桌面快捷方式</span>
+            <span class="sw"></span>
+          </div>
+          <div class="opt-row">
+            <span class="opt-text">开始菜单快捷方式<span class="sub">建议保留，卸载与「添加/删除程序」依赖安装登记</span></span>
+            <span class="sw on"></span>
+          </div>
+          <div class="car-strip bottom">
+            <div class="car-ico sl-a">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>
+            </div>
+            <div class="car-copy">
+              <div class="car-t">这里可以放你的广告<span class="ad-tag">推广</span></div>
+              <div class="car-s">模组作者、店铺、社区想来被玩家看到？赞助换取展示位，编辑器本身永久免费</div>
+            </div>
+            <div class="car-dots"><span class="car-dot"></span><span class="car-dot"></span><span class="car-dot on"></span><span class="car-dot"></span></div>
+          </div>
+        </div>
+        <div class="su-actions">
+          <button class="btn btn-primary" type="button">立即安装</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-cap">状态一 · 欢迎</div>
+    <div class="col-sub">默认路径预填 per-user 目录；开始菜单项带说明且默认开（安装登记是卸载入口）</div>
+  </div>
+  <!-- 状态二：安装中（步骤清单 + 总进度；无操作按钮，取消走关闭钮） -->
+  <div class="col">
+    <div class="suwin">
+      <div class="su-titlebar">
+        <span class="su-tb-label">Phoenix-DRX 安装</span>
+        <button class="su-close" type="button"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+      </div>
+      <div class="su-body">
+        <div class="su-head">
+          <div class="badge badge-installing">
+            <svg viewBox="0 0 44 44" class="spin">
+              <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-sep-strong)" stroke-width="3.5"/>
+              <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-accent)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="40 106.8"/>
+            </svg>
+          </div>
+          <div>
+            <div class="su-h-title">正在安装</div>
+            <div class="su-h-sub">解压文件到安装目录，并完成系统登记</div>
+          </div>
+        </div>
+        <div class="su-slot">
+          <!-- 引导条幅轮播：版本特色 + 预留广告位（与首页动态栏/公告仓 sponsor 同源） -->
+          <div class="car-strip" aria-live="polite">
+            <div class="car-ico sl-w">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z"/><path d="M12 8v4l2.5 2.5"/></svg>
+            </div>
+            <div class="car-copy">
+              <div class="car-t">改档先自动备份</div>
+              <div class="car-s">每次保存前自动留底，随时一键回滚</div>
+            </div>
+            <div class="car-dots">
+              <span class="car-dot on"></span>
+              <span class="car-dot"></span>
+              <span class="car-dot"></span>
+              <span class="car-dot"></span>
+            </div>
+          </div>
+          <div class="steps" style="margin-top:10px;">
+            <div class="step done">
+              <span class="st-ico done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>
+              <span class="st-text">解压程序文件</span>
+            </div>
+            <div class="step done">
+              <span class="st-ico done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>
+              <span class="st-text">写入安装登记（添加/删除程序）</span>
+            </div>
+            <div class="step active">
+              <span class="st-ico active"></span>
+              <span class="st-text">创建快捷方式</span>
+            </div>
+            <div class="step">
+              <span class="st-ico pending"></span>
+              <span class="st-text">检查运行环境（WebView2）</span>
+            </div>
+          </div>
+          <div class="prog-card">
+            <div class="prog-meta">
+              <span class="prog-pct">64%</span>
+              <span class="prog-eta">约 2 秒</span>
+            </div>
+            <div class="prog-track"><div class="prog-fill" style="width:64%"></div></div>
+            <div class="prog-sub">8.2 MB / 12.4 MB</div>
+          </div>
+        </div>
+        <div class="su-actions"></div>
+      </div>
+    </div>
+    <div class="col-cap">状态二 · 安装中</div>
+    <div class="col-sub">四步固定清单；WebView2 缺失时该步变「正在准备运行环境」并静默装官方引导器</div>
+  </div>
+
+  <!-- 状态三：完成（立即运行勾选） -->
+  <div class="col">
+    <div class="suwin">
+      <div class="su-titlebar">
+        <span class="su-tb-label">Phoenix-DRX 安装</span>
+        <button class="su-close" type="button"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+      </div>
+      <div class="su-body">
+        <div class="su-head">
+          <div class="badge badge-done">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+          </div>
+          <div>
+            <div class="su-h-title">安装完成</div>
+            <div class="su-h-sub">已安装到 <span class="mono">…\Programs\Phoenix-DRX</span></div>
+          </div>
+        </div>
+        <div class="su-slot">
+          <div class="field-card">
+            <div class="f-label">安装位置</div>
+            <div class="f-path"><span class="dim">C:\Users\你\AppData\Local\Programs\</span>Phoenix-DRX</div>
+          </div>
+          <div class="opt-row">
+            <span class="opt-text">安装完成后立即运行 Phoenix-DRX</span>
+            <span class="sw on"></span>
+          </div>
+          <div class="warn-note" style="margin-top:12px"><b>小贴士</b>首次启动需要选择 SPT 服务器目录；以后更新会直接在应用内提示，无需重新下载安装包。</div>
+          <div class="car-strip bottom">
+            <div class="car-ico sl-a">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>
+            </div>
+            <div class="car-copy">
+              <div class="car-t">这里可以放你的广告<span class="ad-tag">推广</span></div>
+              <div class="car-s">模组作者、店铺、社区想来被玩家看到？赞助换取展示位，编辑器本身永久免费</div>
+            </div>
+            <div class="car-dots"><span class="car-dot"></span><span class="car-dot"></span><span class="car-dot on"></span><span class="car-dot"></span></div>
+          </div>
+        </div>
+        <div class="su-actions">
+          <button class="btn btn-primary" type="button">完成</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-cap">状态三 · 完成</div>
+    <div class="col-sub">「立即运行」默认开；小贴士卡承接首次引导（服务器选择是首个真窗口）</div>
+  </div>
+
+  <!-- 状态四：卸载确认 -->
+  <div class="col">
+    <div class="suwin">
+      <div class="su-titlebar">
+        <span class="su-tb-label">Phoenix-DRX 卸载</span>
+        <button class="su-close" type="button"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+      </div>
+      <div class="su-body">
+        <div class="su-head">
+          <div class="badge badge-uninstall">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"/><path d="M6.5 7l1 12a2 2 0 002 1.8h5a2 2 0 002-1.8l1-12"/><path d="M10 11v6M14 11v6"/></svg>
+          </div>
+          <div>
+            <div class="su-h-title">卸载 Phoenix-DRX？</div>
+            <div class="su-h-sub">将移除程序本体、快捷方式与安装登记</div>
+          </div>
+        </div>
+        <div class="su-slot">
+          <div class="field-card">
+            <div class="f-row">
+              <div class="f-path"><span class="dim">C:\Users\你\AppData\Local\Programs\</span>Phoenix-DRX</div>
+              <span class="f-size" style="margin-top:0;flex:none;">占用 12.4 MB</span>
+            </div>
+          </div>
+          <div class="opt-row">
+            <span class="opt-text">同时删除个人数据<span class="sub">存档编辑记录、设置与本地备份（备份目录 C:\Users\你\Documents\Phoenix-DRX）</span></span>
+            <span class="sw"></span>
+          </div>
+          <div class="warn-note" style="margin-top:12px"><b>提示</b>卸载前请确认 SPT 游戏与存档未被本程序占用；游戏本体与存档不受影响。</div>
+          <div class="car-strip bottom">
+            <div class="car-ico sl-a">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>
+            </div>
+            <div class="car-copy">
+              <div class="car-t">这里可以放你的广告<span class="ad-tag">推广</span></div>
+              <div class="car-s">模组作者、店铺、社区想来被玩家看到？赞助换取展示位，编辑器本身永久免费</div>
+            </div>
+            <div class="car-dots"><span class="car-dot"></span><span class="car-dot"></span><span class="car-dot on"></span><span class="car-dot"></span></div>
+          </div>
+        </div>
+        <div class="su-actions">
+          <button class="btn btn-ghost" type="button">取消</button>
+          <button class="btn btn-danger" type="button">卸载</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-cap">状态四 · 卸载确认</div>
+    <div class="col-sub">确认后执行卸载：关主程序 → 清登记/快捷方式 → 延迟删目录；完成即关窗，无第三屏</div>
+  </div>
+</div>
+
+<div class="ann" style="max-width:1380px;margin-top:44px;">
+  <h2 style="font-size:14px;font-weight:700;margin-bottom:12px;">设计注记</h2>
+  <ul style="list-style:none;">
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">窗口 460×360 恒定</b>，四态同骨架同徽章语言（沿用 27 号稿图哲学：徽章承载状态——P 品牌 / 旋转环 / 绿勾 / 警示垃圾桶）。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">per-user 安装</b>：默认路径 <span style="font-family:var(--phx-font-mono);">%LOCALAPPDATA%\Programs\Phoenix-DRX</span>，无需管理员权限；路径可改（浏览按钮），只改目录名以上部分。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">快捷方式两项开关</b>：桌面默认关（玩家习惯各异）、开始菜单默认开且带说明（安装登记是「添加/删除程序」的卸载入口，不建议关——若真关掉，卸载只能走安装目录 Uninstall.exe）。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">安装中无操作按钮</b>：总进度条 + 四步固定清单（解压 / 登记 / 快捷方式 / WebView2）；中止安装走标题栏关闭（弹确认，注记待拍板项 ②）。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">卸载即一屏</b>：确认框 + 个人数据开关（默认关，保数据）；执行阶段复用安装中的进度样式但无步骤清单，完成直接关窗。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">静默模式不在此稿</b>：<span style="font-family:var(--phx-font-mono);">/S</span> 参数全流程无 UI（服务应用内更新链），直接落盘默认目录。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">待拍板</b>：① 欢迎态要不要加「开源许可」一行小字链接（MIT 声明）；② 安装中点关闭 = 弹确认「确定中止安装？」还是不允许中止（装到一半中止会留半成品目录，建议：未完成解压前直接退、之后弹确认）；③ 完成态小贴士卡去留。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">引导条幅轮播（安装中态新增）</b>：4 页轮换（4s/页，可手动点）——3 页版本特色（自动备份 / 仓库整理 / 人物养成，文案随版本配置）+ 1 页<b style="color:var(--phx-text);">预留广告位</b>；由 installer-config 驱动，新项目换文案即换轮播。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">广告位口径</b>：带「推广」角标（与首页动态栏推广同款语言），数据来自 Opendata 公告仓 sponsor 条目（同一数据源，两处复用）；无赞助商时该页自动回落为「赞助招租」自宣页；点击可开外链（系统浏览器）。</li>
+    <li style="font-size:12.5px;color:var(--phx-text-2);line-height:1.9;padding-left:16px;position:relative;"><b style="color:var(--phx-text);">条幅为四态常驻件</b>：欢迎 / 安装中 / 完成 / 卸载都保留轮播，内容稀疏的态用 <span style="font-family:var(--phx-font-mono);">margin-top:auto</span> 吸附动作区上方——空闲区即广告位，不再有大空白；卸载态是否展示广告由 installer-config 单独开关（默认开，可关）。广告卡加大（44px 图标 + 两行文案），窗口 460×460 四态恒定；完成/卸载态各补一行真实信息（安装位置 / 占用空间）避免空档。</li>
+  </ul>
+  <div style="margin-top:18px;font-size:12px;color:var(--phx-text-3);margin-bottom:8px;">广告页效果实样（轮播第 3 页，推广角标 + 招租文案；无赞助商时同位回落自宣）：</div>
+  <div class="car-strip" style="width:460px;">
+    <div class="car-ico sl-a">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>
+    </div>
+    <div class="car-copy">
+      <div class="car-t">这里可以放你的广告<span class="ad-tag">推广</span></div>
+      <div class="car-s">模组作者、店铺、社区想来被玩家看到？赞助换取展示位，编辑器本身永久免费</div>
+    </div>
+    <div class="car-dots">
+      <span class="car-dot"></span>
+      <span class="car-dot"></span>
+      <span class="car-dot on"></span>
+      <span class="car-dot"></span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

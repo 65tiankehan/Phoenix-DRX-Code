@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Phoenix-DRX 安装</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-danger: #ff6961;
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-sans: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+    --phx-orange: #a78bfa;
+    --phx-orange-dim: rgba(167,139,250,.16);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; }
+  body { font-family: var(--phx-font-sans); color: var(--phx-text); overflow: hidden; }
+  .suwin {
+    width: 100vw; height: 100vh;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    /* 全出血透明窗不挂 box-shadow：阴影落不到窗外、只会被窗口边界裁成方形半透明带（真窗口实测，2026-10-24） */
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .su-titlebar {
+    height: 38px; flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 6px 0 16px;
+  }
+  .su-tb-label { font-size: 12px; font-weight: 600; color: var(--phx-text-3); }
+  .su-close {
+    width: 28px; height: 26px; border: none; border-radius: 6px; cursor: pointer;
+    background: transparent; color: var(--phx-text-3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .su-close:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .su-body { padding: 4px 24px 20px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .su-slot { margin-top: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .su-actions { display: flex; gap: 10px; margin-top: 16px; flex: none; }
+  .su-head { display: flex; align-items: center; gap: 14px; flex: none; }
+  .badge {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .badge svg { width: 22px; height: 22px; }
+  .badge-welcome { background: var(--phx-accent-dim); color: var(--phx-accent); font-family: fantasy; font-style: italic; font-weight: 700; font-size: 22px; }
+  .badge-installing { background: transparent; }
+  .badge-done { background: var(--phx-green-dim); color: var(--phx-green); }
+  .spin { animation: su-rot 1s linear infinite; transform-origin: 50% 50%; }
+  @keyframes su-rot { to { transform: rotate(360deg); } }
+  .su-h-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+  .su-h-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; }
+  .mono { font-family: var(--phx-font-mono); font-size: 11.5px; font-weight: 600; }
+  .field-card {
+    background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 12px 14px; flex: none;
+  }
+  .f-label { font-size: 11.5px; font-weight: 700; color: var(--phx-text-3); letter-spacing: .06em; margin-bottom: 8px; }
+  .f-row { display: flex; align-items: center; gap: 8px; }
+  .f-path {
+    font-family: var(--phx-font-mono); font-size: 12px; color: var(--phx-text-2);
+    background: var(--phx-fill-tertiary); border-radius: 7px;
+    height: 28px; display: flex; align-items: center; padding: 0 10px;
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden;
+  }
+  .f-path .dim { color: var(--phx-text-3); }
+  .f-size { margin-top: 8px; font-size: 11px; color: var(--phx-text-3); }
+  .opt-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex: none; }
+  .opt-row:first-child { margin-top: 0; }
+  .opt-text { font-size: 12.5px; color: var(--phx-text-2); flex: 1; }
+  .opt-text .sub { display: block; font-size: 11px; color: var(--phx-text-3); margin-top: 1px; }
+  .sw {
+    width: 36px; height: 20px; border-radius: 10px; flex: none; position: relative;
+    background: var(--phx-fill-quaternary); cursor: pointer; border: none;
+    transition: background var(--phx-dur-fast, 150ms) ease-out;
+  }
+  .sw.on { background: var(--phx-accent); }
+  .sw::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff;
+    transition: transform 150ms ease-out;
+  }
+  .sw.on::after { transform: translateX(16px); }
+  .btn {
+    height: 34px; padding: 0 16px; border: none; border-radius: var(--phx-r-btn);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: filter .12s;
+  }
+  .btn-primary { background: var(--phx-accent); color: #fff; flex: 1; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-ghost:hover { background: var(--phx-fill-tertiary); color: var(--phx-text); }
+  .btn-sm { height: 28px; padding: 0 12px; font-size: 12px; flex: none; }
+  .btn-danger { background: var(--phx-danger); color: #fff; flex: 1; }
+  .btn-danger:hover { filter: brightness(1.1); }
+  .badge-uninstall { background: var(--phx-warn-bg); color: var(--phx-warn); }
+  /* 中止确认浮层（拍板 ②：解压开始后中止需确认） */
+  .abort-overlay {
+    display: none; position: absolute; inset: 0; z-index: 9;
+    background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+  }
+  .abort-overlay.on { display: flex; }
+  .abort-card {
+    width: 300px; background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 16px; box-shadow: var(--phx-shadow-win);
+  }
+  .abort-t { font-size: 14px; font-weight: 700; }
+  .abort-s { font-size: 12px; color: var(--phx-text-2); margin-top: 6px; line-height: 1.6; }
+  .abort-btns { display: flex; gap: 10px; margin-top: 14px; }
+  body { position: relative; }
+  /* 安装中 */
+  .steps { display: flex; flex-direction: column; gap: 4px; flex: none; margin-top: 10px; }
+  .step { display: flex; align-items: center; gap: 10px; height: 28px; }
+  .st-ico { width: 20px; height: 20px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; }
+  .st-ico svg { width: 11px; height: 11px; }
+  .st-ico.done { background: var(--phx-green-dim); color: var(--phx-green); }
+  .st-ico.active { background: var(--phx-accent-dim); }
+  .st-ico.active::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--phx-accent); }
+  .st-ico.pending { background: var(--phx-fill-tertiary); }
+  .st-ico.pending::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--phx-sep-strong); }
+  .st-text { font-size: 12.5px; color: var(--phx-text-2); }
+  .step.done .st-text { color: var(--phx-text-3); }
+  .step.active .st-text { color: var(--phx-text); font-weight: 600; }
+  .prog-card {
+    margin-top: 10px; background: var(--phx-surface); border-radius: var(--phx-r-card);
+    padding: 12px 16px; flex: none;
+  }
+  .prog-meta { display: flex; justify-content: space-between; align-items: baseline; }
+  .prog-pct { font-family: var(--phx-font-mono); font-size: 22px; font-weight: 700; }
+  .prog-track { height: 5px; border-radius: 3px; background: var(--phx-fill-tertiary); overflow: hidden; margin-top: 10px; }
+  .prog-fill { height: 100%; border-radius: 3px; background: var(--phx-accent); transition: width .2s linear; }
+  .err-line { margin-top: 8px; font-size: 11.5px; color: var(--phx-danger); line-height: 1.6; }
+  /* 广告卡（四态常驻） */
+  .car-strip { background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 12px 14px; display: flex; align-items: center; gap: 12px; flex: none; }
+  .car-strip.bottom { margin-top: auto; }
+  .car-ico { width: 44px; height: 44px; border-radius: 12px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .car-ico svg { width: 22px; height: 22px; }
+  .car-copy { min-width: 0; flex: 1; }
+  .car-t { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .car-s { font-size: 11.5px; color: var(--phx-text-2); margin-top: 3px; line-height: 1.6; }
+  .ad-tag { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 1px 6px; border-radius: 5px; flex: none; background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .car-dots { display: flex; gap: 5px; flex: none; }
+  .car-dot { width: 5px; height: 5px; border-radius: 3px; background: var(--phx-fill-quaternary); }
+  .car-dot.on { width: 14px; background: var(--phx-accent); }
+  .sl-a { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .sl-o { background: var(--phx-orange-dim); color: var(--phx-orange); }
+  .sl-g { background: var(--phx-green-dim); color: var(--phx-green); }
+  .sl-w { background: var(--phx-warn-bg); color: var(--phx-warn); }
+  .view { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .view.on { display: flex; }
+  .warn-note { padding: 10px 12px; border-radius: 10px; flex: none; background: var(--phx-warn-bg); box-shadow: inset 0 0 0 0.5px var(--phx-warn-bd); font-size: 12px; color: var(--phx-text-2); line-height: 1.6; }
+  .warn-note b { color: var(--phx-warn); font-weight: 600; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="suwin">
+  <div class="su-titlebar" data-tauri-drag-region>
+    <span class="su-tb-label" id="tbLabel" data-tauri-drag-region>Phoenix-DRX 安装</span>
+    <button class="su-close" type="button" id="closeBtn"><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+  </div>
+  <div class="su-body">
+
+    <!-- 欢迎态 -->
+    <div class="view on" id="viewWelcome">
+      <div class="su-head">
+        <div class="badge badge-welcome">P</div>
+        <div>
+          <div class="su-h-title" id="wTitle">欢迎安装 Phoenix-DRX</div>
+          <div class="su-h-sub" id="wSub">版本 0.1.7 · SPT 存档编辑器 · 永久免费</div>
+        </div>
+      </div>
+      <div class="su-slot">
+        <div class="field-card">
+          <div class="f-label">安装位置</div>
+          <div class="f-row">
+            <div class="f-path" id="pathText"></div>
+            <button class="btn btn-ghost btn-sm" type="button" id="browseBtn">浏览…</button>
+          </div>
+          <div class="f-size" id="sizeLine"></div>
+        </div>
+        <div class="opt-row">
+          <span class="opt-text">创建桌面快捷方式</span>
+          <button class="sw" type="button" id="swDesktop"></button>
+        </div>
+        <div class="opt-row">
+          <span class="opt-text">开始菜单快捷方式<span class="sub">建议保留，卸载与「添加/删除程序」依赖安装登记</span></span>
+          <button class="sw on" type="button" id="swStartMenu"></button>
+        </div>
+        <div class="car-strip bottom" id="adWelcome"></div>
+      </div>
+      <div class="su-actions">
+        <button class="btn btn-primary" type="button" id="installBtn">立即安装</button>
+      </div>
+    </div>
+
+    <!-- 安装中 -->
+    <div class="view" id="viewInstalling">
+      <div class="su-head">
+        <div class="badge badge-installing">
+          <svg viewBox="0 0 44 44" class="spin">
+            <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-sep-strong)" stroke-width="3.5"/>
+            <circle cx="22" cy="22" r="17" fill="none" stroke="var(--phx-accent)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="40 106.8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="su-h-title">正在安装</div>
+          <div class="su-h-sub">解压文件到安装目录，并完成系统登记</div>
+        </div>
+      </div>
+      <div class="su-slot">
+        <div class="steps" id="steps"></div>
+        <div class="prog-card">
+          <div class="prog-meta">
+            <span class="prog-pct" id="progPct">0%</span>
+          </div>
+          <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+          <div class="err-line" id="errLine" style="display:none"></div>
+        </div>
+        <div class="car-strip bottom" id="adInstalling"></div>
+      </div>
+      <div class="su-actions"></div>
+    </div>
+
+    <!-- 完成 -->
+    <div class="view" id="viewDone">      <div class="su-head">
+        <div class="badge badge-done">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+        </div>
+        <div>
+          <div class="su-h-title">安装完成</div>
+          <div class="su-h-sub" id="doneSub"></div>
+        </div>
+      </div>
+      <div class="su-slot">
+        <div class="opt-row">
+          <span class="opt-text">安装完成后立即运行 Phoenix-DRX</span>
+          <button class="sw on" type="button" id="swRun"></button>
+        </div>
+        <div class="warn-note" style="margin-top:12px"><b>小贴士</b>首次启动需要选择 SPT 服务器目录；以后更新会直接在应用内提示，无需重新下载安装包。</div>
+        <div class="car-strip bottom" id="adDone"></div>
+      </div>
+      <div class="su-actions">
+        <button class="btn btn-primary" type="button" id="finishBtn">完成</button>
+      </div>
+    </div>
+
+    <!-- 卸载确认（Uninstall.exe 以 --uninstall 启动进入；拍板：仅一屏，确认后执行完即关） -->
+    <div class="view" id="viewUninstall">
+      <div class="su-head">
+        <div class="badge badge-uninstall">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"/><path d="M6.5 7l1 12a2 2 0 002 1.8h5a2 2 0 002-1.8l1-12"/><path d="M10 11v6M14 11v6"/></svg>
+        </div>
+        <div>
+          <div class="su-h-title" id="uTitle">卸载 Phoenix-DRX？</div>
+          <div class="su-h-sub">将移除程序本体、快捷方式与安装登记</div>
+        </div>
+      </div>
+      <div class="su-slot">
+        <div class="field-card">
+          <div class="f-label">安装目录</div>
+          <div class="f-path" id="uDir"></div>
+        </div>
+        <div class="opt-row">
+          <span class="opt-text">同时删除个人数据<span class="sub">存档编辑记录、设置与本地备份（默认保留）</span></span>
+          <button class="sw" type="button" id="swDelData"></button>
+        </div>
+        <div class="warn-note" style="margin-top:12px"><b>提示</b>卸载前请确认 SPT 游戏与存档未被本程序占用；游戏本体与存档不受影响。</div>
+        <div class="car-strip bottom" id="adUninstall"></div>
+      </div>
+      <div class="su-actions">
+        <button class="btn btn-ghost" type="button" id="uCancelBtn">取消</button>
+        <button class="btn btn-danger" type="button" id="uGoBtn">卸载</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 中止安装确认 -->
+<div class="abort-overlay" id="abortOverlay">
+  <div class="abort-card">
+    <div class="abort-t">确定中止安装？</div>
+    <div class="abort-s">已复制到安装目录的文件可能残留，中止后可重新运行安装器覆盖安装。</div>
+    <div class="abort-btns">
+      <button class="btn btn-ghost" type="button" id="abortNo" style="flex:1">继续安装</button>
+      <button class="btn btn-danger" type="button" id="abortYes" style="flex:1">中止安装</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { invoke } = window.__TAURI__.core
+  const { listen } = window.__TAURI__.event
+  const { getCurrentWindow } = window.__TAURI__.window
+
+  const $ = (id) => document.getElementById(id)
+  /* 初始化/运行期错误上屏：安装器没有 devtools 常开场景，出错必须可见 */
+  function showFatal(msg) {
+    const el = document.createElement('div')
+    el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99;font-size:11px;color:#ff6961;background:rgba(0,0,0,.85);padding:8px 10px;border-radius:8px;word-break:break-all'
+    el.textContent = '初始化错误：' + msg
+    document.body.appendChild(el)
+  }
+  window.addEventListener('error', (e) => showFatal(e.message))
+  window.addEventListener('unhandledrejection', (e) => showFatal(String(e.reason)))
+  const state = { info: null, desktop: false, startMenu: true, runAfter: true, targetDir: '' }
+
+  function show(id) {
+    document.querySelectorAll('.view').forEach((v) => v.classList.remove('on'))
+    $(id).classList.add('on')
+  }
+  function bindSwitch(id, get, set) {
+    $(id).addEventListener('click', () => { set(!get()); $(id).classList.toggle('on', get()) })
+  }
+
+  const SLIDE_ICON = {
+    accent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6v14L3 13v-2z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>',
+    orange: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3.3 8.4L12 13l8.7-4.6"/><path d="M12 13v9"/></svg>',
+    green: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 1 0 0-8z"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z"/><path d="M12 8v4l2.5 2.5"/></svg>'
+  }
+  let carIdx = 0
+
+  /* 广告/特色轮播：四态常驻（方案稿图 28），4s 轮换、可手点；广告页整条可点开外链 */
+  function renderCarousels() {
+    const slides = state.info.config.ads.slides
+    document.querySelectorAll('.car-strip').forEach((el) => {
+      if (!state.info.config.ads.enabled) { el.style.display = 'none'; return }
+      const s = slides[carIdx]
+      const tag = s.kind === 'ad' ? '<span class="ad-tag">推广</span>' : ''
+      const dots = slides.map((_, i) => `<span class="car-dot ${i === carIdx ? 'on' : ''}" data-i="${i}"></span>`).join('')
+      el.innerHTML = `
+        <div class="car-ico sl-${s.color[0]}">${SLIDE_ICON[s.color] || SLIDE_ICON.accent}</div>
+        <div class="car-copy"><div class="car-t">${s.title}${tag}</div><div class="car-s">${s.desc}</div></div>
+        <div class="car-dots">${dots}</div>`
+      el.querySelectorAll('.car-dot').forEach((d) =>
+        d.addEventListener('click', (ev) => { ev.stopPropagation(); carIdx = +d.dataset.i; renderCarousels() })
+      )
+      if (s.kind === 'ad' && s.url) {
+        el.style.cursor = 'pointer'
+        el.onclick = () => window.__TAURI__.opener.openUrl(s.url).catch(() => {})
+      } else {
+        el.style.cursor = ''
+        el.onclick = null
+      }
+    })
+  }
+  function startCarousel() {
+    renderCarousels()
+    setInterval(() => {
+      carIdx = (carIdx + 1) % state.info.config.ads.slides.length
+      renderCarousels()
+    }, 4000)
+  }
+
+  /* 安装中步骤（S2 实装三项；WebView2 检测在安装器启动前完成——缺失时本机消息框引导，不进清单，不放假步骤） */
+  const STEPS = [
+    { key: 'extracting', text: '解压程序文件' },
+    { key: 'registry', text: '写入安装登记（添加/删除程序）' },
+    { key: 'shortcuts', text: '创建快捷方式' }
+  ]
+  /* 卸载步骤（run_uninstall 的三个阶段） */
+  const USTEPS = [
+    { key: 'killing', text: '结束正在运行的主程序' },
+    { key: 'removing', text: '清理快捷方式、登记与程序文件' },
+    { key: 'udone', text: '卸载完成' }
+  ]
+  function renderSteps(list, activeKey) {
+    const idx = list.findIndex((s) => s.key === activeKey)
+    $('steps').innerHTML = list.map((s, i) => {
+      const cls = i < idx ? 'done' : i === idx ? 'active' : 'pending'
+      const check = cls === 'done' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>' : ''
+      return `<div class="step ${cls}"><span class="st-ico ${cls}">${check}</span><span class="st-text">${s.text}</span></div>`
+    }).join('')
+  }
+
+  function renderPath(el, full, tail) {
+    const head = full.slice(0, Math.max(0, full.length - tail.length))
+    el.innerHTML = `<span class="dim">${head}</span>${tail}`
+  }
+
+  async function init() {
+    state.info = await invoke('installer_info')
+    const cfg = state.info.config
+    $('tbLabel').textContent = `${cfg.displayName} 安装`
+    $('wTitle').textContent = `欢迎安装 ${cfg.displayName}`
+    $('wSub').textContent = `版本 ${cfg.version} · ${cfg.tagline}`
+    $('sizeLine').textContent = `需要空间约 ${cfg.payloadSizeMb} MB · 仅当前用户安装，无需管理员权限`
+    state.targetDir = state.info.defaultDir
+    renderPath($('pathText'), state.targetDir, cfg.defaultDirName)
+    $('swDesktop').classList.toggle('on', cfg.shortcuts.desktop)
+    state.desktop = cfg.shortcuts.desktop
+    $('swStartMenu').classList.toggle('on', cfg.shortcuts.startMenu)
+    state.startMenu = cfg.shortcuts.startMenu
+    startCarousel()
+
+    bindSwitch('swDesktop', () => state.desktop, (v) => (state.desktop = v))
+    bindSwitch('swStartMenu', () => state.startMenu, (v) => (state.startMenu = v))
+    bindSwitch('swRun', () => state.runAfter, (v) => (state.runAfter = v))
+
+    /* 拍板 ②：解压开始后关窗需确认中止 */
+    state.installStarted = false
+    state.installDone = false
+    state.mode = 'install'
+    $('closeBtn').addEventListener('click', () => {
+      if (state.installStarted && !state.installDone && state.mode === 'install') {
+        $('abortOverlay').classList.add('on')
+        return
+      }
+      getCurrentWindow().close()
+    })
+    $('abortNo').addEventListener('click', () => $('abortOverlay').classList.remove('on'))
+    $('abortYes').addEventListener('click', async () => {
+      $('abortOverlay').classList.remove('on')
+      try { await invoke('install_cancel') } catch {}
+      setTimeout(() => getCurrentWindow().close(), 250)
+    })
+    $('browseBtn').addEventListener('click', async () => {
+      const picked = await invoke('pick_dir')
+      if (picked) {
+        state.targetDir = picked.endsWith('\\') || picked.endsWith('/') ? picked + cfg.defaultDirName : picked + '\\' + cfg.defaultDirName
+        renderPath($('pathText'), state.targetDir, cfg.defaultDirName)
+      }
+    })
+    $('installBtn').addEventListener('click', async () => {
+      show('viewInstalling')
+      renderSteps(STEPS, 'extracting')
+      state.installStarted = true
+      try { await invoke('install_start', { targetDir: state.targetDir, desktop: state.desktop, startMenu: state.startMenu }) }
+      catch (e) { $('errLine').style.display = 'block'; $('errLine').textContent = String(e) }
+    })
+    $('finishBtn').addEventListener('click', async () => {
+      if (state.runAfter) {
+        try { await invoke('launch_app', { targetDir: state.targetDir }) } catch {}
+      }
+      getCurrentWindow().close()
+    })
+
+    /* 卸载模式（Uninstall.exe 以 --uninstall 启动）：仅一屏确认 → 复用安装中视图显示进度 */
+    state.mode = state.info.launchMode
+    if (state.mode === 'uninstall') {
+      $('tbLabel').textContent = `${cfg.displayName} 卸载`
+      $('uTitle').textContent = `卸载 ${cfg.displayName}？`
+      $('uDir').textContent = state.info.installDir
+      show('viewUninstall')
+      $('uCancelBtn').addEventListener('click', () => getCurrentWindow().close())
+      bindSwitch('swDelData', () => state.delData, (v) => (state.delData = v))
+      $('uGoBtn').addEventListener('click', () => {
+        show('viewInstalling')
+        $('viewInstalling').querySelector('.su-h-title').textContent = '正在卸载'
+        renderSteps(USTEPS, 'killing')
+        invoke('uninstall_start', { keepData: !state.delData }).catch((e) => {
+          $('errLine').style.display = 'block'
+          $('errLine').textContent = String(e)
+        })
+      })
+    }
+
+    await listen('install://progress', (e) => {
+      const p = e.payload
+      const steps = state.mode === 'uninstall' ? USTEPS : STEPS
+      const lastKey = steps[steps.length - 1].key
+      if (p.phase === 'done') {
+        renderSteps(steps, lastKey)
+        $('progPct').textContent = '100%'
+        $('progFill').style.width = '100%'
+        if (state.mode === 'uninstall') return // 卸载完成由 Rust 侧 app.exit 收尾
+        state.installDone = true
+        $('doneSub').textContent = `已安装到 ${state.targetDir}`
+        setTimeout(() => show('viewDone'), 350)
+      } else if (p.phase === 'error') {
+        renderSteps(steps, lastKey)
+        $('errLine').style.display = 'block'
+        $('errLine').textContent = (state.mode === 'uninstall' ? '卸载失败：' : '安装失败：') + p.step
+      } else {
+        renderSteps(steps, p.phase)
+        $('progPct').textContent = Math.floor(p.percent) + '%'
+        $('progFill').style.width = p.percent + '%'
+      }
+    })
+  }
+  window.addEventListener('DOMContentLoaded', () => { init().catch(showFatal) })
+</script>
+</body>
+</html>
