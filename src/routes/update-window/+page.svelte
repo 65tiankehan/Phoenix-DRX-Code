@@ -169,18 +169,27 @@
   })
 
   /* 窗高自适应：Rust 只给初值，状态变化后按内容实测重设（宽 420 不变）。
-   * 否则固定 380 高会在内容短的状态下（如单行公告）窗底留一大块空白。 */
+   * 否则固定 380 高会在内容短的状态下（如单行公告）窗底留一大块空白。
+   * 修三点（对齐托盘面板稳定实现）：
+   *   1. 测量用 rAF 延迟一帧——等字体/轮播/notes 渲染完成再测，避免同步测到半渲染高度；
+   *   2. 依赖收窄到 status.phase——状态切换才重测；下载进度(received/total)不影响内容高，不触发；
+   *   3. .up-body 设 flex:none——否则窗口初值矮于内容时会被压缩、offsetHeight 测小，setSize 永远偏小。
+   */
   const WIN_W = 420
   const TITLEBAR_H = 38
   let appliedH = 0
 
   $effect(() => {
-    void status // 依赖：任一状态变化（含下载进度）都重测一次
-    const h = document.querySelector<HTMLElement>('.up-body')?.offsetHeight ?? 0
-    const total = TITLEBAR_H + h
-    if (!h || Math.abs(total - appliedH) < 1) return
-    appliedH = total
-    void getCurrentWindow().setSize(new LogicalSize(WIN_W, total))
+    void status.phase // 依赖 phase：状态切换才重测；下载进度(received/total)不影响内容高，不触发
+    const raf = requestAnimationFrame(() => {
+      const h = document.querySelector<HTMLElement>('.up-body')?.offsetHeight ?? 0
+      if (!h) return
+      const total = TITLEBAR_H + h
+      if (Math.abs(total - appliedH) < 1) return
+      appliedH = total
+      void getCurrentWindow().setSize(new LogicalSize(WIN_W, total))
+    })
+    return () => cancelAnimationFrame(raf)
   })
 
   function closeWin(): void {
@@ -366,6 +375,8 @@
     padding: 6px 20px 20px;
     display: flex;
     flex-direction: column;
+    /* 关键：禁止被窗口初值(380)压缩——否则 offsetHeight 测到压缩后高度，自适应 setSize 永远偏小 */
+    flex: none;
   }
   .up-head {
     display: flex;

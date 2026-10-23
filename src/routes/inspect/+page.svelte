@@ -379,9 +379,11 @@
       <div class="sheet-head">
         <div class="sheet-title">{view.name}</div>
         <div class="mmod" class:show={view.hasModded}><PhxIcon markup={ICON.warn} /></div>
-        <button class="sheet-x" type="button" aria-label={t('inspect.sheet.close')} onclick={closeSheet}>
-          <PhxIcon markup={ICON.close} />
-        </button>
+        <PhxTooltip label={t('inspect.sheet.close')}>
+          <button class="sheet-x" type="button" aria-label={t('inspect.sheet.close')} onclick={closeSheet}>
+            <PhxIcon markup={ICON.close} />
+          </button>
+        </PhxTooltip>
       </div>
       <div class="sheet-body">
         <div class="hero">

@@ -1,7 +1,7 @@
 [package]
 name = "phoenix-drx"
-version = "0.1.6"
-description = "Phoenix-DRX — SPT 4.1.x 免费存档编辑器"
+version = "0.1.7"
+description = "Phoenix-DRX 鈥?SPT 4.1.x 鍏嶈垂瀛樻。缂栬緫鍣?
 authors = ["Phoenix-DRX"]
 edition = "2021"
 

@@ -36,11 +36,14 @@
 
   function measureTab(): void {
     const el = onTab >= 0 ? tabs[onTab] : undefined
-    if (!el) {
+    if (!el || !grp) {
       tind = null
       return
     }
-    tind = { left: el.offsetLeft, width: el.offsetWidth }
+    // 用相对 grp 的矩形计算，避免 tooltip 包裹层（span.tipwrap）改变 offsetLeft 参照
+    const g = grp.getBoundingClientRect()
+    const r = el.getBoundingClientRect()
+    tind = { left: r.left - g.left, width: r.width }
   }
 
   // 激活项 / 常去序列变化（路由切换、项增删换序）时重测定位（onTab 读取自动追踪）
@@ -124,18 +127,20 @@
         </span>
         <span class="grp-sep" aria-hidden="true"></span>
         {#each often as item, i (item.path)}
-          <a
-            class="ttab"
-            class:on={navIndex(item.path) === onIdx}
-            href={resolve(item.path)}
-            onclick={() => goNav(item.path)}
-            bind:this={tabs[i]}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              {#each item.icon as d (d)}<path d={d} />{/each}
-            </svg>
-            <span>{t(item.key)}</span>
-          </a>
+          <PhxTooltip label={t(item.key)} placement="bottom">
+            <a
+              class="ttab"
+              class:on={navIndex(item.path) === onIdx}
+              href={resolve(item.path)}
+              onclick={() => goNav(item.path)}
+              bind:this={tabs[i]}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                {#each item.icon as d (d)}<path d={d} />{/each}
+              </svg>
+              <span>{t(item.key)}</span>
+            </a>
+          </PhxTooltip>
         {/each}
       </div>
     </nav>
