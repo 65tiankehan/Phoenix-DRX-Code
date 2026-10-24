@@ -533,6 +533,9 @@
             {/if}
           </section>
 
+        </div>
+
+        <div class="scol">
           <!-- 组 2 · 服务器与账号 -->
           <section class="sgroup" data-group="server">
             <div class="sgroup-h">{t('settings.group.server')}</div>
@@ -552,9 +555,6 @@
               <a class="mbtn ghost" href={resolve('/server-select')}>{t('settings.changeServer')}</a>
             </div>
           </section>
-        </div>
-
-        <div class="scol">
           <!-- 组 3 · 存档编辑行为 -->
           <section class="sgroup" data-group="behavior">
             <div class="sgroup-h">{t('settings.group.behavior')}</div>
