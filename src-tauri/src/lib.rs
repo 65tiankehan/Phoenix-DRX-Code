@@ -7,6 +7,7 @@
 
 mod announcement;
 mod ai;
+mod clothing;
 mod auth;
 mod backup;
 mod character;
@@ -643,6 +644,7 @@ pub fn run() {
             settings_get, settings_set, settings_open_data_dir, settings_reset, settings_restart,
             ai::ai_get_config, ai::ai_set_config, ai::ai_set_key, ai::ai_clear_key, ai::ai_detect_ollama,
             ai::ai_test_connection, ai::ai_chat,
+            clothing::clothing_load, clothing::clothing_save,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,
             auth_is_configured, auth_device_start, auth_device_cancel, auth_logout,
             sync_pull, sync_push,

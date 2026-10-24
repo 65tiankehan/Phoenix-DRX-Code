@@ -731,5 +731,22 @@
   "settings.ai.entries": "Page \"AI suggest\" entries",
   "settings.ai.entries.desc": "Show AI suggest buttons on feature pages, opening the assistant with page context",
   "settings.ai.privacy.label": "Privacy note",
-  "settings.ai.privacy": "With cloud AI enabled, the minimal data needed for an operation (e.g. skill values, quest names) is sent to the provider you configured; the full profile is never uploaded and the key stays on this PC. Switch to local Ollama and data never leaves the computer."
+  "settings.ai.privacy": "With cloud AI enabled, the minimal data needed for an operation (e.g. skill values, quest names) is sent to the provider you configured; the full profile is never uploaded and the key stays on this PC. Switch to local Ollama and data never leaves the computer.",
+  "char.view.aria": "Character sections",
+  "char.view.overview": "Overview",
+  "char.view.clothing": "Look & Clothing",
+  "cloth.look.unset": "Not set",
+  "cloth.look.sub": "Head {head} · Voice {voice}",
+  "cloth.head": "Head",
+  "cloth.voice": "Voice",
+  "cloth.suits": "Clothing suits (owned {owned} / {total})",
+  "cloth.unlockAll": "Unlock all",
+  "cloth.state.owned": "Owned",
+  "cloth.state.locked": "Not owned",
+  "cloth.act.unlock": "Unlock",
+  "cloth.act.lock": "Lock",
+  "cloth.saved": "Look & clothing saved (auto-backed up)",
+  "cloth.empty": "No clothing catalog on this server",
+  "cloth.loading": "Loading clothing catalog…",
+  "cloth.loadFail": "Failed to load clothing data; check the SPT server and profile"
 }

@@ -5,7 +5,8 @@
     checked = $bindable(false),
     label = '',
     disabled = false,
-    size = 'md'
+    size = 'md',
+    onchange
   }: {
     /** 开关状态 */
     checked?: boolean
@@ -14,12 +15,15 @@
     disabled?: boolean
     /** 尺寸变体：md=40×24（默认）/ lg=51×31（04 商人屏稿图规格） */
     size?: 'md' | 'lg'
+    /** 状态变化回调（bind 场景可不用；受控场景用此接管） */
+    onchange?: (v: boolean) => void
   } = $props()
 
   function toggle(): void {
     if (!disabled) {
       playSound('toggle')
       checked = !checked
+      onchange?.(checked)
     }
   }
 

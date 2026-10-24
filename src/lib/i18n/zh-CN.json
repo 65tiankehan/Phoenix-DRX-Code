@@ -731,5 +731,22 @@
   "settings.ai.entries": "页面「AI 推荐」入口",
   "settings.ai.entries.desc": "各功能页顶部显示 AI 推荐按钮，点击带上下文进入助手",
   "settings.ai.privacy.label": "隐私说明",
-  "settings.ai.privacy": "开启云端 AI 后，执行操作所需的最小数据（如技能数值、任务名称）会发送到你配置的服务商；不会上传完整存档，密钥只存本机。改用本地 Ollama 则数据完全不出电脑。"
+  "settings.ai.privacy": "开启云端 AI 后，执行操作所需的最小数据（如技能数值、任务名称）会发送到你配置的服务商；不会上传完整存档，密钥只存本机。改用本地 Ollama 则数据完全不出电脑。",
+  "char.view.aria": "角色页分区",
+  "char.view.overview": "概览",
+  "char.view.clothing": "形象服装",
+  "cloth.look.unset": "未设置",
+  "cloth.look.sub": "头型 {head} · 语音 {voice}",
+  "cloth.head": "头型",
+  "cloth.voice": "语音",
+  "cloth.suits": "服装套装（已拥有 {owned} / {total}）",
+  "cloth.unlockAll": "一键全解锁",
+  "cloth.state.owned": "已拥有",
+  "cloth.state.locked": "未拥有",
+  "cloth.act.unlock": "解锁",
+  "cloth.act.lock": "上锁",
+  "cloth.saved": "形象与服装已保存（已自动备份）",
+  "cloth.empty": "当前服务器没有可用的服装目录",
+  "cloth.loading": "正在读取服装目录…",
+  "cloth.loadFail": "服装数据读取失败，请确认已选择 SPT 服务器与存档"
 }

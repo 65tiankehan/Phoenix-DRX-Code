@@ -2,6 +2,7 @@
   // 03 角色页：基本信息 / 成长 / 外观与装备 / 健康状态，按 docs/prototypes/03 稿图逐项落地
   // 26 稿新增填充：成长经验脚注 / 装备速览（实读仓库装备槽）/ Scav 卡账号 ID 与版本
   import { onMount } from 'svelte'
+  import { SvelteSet } from 'svelte/reactivity'
   import { goto } from '$app/navigation'
   import { resolve } from '$app/paths'
   import { listen } from '@tauri-apps/api/event'
@@ -16,12 +17,17 @@
     type PhxCharOptions,
     type PhxCharSide,
     type PhxStashData,
-    type PhxScavData
+    type PhxScavData,
+    phxClothing,
+    type PhxClothingData
   } from '$lib/ipc'
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxSegmented from '$lib/components/PhxSegmented.svelte'
+  import PhxSwitch from '$lib/components/PhxSwitch.svelte'
 
   type Mode = 'pmc' | 'scav'
+  /** 页内分区：概览 / 形象服装（稿图 31；导航裁决 2026-10-24） */
+  type View = 'overview' | 'clothing'
 
   /** 骨架镜像占位行序号（boot 层内部件用） */
   const skRows = (n: number) => [...Array(n).keys()]
@@ -248,6 +254,59 @@
   }
 
   /** 保存修改：写回前主进程强制自动备份（领域铁律）；数值全部强转非负整数 */
+  // —— 形象与服装（稿图 31）：owned 集合与 head/voice 本地编辑，保存走 clothing_save（含备份）——
+  let view = $state<View>('overview')
+  let cloth = $state<PhxClothingData | null>(null)
+  let clothOwned = new SvelteSet<string>()
+  let clothHead = $state('')
+  let clothVoice = $state('')
+  let clothLoaded = $state(false)
+
+  const clothDirty = $derived.by(() => {
+    if (!cloth) return false
+    const sameOwned =
+      clothOwned.size === cloth.ownedCount &&
+      cloth.suits.every((s) => clothOwned.has(s.suiteId) === s.owned)
+    return !sameOwned || clothHead !== cloth.currentHead || clothVoice !== cloth.currentVoice
+  })
+  const unlockAll = $derived(cloth ? cloth.suits.length > 0 && clothOwned.size === cloth.suits.length : false)
+
+  async function refreshClothing(): Promise<void> {
+    try {
+      const d = await phxClothing.load()
+      cloth = d
+      // SvelteSet 原地变更（重赋值会触发 non_reactive_update 与 no-unnecessary-state-wrap 两规打架）
+      clothOwned.clear()
+      for (const s of d.suits.filter((x) => x.owned)) clothOwned.add(s.suiteId)
+      clothHead = d.currentHead
+      clothVoice = d.currentVoice
+      clothLoaded = true
+    } catch (e) {
+      toast.error(String(e))
+    }
+  }
+  function toggleSuit(id: string): void {
+    if (clothOwned.has(id)) clothOwned.delete(id)
+    else clothOwned.add(id)
+  }
+  function setAllOwned(on: boolean): void {
+    clothOwned.clear()
+    if (on && cloth) for (const s of cloth.suits) clothOwned.add(s.suiteId)
+  }
+  async function onClothingSave(): Promise<void> {
+    if (!cloth || saving) return
+    saving = true
+    try {
+      await phxClothing.save([...clothOwned], clothHead, clothVoice)
+      toast.success(t('cloth.saved'))
+      await refreshClothing()
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      saving = false
+    }
+  }
+
   async function onSave(): Promise<void> {
     if (!pmc || !scav || saving) return
     saving = true
@@ -275,6 +334,7 @@
 
   onMount(() => {
     void refresh()
+    void refreshClothing()
     // 托盘「切换存档」后刷新角色页（Rust 侧 emit；本页卸载时退订）
     const off = listen('tray:profile-switched', () => void refresh())
     return () => {
@@ -293,26 +353,121 @@
       <PhxSegmented
         size="md"
         role="tablist"
-        ariaLabel={t('char.mode.aria')}
-        bind:value={mode}
-        onchange={() => syncExpText(cur)}
+        ariaLabel={t('char.view.aria')}
+        bind:value={view}
         options={[
-          { value: 'pmc', label: t('char.mode.pmc') },
-          { value: 'scav', label: t('char.mode.scav') }
+          { value: 'overview', label: t('char.view.overview') },
+          { value: 'clothing', label: t('char.view.clothing') }
         ]}
       />
-      <button
-        type="button"
-        class="btn primary"
-        disabled={!cur || saving}
-        onclick={() => void onSave()}
-      >
-        {t('char.act.save')}
-      </button>
+      {#if view === 'overview'}
+        <PhxSegmented
+          size="md"
+          role="tablist"
+          ariaLabel={t('char.mode.aria')}
+          bind:value={mode}
+          onchange={() => syncExpText(cur)}
+          options={[
+            { value: 'pmc', label: t('char.mode.pmc') },
+            { value: 'scav', label: t('char.mode.scav') }
+          ]}
+        />
+      {/if}
+      {#if view === 'clothing'}
+        <button
+          type="button"
+          class="btn primary"
+          disabled={!cloth || saving || !clothDirty}
+          onclick={() => void onClothingSave()}
+        >
+          {t('char.act.save')}
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="btn primary"
+          disabled={!cur || saving}
+          onclick={() => void onSave()}
+        >
+          {t('char.act.save')}
+        </button>
+      {/if}
     </div>
   </div>
 
   <div class="scroll">
+    {#if view === 'clothing'}
+      <!-- ===== 形象与服装（稿图 31；落地归属=角色页分区 tab，2026-10-24 导航裁决） ===== -->
+      {#if cloth}
+        <div class="cloth-wrap phx-fade-in">
+          <div class="cloth-look">
+            <div class="cloth-avatar">P</div>
+            <div class="cloth-look-meta">
+              <div class="cloth-look-name">
+                {(cloth.heads.find((h) => h.id === clothHead)?.name ?? clothHead) || t('cloth.look.unset')}
+              </div>
+              <div class="cloth-look-sub">
+                {t('cloth.look.sub', {
+                  head: cloth.heads.find((h) => h.id === clothHead)?.name ?? clothHead,
+                  voice: cloth.voices.find((v) => v.id === clothVoice)?.name ?? clothVoice
+                })}
+              </div>
+            </div>
+            <div class="cloth-look-dd">
+              <span class="cloth-dd-l">{t('cloth.head')}</span>
+              <PhxDropdown
+                value={clothHead}
+                options={cloth.heads.map((h) => ({ value: h.id, label: h.name }))}
+                onchange={(v) => (clothHead = v)}
+              />
+              <span class="cloth-dd-l">{t('cloth.voice')}</span>
+              <PhxDropdown
+                value={clothVoice}
+                options={cloth.voices.map((v) => ({ value: v.id, label: v.name }))}
+                onchange={(v) => (clothVoice = v)}
+              />
+            </div>
+          </div>
+
+          <div class="cloth-sec-h">
+            <span>{t('cloth.suits', { owned: clothOwned.size, total: cloth.suits.length })}</span>
+            <span class="cloth-all">
+              {t('cloth.unlockAll')}
+              <PhxSwitch checked={unlockAll} label={t('cloth.unlockAll')} onchange={setAllOwned} />
+            </span>
+          </div>
+          {#if cloth.suits.length === 0}
+            <div class="cloth-empty">{t('cloth.empty')}</div>
+          {:else}
+            <div class="cloth-grid">
+              {#each cloth.suits as suit (suit.suiteId)}
+                <div class="cloth-card" class:owned={clothOwned.has(suit.suiteId)}>
+                  <div class="cloth-thumb">
+                    <svg viewBox="0 0 96 96" fill="none">
+                      <path class="art-body" d="M30 24 Q36 14 48 14 Q60 14 66 24 L74 36 L64 40 L64 82 Q48 88 32 82 L32 40 L22 36 Z"/>
+                      <path class="art-line" d="M48 20 L48 82"/>
+                    </svg>
+                    <span class="cloth-st" class:on={clothOwned.has(suit.suiteId)}>
+                      {clothOwned.has(suit.suiteId) ? t('cloth.state.owned') : t('cloth.state.locked')}
+                    </span>
+                  </div>
+                  <div class="cloth-card-body">
+                    <div class="cloth-n">{suit.name}</div>
+                    <button class="cloth-btn" type="button" onclick={() => toggleSuit(suit.suiteId)}>
+                      {clothOwned.has(suit.suiteId) ? t('cloth.act.lock') : t('cloth.act.unlock')}
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {:else if clothLoaded}
+        <div class="cloth-empty">{t('cloth.loadFail')}</div>
+      {:else}
+        <div class="cloth-empty">{t('cloth.loading')}</div>
+      {/if}
+    {:else}
     <!-- 骨架层：镜像 5fr/7fr 仪表台真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
     <div class="boot phx-boot" class:gone={!booting}>
       <div class="dash">
@@ -568,7 +723,8 @@
     {:else if !booting}
       <div class="empty">{t('char.empty.none')}</div>
     {/if}
-  </div>
+      {/if}
+</div>
 </div>
 
 <style>

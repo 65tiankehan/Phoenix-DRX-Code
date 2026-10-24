@@ -626,6 +626,37 @@ export const phxUpdate = {
     invoke('update_dev_mock', { phase })
 }
 
+// —— 形象与服装（角色页 tab，稿图 31；字段名对齐 Rust clothing.rs serde camelCase）——
+
+/** 套装条目（目录来自 traders 各目录下的 suits.json；owned=customisationUnlocks 含该 suiteId） */
+export interface PhxSuit {
+  suiteId: string
+  traderId: string
+  name: string
+  owned: boolean
+}
+
+/** 头型/语音候选（bots/*.json appearance 键） */
+export interface PhxLookOption {
+  id: string
+  name: string
+}
+
+export interface PhxClothingData {
+  suits: PhxSuit[]
+  heads: PhxLookOption[]
+  voices: PhxLookOption[]
+  currentHead: string
+  currentVoice: string
+  ownedCount: number
+}
+
+export const phxClothing = {
+  load: (): Promise<PhxClothingData> => invoke('clothing_load'),
+  save: (ownedSuiteIds: string[], head: string, voice: string): Promise<string | null> =>
+    invoke('clothing_save', { ownedSuiteIds, head, voice })
+}
+
 // —— 问题检测（13 屏：保存拦截弹窗 + 仪表台问题清单）——
 
 /** 问题行（字段名对齐 Rust IssueRow serde camelCase 输出；描述文案由前端按 kind 组装） */
