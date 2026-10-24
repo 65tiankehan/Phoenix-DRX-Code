@@ -73,8 +73,10 @@
 
   /* 服装网格 */
   .cloth-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .cloth { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; position: relative; }
-  .cloth.unlocked { box-shadow: inset 0 0 0 1px var(--phx-accent); }
+  /* 结构线与状态分离：所有卡统一中性描边；拥有态不靠框色表达（蓝描边在深色缩略图三边融底只剩底边可见，且蓝=选中语义，已弃） */
+  .cloth { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; position: relative; box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong); }
+  .cloth:not(.unlocked) .suit-art { opacity: .38; }
+  .cloth:not(.unlocked) .thumb::after { opacity: .5; }
   .thumb { height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
   .t1 { background: linear-gradient(135deg, #1a2a44, #101013); }
   .t2 { background: linear-gradient(135deg, #2a2a1a, #101013); }
@@ -100,7 +102,7 @@
   .pw .plate, .pw .pouch { fill: rgba(255,200,96,.26); }
   .btn2 { fill: rgba(255,255,255,.25); }
   .st { position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
-  .st-on { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .st-on { background: var(--phx-green-dim); color: var(--phx-green); }
   .st-off { background: rgba(0,0,0,.45); color: var(--phx-text-3); }
   .cloth-body { padding: 10px 12px 12px; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .cloth-n { font-size: 12.5px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
