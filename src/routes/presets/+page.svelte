@@ -1260,8 +1260,8 @@
   /* ===== 套装军械库（稿图 32） ===== */
   .arsenal {
     display: flex; gap: 16px; flex: 1; min-height: 0;
-    /* dock 避让：留白口径对齐全站 .scroll padding-bottom 104px（+layout 注释） */
-    margin-bottom: 104px;
+    /* 左右 24px 页边距（对齐全站 .scroll/页头口径）；dock 避让 104px 同 +layout 注释 */
+    padding: 0 24px; margin-bottom: 104px;
   }
   .ar-wall {
     width: 46%; flex: none; overflow-y: auto; scrollbar-width: none;
