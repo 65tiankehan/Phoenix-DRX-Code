@@ -19,6 +19,7 @@ use crate::stash::{add_build_to_stash, find_free_slot, ItemsDb};
 const SETS_JSON: &str = include_str!("../data/arsenal-sets.json");
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SetDef {
     id: String,
     name: String,

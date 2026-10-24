@@ -1258,10 +1258,15 @@
   }
 
   /* ===== 套装军械库（稿图 32） ===== */
-  .arsenal { display: flex; gap: 16px; flex: 1; min-height: 0; }
+  .arsenal {
+    display: flex; gap: 16px; flex: 1; min-height: 0;
+    /* dock 避让：留白口径对齐全站 .scroll padding-bottom 104px（+layout 注释） */
+    margin-bottom: 104px;
+  }
   .ar-wall {
     width: 46%; flex: none; overflow-y: auto; scrollbar-width: none;
     display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start;
+    padding-bottom: 12px;
   }
   .ar-wall::-webkit-scrollbar { display: none; }
   .ar-set {
