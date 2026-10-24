@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>31 · 形象与服装</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-orange: #a78bfa;
+    --phx-orange-dim: rgba(167,139,250,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body { font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif; color: var(--phx-text); display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px; }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window { position: absolute; top: 0; left: 0; width: 1180px; height: 820px; background: var(--phx-win-bg); border-radius: var(--phx-r-win); box-shadow: var(--phx-shadow-win); overflow: hidden; display: flex; }
+  .titlebar { position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30; display: flex; align-items: center; padding: 0 0 0 18px; }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); }
+  .capbtns a svg { width: 10px; height: 10px; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .sidebar { width: 132px; flex: none; padding: 52px 0 92px; }
+  .dock { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35; display: flex; align-items: center; gap: 2px; padding: 6px; background: var(--phx-glass); border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong); }
+  .dock-logo { width: 34px; height: 34px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; font-family: fantasy; font-style: italic; font-weight: 700; font-size: 19px; background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 56px; height: 46px; border-radius: 10px; text-decoration: none; }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; }
+  .scroll { flex: 1; overflow-y: auto; margin-top: 12px; padding: 0 24px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  .sec-h { font-size: 15px; font-weight: 700; margin: 18px 0 10px; display: flex; align-items: center; justify-content: space-between; }
+  .sec-sub { font-size: 11.5px; color: var(--phx-text-3); font-weight: 400; margin-top: 3px; }
+  .sw { width: 40px; height: 24px; border-radius: 12px; flex: none; cursor: pointer; background: var(--phx-accent); position: relative; }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transform: translateX(16px); }
+
+  /* 形象区：预览 + 头型/语音 */
+  .look { display: flex; gap: 16px; }
+  .look-card { width: 380px; background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 18px; display: flex; gap: 16px; align-items: center; flex: none; }
+  .avatar-lg { width: 96px; height: 96px; border-radius: 18px; background: var(--phx-accent-dim); color: var(--phx-accent); display: flex; align-items: center; justify-content: center; font-family: fantasy; font-style: italic; font-weight: 700; font-size: 44px; flex: none; }
+  .look-meta { min-width: 0; flex: 1; }
+  .look-name { font-size: 16px; font-weight: 700; }
+  .look-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 4px; line-height: 1.6; }
+  .look-sub .mono { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: var(--phx-text-3); }
+  .look-rows { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .dd { background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .dd-l { font-size: 13px; font-weight: 600; }
+  .dd-l .sub { display: block; font-size: 11px; color: var(--phx-text-3); font-weight: 400; margin-top: 2px; }
+  .dd-v { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--phx-text-2); background: var(--phx-fill-tertiary); border-radius: 7px; height: 30px; padding: 0 12px; }
+  .dd-v svg { width: 11px; height: 11px; color: var(--phx-text-3); }
+
+  /* 服装网格 */
+  .cloth-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .cloth { background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; position: relative; }
+  .cloth.unlocked { box-shadow: inset 0 0 0 1px var(--phx-accent); }
+  .thumb { height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .t1 { background: linear-gradient(135deg, #1a2a44, #101013); }
+  .t2 { background: linear-gradient(135deg, #2a2a1a, #101013); }
+  .t3 { background: linear-gradient(135deg, #331f1f, #101013); }
+  .t4 { background: linear-gradient(135deg, #1f3328, #101013); }
+  .thumb .suit { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.06); color: var(--phx-text-2); }
+  .thumb .suit svg { width: 28px; height: 28px; }
+  .st { position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
+  .st-on { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .st-off { background: rgba(0,0,0,.45); color: var(--phx-text-3); }
+  .cloth-body { padding: 10px 12px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cloth-n { font-size: 12.5px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cloth-s { font-size: 10.5px; color: var(--phx-text-3); margin-top: 2px; }
+  .unlock-btn { height: 26px; padding: 0 10px; border: none; border-radius: 7px; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; background: var(--phx-accent-dim); color: var(--phx-accent); flex: none; }
+  .owned-chip { font-size: 10.5px; color: var(--phx-text-3); flex: none; display: flex; align-items: center; gap: 4px; }
+  .owned-chip svg { width: 12px; height: 12px; color: var(--phx-green); }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="window">
+    <div class="titlebar"><span class="tb-label">Phoenix-DRX</span>
+      <div class="capbtns"><a><svg viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M0 5h10M5 0v10"/></svg></a><a><svg viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.2"><rect x=".5" y=".5" width="9" height="9"/></svg></a><a><svg viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M0 0l10 10M10 0L0 10"/></svg></a></div>
+    </div>
+    <div class="sidebar"></div>
+    <div class="main">
+      <div class="main-head">
+        <div>
+          <div class="large-title">形象与服装</div>
+          <div class="head-meta">服装目录来自当前 SPT 服务器数据 · 改动保存前自动备份</div>
+        </div>
+        <div style="font-size:12px;color:var(--phx-text-3);">服装编辑页（稿图 31）——也是 AI 助手「换形象」操作的执行器</div>
+      </div>
+
+      <div class="scroll">
+        <!-- 形象区 -->
+        <div class="sec-h">当前形象</div>
+        <div class="look">
+          <div class="look-card">
+            <div class="avatar-lg">P</div>
+            <div class="look-meta">
+              <div class="look-name">光头 · 硬汉</div>
+              <div class="look-sub">head_bald_2 · Voice_2<span class="mono"><br>character.customization</span></div>
+            </div>
+          </div>
+          <div class="look-rows">
+            <div class="dd">
+              <span class="dd-l">头型<span class="sub">来自服务器数据库 · 12 款可选</span></span>
+              <span class="dd-v">光头 2（head_bald_2）<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </div>
+            <div class="dd">
+              <span class="dd-l">语音<span class="sub">9 款可选</span></span>
+              <span class="dd-v">Voice_2<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 服装区 -->
+        <div class="sec-h">
+          服装套装（17 套 · 已解锁 3）
+          <span style="display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:400;color:var(--phx-text-2);">一键全解锁 <span class="sw"></span></span>
+        </div>
+        <div class="cloth-grid">
+          <div class="cloth unlocked">
+            <div class="thumb t1"><span class="st st-on">已解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">初始作训服</div><div class="cloth-s">默认拥有</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>在穿</span></div>
+          </div>
+          <div class="cloth unlocked">
+            <div class="thumb t2"><span class="st st-on">已解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">Urban Track 猎装</div><div class="cloth-s">Ragman · Loyalty 2</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>已解锁</span></div>
+          </div>
+          <div class="cloth unlocked">
+            <div class="thumb t3"><span class="st st-on">已解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">Bear 指挥官</div><div class="cloth-s">Ragman · Loyalty 3</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>已解锁</span></div>
+          </div>
+          <div class="cloth">
+            <div class="thumb t4"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">USEC 突击装</div><div class="cloth-s">Ragman · Loyalty 4</div></div><button class="unlock-btn" type="button">解锁</button></div>
+          </div>
+          <div class="cloth">
+            <div class="thumb t2"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">森林巡守</div><div class="cloth-s">Ragman · Loyalty 3</div></div><button class="unlock-btn" type="button">解锁</button></div>
+          </div>
+          <div class="cloth">
+            <div class="thumb t1"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">冬季作战服</div><div class="cloth-s">Ragman · Loyalty 4</div></div><button class="unlock-btn" type="button">解锁</button></div>
+          </div>
+          <div class="cloth">
+            <div class="thumb t3"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">Killa 风格套装</div><div class="cloth-s">Ragman · 特殊</div></div><button class="unlock-btn" type="button">解锁</button></div>
+          </div>
+          <div class="cloth">
+            <div class="thumb t4"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">Admin 制服</div><div class="cloth-s">服务器管理员</div></div><button class="unlock-btn" type="button">解锁</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="dock">
+      <div class="dock-logo">P</div>
+      <div class="dock-sep"></div>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span class="lbl">角色</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/></svg><span class="lbl">仓库</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span class="lbl">备份</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 01-.4 2.3l2 1.6-2 3.4-2.4-1a7 7 0 01-2 1.2L14 22h-4l-.2-2.5a7 7 0 01-2-1.2l-2.4 1-2-3.4 2-1.6A7 7 0 015 12a7 7 0 01.4-2.3l-2-1.6 2-3.4 2.4 1a7 7 0 012-1.2L10 2h4l.2 2.5a7 7 0 012 1.2l2.4-1 2 3.4-2 1.6A7 7 0 0119 12z"/></svg><span class="lbl">设置</span></a>
+    </nav>
+  </div>
+</div>
+
+</body>
+</html>

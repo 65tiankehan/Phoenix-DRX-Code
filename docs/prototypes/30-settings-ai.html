@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>30 · 设置 · AI 助手组</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-danger: #ff6961;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body { font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif; color: var(--phx-text); display: flex; flex-direction: column; align-items: center; padding: 48px 0 40px; }
+  .stage { display: flex; gap: 48px; align-items: flex-start; }
+  .col-cap { font-size: 13px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .04em; margin-top: 16px; text-align: center; }
+  .sgroup { width: 560px; background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden; }
+  .sgroup-h { padding: 14px 18px 2px; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+  .sgroup-sub { padding: 0 18px 12px; font-size: 11.5px; color: var(--phx-text-3); line-height: 1.5; }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 18px; border-top: .5px solid var(--phx-sep); }
+  .stext { min-width: 0; flex: 1; }
+  .slabel { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .sdesc { font-size: 12px; color: var(--phx-text-2); margin-top: 3px; line-height: 1.5; }
+  .sw { width: 40px; height: 24px; border-radius: 12px; flex: none; cursor: pointer; background: var(--phx-fill-quaternary); position: relative; }
+  .sw.on { background: var(--phx-accent); }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 150ms ease-out; }
+  .sw.on::after { transform: translateX(16px); }
+  .field { background: var(--phx-fill-tertiary); border-radius: 7px; height: 30px; display: flex; align-items: center; padding: 0 10px; font-family: var(--phx-font-mono); font-size: 12px; color: var(--phx-text-2); min-width: 0; }
+  .field.wide { width: 300px; }
+  .field .mask { letter-spacing: 2px; }
+  .btn { height: 30px; padding: 0 12px; border: none; border-radius: var(--phx-r-btn); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; flex: none; }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-primary { background: var(--phx-accent); color: #fff; }
+  .tag { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 5px; }
+  .tag-ok { background: var(--phx-green-dim); color: var(--phx-green); }
+  .tag-off { background: var(--phx-fill-quaternary); color: var(--phx-text-3); }
+  .tag-err { background: rgba(255,105,97,.16); color: var(--phx-danger); }
+  .priv { margin: 0 18px 16px; padding: 12px 14px; border-radius: 10px; background: var(--phx-warn-bg); box-shadow: inset 0 0 0 .5px var(--phx-warn-bd); font-size: 12px; color: var(--phx-text-2); line-height: 1.7; }
+  .priv b { color: var(--phx-warn); font-weight: 600; margin-right: 4px; }
+  .priv code { font-family: var(--phx-font-mono); font-size: 11px; color: var(--phx-text-2); }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- 状态一：云端 BYOK -->
+  <div>
+    <div class="sgroup">
+      <div class="sgroup-h">AI 助手 <span class="tag tag-ok">已连接 · DeepSeek</span></div>
+      <div class="sgroup-sub">对话式改档：你说想要什么，AI 出方案、你确认后执行。改动前自动备份，只能执行白名单操作。</div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">启用 AI 助手</div><div class="sdesc">关闭后命令面板与页面入口全部隐藏</div></div>
+        <span class="sw on"></span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">服务商</div><div class="sdesc">OpenAI 兼容协议，本地与云端通用</div></div>
+        <span class="field wide">DeepSeek（官方）</span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">API 地址</div></div>
+        <span class="field wide">https://api.deepseek.com/v1</span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">API 密钥</div><div class="sdesc">保存在系统凭据管理器，不上传、不写入存档</div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="field" style="width:170px;"><span class="mask">••••••••••••</span></span>
+          <button class="btn btn-ghost" type="button">更换</button>
+        </div>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">模型</div><div class="sdesc">建议 deepseek-chat；工具调用需模型支持</div></div>
+        <span class="field" style="width:170px;">deepseek-chat</span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">连接测试</div><div class="sdesc">发送一条最小测试消息验证配置</div></div>
+        <button class="btn btn-primary" type="button">测试连接</button>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">页面「AI 推荐」入口</div><div class="sdesc">各功能页顶部显示 AI 推荐按钮，点击带上下文进入助手</div></div>
+        <span class="sw on"></span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">本地服务（Ollama）</div><div class="sdesc">检测到本机 Ollama · 可选 qwen3:8b 等本地模型，数据不出电脑</div></div>
+        <span class="tag tag-ok">已检测到</span>
+      </div>
+      <div class="priv"><b>隐私说明</b>开启云端 AI 后，执行操作所需的最小数据（如技能数值、任务名称）会发送到<code>https://api.deepseek.com</code>；不会上传完整存档，密钥只存本机。改用「本地服务（Ollama）」则数据完全不出电脑。</div>
+    </div>
+    <div class="col-cap">状态一 · 云端 BYOK（用户自己的密钥）</div>
+  </div>
+
+  <!-- 状态二：本地 Ollama + 未配置态提示 -->
+  <div>
+    <div class="sgroup">
+      <div class="sgroup-h">AI 助手 <span class="tag tag-ok">已连接 · Ollama 本地</span></div>
+      <div class="sgroup-sub">对话式改档：你说想要什么，AI 出方案、你确认后执行。改动前自动备份，只能执行白名单操作。</div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">启用 AI 助手</div></div>
+        <span class="sw on"></span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">服务商</div><div class="sdesc">数据完全不出电脑；模型能力弱于云端旗舰</div></div>
+        <span class="field wide">Ollama（本机 127.0.0.1:11434）</span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">模型</div><div class="sdesc">建议 qwen3:8b 或更高；4B 可用但工具调用稳定性一般</div></div>
+        <span class="field wide">qwen3:8b</span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">连接测试</div></div>
+        <button class="btn btn-primary" type="button">测试连接</button>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">页面「AI 推荐」入口</div></div>
+        <span class="sw"></span>
+      </div>
+      <div class="priv"><b>隐私说明</b>使用本地 Ollama 时，所有数据只在本机与本地服务之间传输，不出电脑。</div>
+    </div>
+
+    <div class="sgroup" style="margin-top:20px;">
+      <div class="sgroup-h">AI 助手 <span class="tag tag-off">未配置</span></div>
+      <div class="sgroup-sub">配置服务商后即可使用对话式改档。</div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">启用 AI 助手</div><div class="sdesc">需要先完成下方配置</div></div>
+        <span class="sw"></span>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">服务商</div><div class="sdesc">云端（填密钥）或本地 Ollama（免费，需本机安装 Ollama）</div></div>
+        <button class="btn btn-ghost" type="button">开始配置</button>
+      </div>
+      <div class="srow">
+        <div class="stext"><div class="slabel">本地服务（Ollama）</div><div class="sdesc">未检测到本机 Ollama 服务</div></div>
+        <span class="tag tag-err">未检测到</span>
+      </div>
+    </div>
+    <div class="col-cap">状态二 · 本地 Ollama + 未配置态</div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>29 · AI 助手</title>
+<style>
+  :root {
+    --phx-win-bg: #09090b;
+    --phx-surface: #101013;
+    --phx-surface-2: #16161a;
+    --phx-glass: rgba(22,22,26,.72);
+    --phx-fill-tertiary: rgba(255,255,255,.05);
+    --phx-fill-quaternary: rgba(255,255,255,.08);
+    --phx-sep: rgba(255,255,255,.08);
+    --phx-sep-strong: rgba(255,255,255,.14);
+    --phx-text: rgba(255,255,255,.92);
+    --phx-text-2: rgba(235,235,245,.6);
+    --phx-text-3: rgba(235,235,245,.3);
+    --phx-accent: #0091ff;
+    --phx-accent-dim: rgba(0,145,255,.16);
+    --phx-green: #30d158;
+    --phx-green-dim: rgba(48,209,88,.16);
+    --phx-warn: #ffc860;
+    --phx-warn-bg: rgba(255,159,10,.10);
+    --phx-warn-bd: rgba(255,159,10,.32);
+    --phx-orange: #a78bfa;
+    --phx-orange-dim: rgba(167,139,250,.16);
+    --phx-r-win: 12px;
+    --phx-r-card: 12px;
+    --phx-r-btn: 8px;
+    --phx-shadow-win: 0 8px 24px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.1);
+    --phx-font-mono: ui-monospace, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #202124; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    color: var(--phx-text);
+    display: flex; flex-direction: column; align-items: center; padding: 24px 0 40px;
+  }
+  .stage { width: 1180px; height: 820px; position: relative; flex: none; }
+  .window {
+    position: absolute; top: 0; left: 0; width: 1180px; height: 820px;
+    background: var(--phx-win-bg);
+    border-radius: var(--phx-r-win);
+    box-shadow: var(--phx-shadow-win);
+    overflow: hidden;
+    display: flex;
+  }
+  /* ===== chrome（同 15 稿） ===== */
+  .titlebar { position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 30; display: flex; align-items: center; padding: 0 0 0 18px; }
+  .tb-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--phx-text-2); }
+  .capbtns { display: flex; align-self: stretch; margin-left: auto; }
+  .capbtns a { width: 46px; display: flex; align-items: center; justify-content: center; color: var(--phx-text-2); }
+  .capbtns a svg { width: 10px; height: 10px; }
+  .capbtns a:hover { background: rgba(255,255,255,.06); color: var(--phx-text); }
+  .sidebar { width: 132px; flex: none; padding: 52px 0 92px; }
+  .dock {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35;
+    display: flex; align-items: center; gap: 2px; padding: 6px;
+    background: var(--phx-glass); border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 0 0 .5px var(--phx-sep-strong);
+  }
+  .dock-logo { width: 34px; height: 34px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; font-family: fantasy; font-style: italic; font-weight: 700; font-size: 19px; background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .dock-sep { width: .5px; height: 26px; background: rgba(255,255,255,.16); margin: 0 4px; }
+  .dock a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 56px; height: 46px; border-radius: 10px; text-decoration: none; }
+  .dock a svg { width: 22px; height: 22px; color: var(--phx-text-2); }
+  .dock a .lbl { font-size: 10px; font-weight: 500; color: var(--phx-text-2); }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 40px 0 92px; }
+  .main-head { padding: 18px 24px 0; flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 34px; font-weight: 700; letter-spacing: -.4px; }
+  .head-meta { font-size: 13px; color: var(--phx-text-2); margin-top: 6px; display: flex; align-items: center; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 7px; font-size: 11.5px; font-weight: 600; }
+  .chip .dot { width: 6px; height: 6px; border-radius: 3px; }
+  .chip.ok { background: var(--phx-green-dim); color: var(--phx-green); }
+  .chip.ok .dot { background: var(--phx-green); }
+  .chip.ctx { background: var(--phx-orange-dim); color: var(--phx-orange); }
+
+  /* ===== 对话区 ===== */
+  .chat { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; padding: 8px 24px 12px; scrollbar-width: none; }
+  .chat::-webkit-scrollbar { display: none; }
+  .msg { display: flex; margin-top: 18px; gap: 12px; }
+  .msg.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 560px; border-radius: 14px; padding: 12px 16px;
+    font-size: 13.5px; line-height: 1.7;
+  }
+  .msg.user .bubble { background: var(--phx-accent); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.ai .bubble { background: var(--phx-surface); border-bottom-left-radius: 4px; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 17px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .msg.ai .avatar { margin-top: 2px; }
+
+  /* ===== 操作预览卡（灵魂组件） ===== */
+  .plan { max-width: 640px; background: var(--phx-surface-2); border-radius: var(--phx-r-card); overflow: hidden; margin-top: 10px; }
+  .plan-h { padding: 12px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .plan-t { font-size: 14px; font-weight: 700; }
+  .plan-sub { font-size: 11.5px; color: var(--phx-text-3); margin-top: 2px; }
+  .op { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-top: .5px solid var(--phx-sep); }
+  .op .cb {
+    width: 16px; height: 16px; border-radius: 5px; flex: none; margin-top: 2px; cursor: pointer;
+    background: var(--phx-fill-quaternary); position: relative;
+  }
+  .op .cb.on { background: var(--phx-accent); }
+  .op .cb.on::after { content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #fff; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg); }
+  .op-body { min-width: 0; flex: 1; }
+  .op-kind { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 7px; border-radius: 5px; margin-right: 8px; }
+  .k-skill { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .k-money { background: var(--phx-green-dim); color: var(--phx-green); }
+  .k-cloth { background: var(--phx-orange-dim); color: var(--phx-orange); }
+  .k-quest { background: var(--phx-warn-bg); color: var(--phx-warn); }
+  .k-trader { background: var(--phx-fill-tertiary); color: var(--phx-text-2); }
+  .op-t { font-size: 13px; font-weight: 600; display: inline; }
+  .op-d { font-size: 11.5px; color: var(--phx-text-3); margin-top: 3px; font-family: var(--phx-font-mono); }
+  .op-d .to { color: var(--phx-accent); font-weight: 600; }
+  .plan-f { padding: 12px 16px; border-top: .5px solid var(--phx-sep); display: flex; align-items: center; gap: 10px; }
+  .plan-note { font-size: 11px; color: var(--phx-text-3); flex: 1; display: flex; align-items: center; gap: 6px; }
+  .plan-note svg { width: 13px; height: 13px; color: var(--phx-green); flex: none; }
+  .btn { height: 32px; padding: 0 14px; border: none; border-radius: var(--phx-r-btn); font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; }
+  .btn-ghost { background: var(--phx-fill-quaternary); color: var(--phx-text-2); }
+  .btn-primary { background: var(--phx-accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  /* 执行回执 */
+  .receipt { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--phx-green); margin-top: 4px; }
+  .receipt svg { width: 15px; height: 15px; flex: none; }
+  .receipt .dim { color: var(--phx-text-3); }
+
+  /* ===== 建议 chips + 输入栏 ===== */
+  .chips { display: flex; gap: 8px; padding: 4px 24px 8px; flex: none; flex-wrap: wrap; }
+  .chip-s { font-size: 12px; color: var(--phx-text-2); background: var(--phx-surface); border-radius: 9px; padding: 6px 12px; cursor: pointer; }
+  .chip-s:hover { color: var(--phx-text); background: var(--phx-surface-2); }
+  .inputbar { flex: none; margin: 0 24px 8px; display: flex; align-items: flex-end; gap: 10px; background: var(--phx-surface); border-radius: 14px; padding: 10px 12px; box-shadow: inset 0 0 0 .5px var(--phx-sep-strong); }
+  .inputbar .fakeinput { flex: 1; font-size: 13.5px; color: var(--phx-text-2); line-height: 1.5; }
+  .send { width: 38px; height: 38px; border-radius: 11px; background: var(--phx-accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .send svg { width: 17px; height: 17px; color: #fff; }
+  .foot-hint { flex: none; text-align: center; font-size: 11px; color: var(--phx-text-3); padding-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="window">
+    <div class="titlebar"><span class="tb-label">Phoenix-DRX</span>
+      <div class="capbtns"><a><svg viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M0 5h10M5 0v10"/></svg></a><a><svg viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.2"><rect x=".5" y=".5" width="9" height="9"/></svg></a><a><svg viewBox="0 0 10 10" stroke="currentColor" fill="none" stroke-width="1.2"><path d="M0 0l10 10M10 0L0 10"/></svg></a></div>
+    </div>
+    <div class="sidebar"></div>
+    <div class="main">
+      <div class="main-head">
+        <div>
+          <div class="large-title">AI 助手</div>
+          <div class="head-meta">
+            <span class="chip ok"><span class="dot"></span>DeepSeek · 已连接</span>
+            <span class="chip ctx">来自：技能页</span>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--phx-text-3);">只发送执行所需的最小上下文 · 改动前自动备份</div>
+      </div>
+
+      <div class="chat">
+        <div class="msg user"><div class="bubble">我想要整套满配，钱也给我堆够，再把时装全解锁</div></div>
+        <div class="msg ai">
+          <div class="avatar">P</div>
+          <div class="bubble" style="padding:0;background:transparent;">
+            <div class="bubble" style="max-width:none;">
+              好的，按你当前 0.1.8 档（38 级）整理了一份方案，共 6 项。技能和商人按满配处理，资金给了 2,000 万足够全商店随便买，服装与形象全解锁。逐项确认后执行：
+            </div>
+            <div class="plan">
+              <div class="plan-h">
+                <div><div class="plan-t">满配方案 · 6 项操作</div><div class="plan-sub">执行前将自动备份当前存档</div></div>
+              </div>
+              <div class="op">
+                <span class="cb on"></span>
+                <div class="op-body"><span class="op-kind k-skill">技能</span><span class="op-t">全部战斗与身体素质技能设为 51 级</span>
+                  <div class="op-d">Strength 23 → <span class="to">51</span> · Vitality 31 → <span class="to">51</span> · Sniping … 共 13 项技能</div>
+                </div>
+              </div>
+              <div class="op">
+                <span class="cb on"></span>
+                <div class="op-body"><span class="op-kind k-money">货币</span><span class="op-t">仓库货币调整为 2,000 万</span>
+                  <div class="op-d">卢布 1,240,000 → <span class="to">20,000,000</span> · 美元 → <span class="to">350,000</span> · 欧元 → <span class="to">180,000</span></div>
+                </div>
+              </div>
+              <div class="op">
+                <span class="cb on"></span>
+                <div class="op-body"><span class="op-kind k-trader">商人</span><span class="op-t">全部商人好感与信任拉满</span>
+                  <div class="op-d">Prapor / Therapist / Skier … 共 8 位 → <span class="to"> Loyalty 4 · 100%</span></div>
+                </div>
+              </div>
+              <div class="op">
+                <span class="cb on"></span>
+                <div class="op-body"><span class="op-kind k-cloth">服装</span><span class="op-t">解锁全部服装套装（17 套）</span>
+                  <div class="op-d">customisationUnlocks + 15 项 · <span class="to">type: suite · source: unlockedInGame</span></div>
+                </div>
+              </div>
+              <div class="op">
+                <span class="cb on"></span>
+                <div class="op-body"><span class="op-kind k-cloth">形象</span><span class="op-t">更换头型与语音</span>
+                  <div class="op-d">head: head_1 → <span class="to">head_bald_2</span> · voice: → <span class="to">Voice_2</span></div>
+                </div>
+              </div>
+              <div class="op">
+                <span class="cb on"></span>
+                <div class="op-body"><span class="op-kind k-quest">任务</span><span class="op-t">未含任务改动（本次方案不含）</span>
+                  <div class="op-d">如需跳过/完成任务，直接说「帮我跳过×××」</div>
+                </div>
+              </div>
+              <div class="plan-f">
+                <span class="plan-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z"/></svg>执行前自动备份 · 可随时在「备份」页回滚</span>
+                <button class="btn btn-ghost" type="button">放弃</button>
+                <button class="btn btn-primary" type="button">执行 5 项</button>
+              </div>
+            </div>
+            <div class="receipt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>已执行 5 项，备份已保存<span class="dim">· 需要调整随时说，比如「钱改成 5,000 万」「换成扎辫子的头型」</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip-s">来一套 12 级成长包</span>
+        <span class="chip-s">帮我跳过新手任务</span>
+        <span class="chip-s">整理一下仓库</span>
+        <span class="chip-s">Labs 战备包</span>
+        <span class="chip-s">这套方案改一下…</span>
+      </div>
+      <div class="inputbar">
+        <span class="fakeinput">告诉 AI 你想怎么改，例如「技能全满，钱给 3000 万」…</span>
+        <span class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="foot-hint">AI 只能执行白名单操作，改动需你逐项确认 · 使用云端 AI 时相关数据会发送到你配置的服务商</div>
+    </div>
+
+    <nav class="dock">
+      <div class="dock-logo">P</div>
+      <div class="dock-sep"></div>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span class="lbl">角色</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18M3 12h18M3 17h18"/></svg><span class="lbl">任务</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/></svg><span class="lbl">仓库</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span class="lbl">备份</span></a>
+      <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 01-.4 2.3l2 1.6-2 3.4-2.4-1a7 7 0 01-2 1.2L14 22h-4l-.2-2.5a7 7 0 01-2-1.2l-2.4 1-2-3.4 2-1.6A7 7 0 015 12a7 7 0 01.4-2.3l-2-1.6 2-3.4 2.4 1a7 7 0 012-1.2L10 2h4l.2 2.5a7 7 0 012 1.2l2.4-1 2 3.4-2 1.6A7 7 0 0119 12z"/></svg><span class="lbl">设置</span></a>
+    </nav>
+  </div>
+</div>
+
+</body>
+</html>
