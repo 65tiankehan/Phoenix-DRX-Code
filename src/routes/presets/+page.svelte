@@ -1265,25 +1265,29 @@
   }
   .ar-wall::-webkit-scrollbar { display: none; }
   .ar-set {
+    display: flex; flex-direction: column; align-items: stretch;
     background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden;
     box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong); cursor: pointer; border: none;
-    padding: 0; font-family: inherit; text-align: left; color: var(--phx-text);
+    padding: 0; height: auto; font-family: inherit; text-align: left; color: var(--phx-text);
   }
   .ar-set.on { box-shadow: inset 0 0 0 1.5px var(--phx-accent); }
   .ar-thumb {
-    height: 84px; position: relative; display: flex; align-items: center; justify-content: center;
+    height: 84px; flex: none; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
     background: linear-gradient(135deg, #16233c, #101013);
   }
-  .ar-thumb svg { width: 104px; height: 52px; }
+  .ar-thumb svg { width: 104px; height: 52px; display: block; }
+  .ar-set.on .ar-thumb { background: linear-gradient(135deg, #1d3050, #101013); }
   .ar-thumb .l { fill: rgba(0,145,255,.16); stroke: rgba(0,145,255,.6); stroke-width: 2; }
   .ar-thumb .l2 { fill: none; stroke: rgba(0,145,255,.4); stroke-width: 1.4; }
   .ar-tier {
     position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700;
     padding: 2px 8px; border-radius: 5px; background: rgba(0,0,0,.45); color: var(--phx-text-2);
   }
-  .ar-body { padding: 9px 12px 11px; }
-  .ar-n { font-size: 12.5px; font-weight: 700; }
+  .ar-body { padding: 9px 12px 11px; flex: none; }
+  .ar-n { font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ar-price { font-size: 10.5px; color: var(--phx-warn); margin-top: 3px; font-family: var(--phx-font-mono); }
+  .ar-wall { align-content: start; grid-auto-rows: min-content; }
   .ar-detail {
     flex: 1; min-width: 0; background: var(--phx-surface); border-radius: var(--phx-r-card);
     display: flex; flex-direction: column; overflow: hidden; box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);

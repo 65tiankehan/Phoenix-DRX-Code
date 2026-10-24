@@ -7,7 +7,7 @@
       "tier": "入门级",
       "desc": "便宜耐造的入门三件：一把默认步枪、软甲、头盔。适合开荒第一桶金。",
       "priceRub": 85000,
-      "weapon": { "candidates": ["SKS_default", "AK-74_default"] },
+      "weapon": { "candidates": ["AK-74M_default", "SKS_default"] },
       "armor": [
         { "kind": "armor", "candidates": ["PACA", "6B23-1"] },
         { "kind": "helmet", "candidates": ["6B47", "Kolpak-1S"] }

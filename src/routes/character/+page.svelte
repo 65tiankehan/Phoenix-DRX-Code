@@ -1157,5 +1157,53 @@
     height: 100%;
     background: var(--phx-accent);
   }
-</style>
 
+  /* ===== 形象与服装（稿图 31） ===== */
+  .cloth-wrap { max-width: 1080px; }
+  .cloth-look {
+    display: flex; align-items: center; gap: 16px; flex: none;
+    background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 18px;
+  }
+  .cloth-avatar {
+    width: 96px; height: 96px; border-radius: 18px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: fantasy; font-style: italic; font-weight: 700; font-size: 44px;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+  .cloth-look-meta { min-width: 0; flex: 1; }
+  .cloth-look-name { font-size: 16px; font-weight: 700; }
+  .cloth-look-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 4px; line-height: 1.6; }
+  .cloth-look-dd { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .cloth-look-dd .cloth-dd-l { font-size: 12px; font-weight: 600; color: var(--phx-text-2); }
+  .cloth-sec-h {
+    margin: 22px 0 10px; font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cloth-all { display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 400; color: var(--phx-text-2); }
+  .cloth-empty { margin-top: 24px; font-size: 13px; color: var(--phx-text-3); }
+  .cloth-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .cloth-card {
+    background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden;
+    position: relative; box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
+  }
+  .cloth-card.owned .cloth-thumb .art-body { fill: rgba(0, 145, 255, 0.18); stroke: rgba(0, 145, 255, 0.62); }
+  .cloth-card.owned .cloth-thumb .art-line { stroke: rgba(0, 145, 255, 0.45); }
+  .cloth-card:not(.owned) .cloth-thumb .art-body { fill: rgba(255, 255, 255, 0.04); stroke: rgba(255, 255, 255, 0.18); }
+  .cloth-card:not(.owned) .cloth-thumb .art-line { stroke: rgba(255, 255, 255, 0.15); }
+  .cloth-thumb { height: 96px; display: flex; align-items: center; justify-content: center; position: relative; background: var(--phx-surface-2); }
+  .cloth-thumb svg { width: 64px; height: 64px; display: block; }
+  .cloth-thumb .art-body { stroke-width: 2; }
+  .cloth-thumb .art-line { stroke-width: 1.6; fill: none; }
+  .cloth-st {
+    position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700;
+    padding: 2px 8px; border-radius: 5px; background: rgba(0, 0, 0, 0.45); color: var(--phx-text-3);
+  }
+  .cloth-st.on { background: var(--phx-green-dim); color: var(--phx-green); }
+  .cloth-card-body { padding: 10px 12px 12px; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cloth-n { font-size: 12.5px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cloth-btn {
+    height: 26px; padding: 0 10px; border: none; border-radius: 7px; flex: none; cursor: pointer;
+    font-size: 11.5px; font-weight: 600; font-family: inherit;
+    background: var(--phx-accent-dim); color: var(--phx-accent);
+  }
+</style>

@@ -3,7 +3,7 @@
 //!   - 套装目录：<database>/traders/*/suits.json 的 { _id, suiteId }，按 suiteId 去重
 //!   - 已拥有判定：profile.customisationUnlocks 含 { id=suiteId, source=unlockedInGame, type=suite }
 //!   - 解锁/上锁 = 增删该数组条目（对齐参考 CustomisationUnlock 序列化三字段）
-//!   - 头型/语音：character.customization.{head,voice}；候选清单来自 <root>/SPT/SPT_Data/bots/*.json
+//!   - 头型/语音：character.customization.{head,voice}；候选来自 database/bots/types 的 appearance.head/voice
 //!     的 appearance.heads / appearance.voices 键（名字查 locales/global/en.json）
 //! 写入前一律走 backup_before_write（章程 §四 铁律）。
 
@@ -46,12 +46,20 @@ pub struct ClothingData {
 
 /// locales/global/en.json 的「{key} Name」，缺失兜底 key 原文（对齐 character.rs 名字表惯例）
 fn localized_name(names: &Map<String, Value>, key: &str) -> String {
+    // 头型/语音/套装在 locales 里是「id 直键」，物品名才是「{tpl} Name」——直键优先，Name 兜底
     names
-        .get(&format!("{} Name", key))
+        .get(key)
         .and_then(|v| v.as_str())
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.to_string())
-        .unwrap_or_else(|| key.to_string())
+        .unwrap_or_else(|| {
+            names
+                .get(&format!("{} Name", key))
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| key.to_string())
+        })
 }
 
 fn profile_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -100,7 +108,7 @@ fn clothing_load_sync(app: &AppHandle) -> Result<ClothingData, String> {
 
     let db = database_dir(app).ok_or("未找到服务器数据库目录")?;
     let server_root = format!(
-        "{}\\SPT\\SPT_Data",
+        "{}\\SPT\\SPT_Data\\database",
         crate::server::current_server(app).ok_or("未选择 SPT 服务器")?.path.trim_end_matches(['\\', '/'])
     );
     let names: Map<String, Value> = fs::read_to_string(
@@ -172,13 +180,17 @@ fn load_look_options(server_root: &str, names: &Map<String, Value>) -> (Vec<PhxL
             }
         }
     };
-    if let Ok(files) = fs::read_dir(std::path::Path::new(server_root).join("bots")) {
+    // bots 目录：database/bots/types（参考 DefaultValues）；appearance 的 head/voice
+    // 真实数据为单数键（复数 heads/voices 为参考仓模型映射，一并兼容）
+    if let Ok(files) = fs::read_dir(std::path::Path::new(server_root).join("bots").join("types")) {
         let mut paths: Vec<_> = files.flatten().map(|e| e.path()).collect();
         paths.sort();
         for p in paths {
             if let Ok(text) = fs::read_to_string(&p) {
                 if let Ok(v) = serde_json::from_str::<Value>(&text) {
+                    push_keys(&v, "head", &mut heads);
                     push_keys(&v, "heads", &mut heads);
+                    push_keys(&v, "voice", &mut voices);
                     push_keys(&v, "voices", &mut voices);
                 }
             }
