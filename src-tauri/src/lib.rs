@@ -6,6 +6,7 @@
 //! 任何写档案命令执行前必须先落备份（领域铁律：备份先行）。
 
 mod announcement;
+mod ai;
 mod auth;
 mod backup;
 mod character;
@@ -640,6 +641,8 @@ pub fn run() {
             backup_list, backup_restore, backup_delete,
             app_flags, mark_splash_seen, mark_onboarded, announcement_fetch,
             settings_get, settings_set, settings_open_data_dir, settings_reset, settings_restart,
+            ai::ai_get_config, ai::ai_set_config, ai::ai_set_key, ai::ai_clear_key, ai::ai_detect_ollama,
+            ai::ai_test_connection, ai::ai_chat,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,
             auth_is_configured, auth_device_start, auth_device_cancel, auth_logout,
             sync_pull, sync_push,

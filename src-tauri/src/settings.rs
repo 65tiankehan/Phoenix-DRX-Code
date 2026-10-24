@@ -14,6 +14,34 @@ use tauri::{AppHandle, Manager};
 /// fix / ignore 两态仅由渲染层校验后透传，Rust 侧无消费点，不设常量。
 pub const ISSUE_ASK: &str = "ask";
 
+/// AI 助手配置（稿图 30）。密钥绝不入此文件——走系统凭据库（ai.rs CRED_KEY）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AiSettings {
+    /// 总开关：关闭后命令面板与页面 AI 入口全部隐藏
+    pub enabled: bool,
+    /// 服务商标识：deepseek / glm / siliconflow / ollama / custom
+    pub provider: String,
+    /// OpenAI 兼容 base_url（不含 /chat/completions）
+    pub base_url: String,
+    /// 模型名
+    pub model: String,
+    /// 各功能页「AI 推荐」入口开关
+    pub page_entries: bool,
+}
+
+impl Default for AiSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            provider: "deepseek".into(),
+            base_url: "https://api.deepseek.com/v1".into(),
+            model: "deepseek-chat".into(),
+            page_entries: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -27,6 +55,8 @@ pub struct Settings {
     pub check_updates: bool,
     /// 首页动态条是否展示赞助推荐（关闭后槽位回退公告/小贴士）
     pub show_sponsor: bool,
+    /// AI 助手配置（密钥存系统凭据库，不入本文件）
+    pub ai: AiSettings,
 }
 
 impl Default for Settings {
@@ -37,6 +67,7 @@ impl Default for Settings {
             issue_handling: ISSUE_ASK.to_string(),
             check_updates: true,
             show_sponsor: true,
+            ai: AiSettings::default(),
         }
     }
 }

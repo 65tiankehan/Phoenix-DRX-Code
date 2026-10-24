@@ -13,6 +13,8 @@
     phxServer,
     phxProfile,
     phxUpdate,
+    phxAi,
+    type PhxAiConfigView,
     type PhxIssueHandling,
     type PhxProfileMeta,
     type PhxServerRow
@@ -51,14 +53,22 @@
     const s = autoAddScavSkills
     const sp = showSponsor
     const h = issueHandling
-    if (!armed) return
+    const aiCfg = ai
+    if (!armed || !aiCfg) return
     void phxSettings
       .set({
         checkUpdates: c,
         autoAddMasterings: a,
         autoAddScavSkills: s,
         showSponsor: sp,
-        issueHandling: h
+        issueHandling: h,
+        ai: {
+          enabled: aiCfg.enabled,
+          provider: aiCfg.provider,
+          baseUrl: aiCfg.baseUrl,
+          model: aiCfg.model,
+          pageEntries: aiCfg.pageEntries
+        }
       })
       .then(() => toast.success(t('settings.toast.saved')))
   })
@@ -77,17 +87,21 @@
 
   onMount(async () => {
     try {
-      const [settings, server, pid, metas] = await Promise.all([
+      const [settings, server, pid, metas, aiCfg] = await Promise.all([
         phxSettings.get(),
         phxServer.current(),
         phxProfile.current(),
-        phxProfile.list()
+        phxProfile.list(),
+        phxAi.getConfig().catch(() => null)
       ])
       checkUpdates = settings.checkUpdates
       autoAddMasterings = settings.autoAddMasterings
       autoAddScavSkills = settings.autoAddScavSkills
       showSponsor = settings.showSponsor
       issueHandling = settings.issueHandling
+      if (aiCfg) ai = aiCfg
+      // 兜底：AI 视图加载失败也不能卡死整页保存链（settings.ai 自带同值字段）
+      else ai = { ...settings.ai, hasKey: false, keyHint: null }
       serverRow = server
       profileId = pid
       profileMetas = metas
@@ -123,6 +137,88 @@
   let checking = $state(false)
   /* dev-only 更新窗预览入口（正式构建静态剔除） */
   const devBuild = import.meta.env.DEV
+
+  // —— AI 助手（稿图 30）：三件套+开关走 settings.json（ai 字段），密钥走凭据库独立通道 ——
+  let ai = $state<PhxAiConfigView | null>(null)
+  let aiKeyEditing = $state(false)
+  let aiKeyInput = $state('')
+  let aiSavingKey = $state(false)
+  let aiTesting = $state(false)
+  let aiTest = $state<{ ok: boolean; msg: string } | null>(null)
+  let ollama = $state<{ ok: boolean; models: string[] } | null>(null)
+
+  const aiProviderOptions = $derived([
+    { value: 'deepseek', label: 'DeepSeek' },
+    { value: 'glm', label: 'GLM' },
+    { value: 'siliconflow', label: 'SiliconFlow' },
+    { value: 'ollama', label: 'Ollama' },
+    { value: 'custom', label: t('settings.ai.provider.custom') }
+  ])
+  const AI_PRESETS: Record<string, { baseUrl: string; model: string }> = {
+    deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+    glm: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.5-flash' },
+    siliconflow: { baseUrl: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen3-8B' },
+    ollama: { baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen3:8b' }
+  }
+  function onAiProviderChange(v: string): void {
+    if (!ai) return
+    ai.provider = v
+    const preset = AI_PRESETS[v]
+    if (preset) {
+      ai.baseUrl = preset.baseUrl
+      ai.model = preset.model
+    }
+  }
+  const aiProviderLabel = $derived(
+    ai ? (aiProviderOptions.find((o) => o.value === ai?.provider)?.label ?? ai.provider) : ''
+  )
+  const aiStatus = $derived.by(() => {
+    if (!ai) return { ok: false, label: t('settings.ai.status.loading') }
+    if (!ai.enabled) return { ok: false, label: t('settings.ai.status.off') }
+    if (ai.hasKey || ai.provider === 'ollama')
+      return { ok: true, label: `${t('settings.ai.status.ready')} · ${aiProviderLabel}` }
+    return { ok: false, label: t('settings.ai.status.unset') }
+  })
+
+  async function aiSaveKey(): Promise<void> {
+    if (!aiKeyInput.trim()) return
+    aiSavingKey = true
+    try {
+      await phxAi.setKey(aiKeyInput.trim())
+      aiKeyInput = ''
+      aiKeyEditing = false
+      ai = await phxAi.getConfig()
+      toast.success(t('settings.ai.key.saved'))
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      aiSavingKey = false
+    }
+  }
+  async function aiClearKeyFn(): Promise<void> {
+    try {
+      await phxAi.clearKey()
+      ai = await phxAi.getConfig()
+    } catch (e) {
+      toast.error(String(e))
+    }
+  }
+  async function aiTestRun(): Promise<void> {
+    aiTesting = true
+    aiTest = null
+    try {
+      aiTest = { ok: true, msg: await phxAi.testConnection() }
+    } catch (e) {
+      aiTest = { ok: false, msg: String(e) }
+    } finally {
+      aiTesting = false
+    }
+  }
+  async function ollamaDetect(): Promise<void> {
+    const r = await phxAi.detectOllama().catch(() => null)
+    ollama = r ? { ok: true, models: r } : { ok: false, models: [] }
+  }
+
   function checkNow(): void {
     if (checking) return
     checking = true
@@ -310,6 +406,129 @@
                   <button class="mbtn ghost" type="button" onclick={() => void phxUpdate.devMock('downloading')}>下载中</button>
                   <button class="mbtn ghost" type="button" onclick={() => void phxUpdate.devMock('downloaded')}>待重启</button>
                 </div>
+              </div>
+            {/if}
+          </section>
+
+          <!-- 组 1.5 · AI 助手（稿图 30）：三件套+开关走 settings 通道，密钥走凭据库，Ollama 本地免鉴权 -->
+          <section class="sgroup" data-group="ai">
+            <div class="sgroup-h">
+              {t('settings.ai.group')}
+              <span class="aitag" class:ok={aiStatus.ok}>{aiStatus.label}</span>
+            </div>
+            <div class="sgroup-sub">{t('settings.ai.group.sub')}</div>
+            {#if ai}
+              <div class="srow">
+                <div class="stext">
+                  <div class="slabel">{t('settings.ai.enable')}</div>
+                  <div class="sdesc">{t('settings.ai.enable.desc')}</div>
+                </div>
+                <PhxSwitch bind:checked={ai.enabled} label={t('settings.ai.enable')} />
+              </div>
+              <div class="srow">
+                <div class="stext">
+                  <div class="slabel">{t('settings.ai.provider')}</div>
+                  <div class="sdesc">{t('settings.ai.provider.desc')}</div>
+                </div>
+                <PhxDropdown value={ai.provider} options={aiProviderOptions} onchange={onAiProviderChange} />
+              </div>
+              {#if ai.provider !== 'ollama'}
+                <div class="srow">
+                  <div class="stext">
+                    <div class="slabel">{t('settings.ai.baseurl')}</div>
+                  </div>
+                  <input
+                    class="tinput"
+                    value={ai.baseUrl}
+                    onchange={(e) => ai && (ai.baseUrl = e.currentTarget.value)}
+                    spellcheck="false"
+                  />
+                </div>
+                <div class="srow">
+                  <div class="stext">
+                    <div class="slabel">{t('settings.ai.key')}</div>
+                    <div class="sdesc">{t('settings.ai.key.desc')}</div>
+                  </div>
+                  {#if aiKeyEditing}
+                    <div class="ai-inline">
+                      <input
+                        class="tinput"
+                        type="password"
+                        bind:value={aiKeyInput}
+                        placeholder={t('settings.ai.key.placeholder')}
+                      />
+                      <button class="mbtn" type="button" disabled={aiSavingKey} onclick={aiSaveKey}>
+                        {t('settings.ai.key.save')}
+                      </button>
+                      <button class="mbtn ghost" type="button" onclick={() => { aiKeyEditing = false; aiKeyInput = '' }}>
+                        {t('settings.ai.key.cancel')}
+                      </button>
+                    </div>
+                  {:else if ai.hasKey}
+                    <div class="ai-inline">
+                      <span class="tinput tinput-ro">•••••••• {ai.keyHint ?? ''}</span>
+                      <button class="mbtn ghost" type="button" onclick={() => (aiKeyEditing = true)}>
+                        {t('settings.ai.key.change')}
+                      </button>
+                      <button class="mbtn ghost" type="button" onclick={aiClearKeyFn}>
+                        {t('settings.ai.key.clear')}
+                      </button>
+                    </div>
+                  {:else}
+                    <button class="mbtn" type="button" onclick={() => (aiKeyEditing = true)}>
+                      {t('settings.ai.key.setup')}
+                    </button>
+                  {/if}
+                </div>
+              {:else}
+                <div class="srow">
+                  <div class="stext">
+                    <div class="slabel">{t('settings.ai.ollama')}</div>
+                    <div class="sdesc">{t('settings.ai.ollama.desc')}</div>
+                  </div>
+                  {#if ollama?.ok}
+                    <span class="aitag ok">{t('settings.ai.ollama.found', { n: ollama.models.length })}</span>
+                  {:else if ollama}
+                    <span class="aitag err">{t('settings.ai.ollama.missing')}</span>
+                  {:else}
+                    <button class="mbtn" type="button" onclick={ollamaDetect}>
+                      {t('settings.ai.ollama.check')}
+                    </button>
+                  {/if}
+                </div>
+              {/if}
+              <div class="srow">
+                <div class="stext">
+                  <div class="slabel">{t('settings.ai.model')}</div>
+                </div>
+                <input
+                  class="tinput"
+                  value={ai.model}
+                  onchange={(e) => ai && (ai.model = e.currentTarget.value)}
+                  spellcheck="false"
+                />
+              </div>
+              <div class="srow">
+                <div class="stext">
+                  <div class="slabel">{t('settings.ai.test')}</div>
+                  <div class="sdesc">{t('settings.ai.test.desc')}</div>
+                  {#if aiTest}
+                    <div class="aitest" class:ok={aiTest.ok}>{aiTest.msg}</div>
+                  {/if}
+                </div>
+                <button class="mbtn" type="button" disabled={aiTesting} onclick={aiTestRun}>
+                  {aiTesting ? t('settings.ai.testing') : t('settings.ai.test.btn')}
+                </button>
+              </div>
+              <div class="srow">
+                <div class="stext">
+                  <div class="slabel">{t('settings.ai.entries')}</div>
+                  <div class="sdesc">{t('settings.ai.entries.desc')}</div>
+                </div>
+                <PhxSwitch bind:checked={ai.pageEntries} label={t('settings.ai.entries')} />
+              </div>
+              <div class="priv">
+                <b>{t('settings.ai.privacy.label')}</b>{t('settings.ai.privacy')}
               </div>
             {/if}
           </section>
@@ -571,6 +790,76 @@
     display: flex;
     gap: 8px;
     flex: none;
+  }
+  /* ===== AI 助手组（稿图 30） ===== */
+  .aitag {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 5px;
+    background: var(--phx-fill-quaternary);
+    color: var(--phx-text-3);
+  }
+  .aitag.ok {
+    background: var(--phx-accent-dim);
+    color: var(--phx-accent);
+  }
+  .aitag.err {
+    background: var(--phx-danger-bg);
+    color: var(--phx-danger);
+  }
+  .tinput {
+    height: 30px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 7px;
+    background: var(--phx-fill-tertiary);
+    color: var(--phx-text-2);
+    font-size: 12px;
+    font-family: var(--phx-font-mono);
+    min-width: 0;
+    outline: none;
+  }
+  .tinput:focus {
+    box-shadow: inset 0 0 0 1px var(--phx-accent);
+    color: var(--phx-text);
+  }
+  .tinput-ro {
+    display: inline-flex;
+    align-items: center;
+    width: 150px;
+    letter-spacing: 2px;
+  }
+  .ai-inline {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: none;
+  }
+  .aitest {
+    margin-top: 6px;
+    font-size: 11.5px;
+    color: var(--phx-danger);
+    line-height: 1.6;
+    word-break: break-all;
+  }
+  .aitest.ok {
+    color: var(--phx-green);
+  }
+  .priv {
+    margin: 4px 18px 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--phx-warn-bg);
+    box-shadow: inset 0 0 0 0.5px var(--phx-warn-bd);
+    font-size: 12px;
+    color: var(--phx-text-2);
+    line-height: 1.7;
+  }
+  .priv b {
+    color: var(--phx-warn);
+    font-weight: 600;
+    margin-right: 4px;
   }
   .mbtn.danger {
     background: transparent;

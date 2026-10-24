@@ -126,6 +126,35 @@ export interface PhxSettings {
   /** 首页动态条是否展示赞助推荐（关闭后槽位回退公告/小贴士；对齐 Rust Settings showSponsor） */
   showSponsor: boolean
   issueHandling: PhxIssueHandling
+  /** AI 助手配置（对齐 Rust Settings ai；密钥不在其中，存系统凭据库） */
+  ai: PhxAiSettings
+}
+
+/** AI 三件套 + 开关（字段名对齐 Rust AiSettings serde camelCase） */
+export interface PhxAiSettings {
+  enabled: boolean
+  provider: string
+  baseUrl: string
+  model: string
+  pageEntries: boolean
+}
+
+/** AI 配置视图（密钥只回「有没有 + 尾 4 位」，对齐 Rust AiConfigView） */
+export interface PhxAiConfigView extends PhxAiSettings {
+  hasKey: boolean
+  keyHint: string | null
+}
+
+/** AI 助手底座（稿图 30；密钥永不出 Rust） */
+export const phxAi = {
+  getConfig: (): Promise<PhxAiConfigView> => invoke('ai_get_config'),
+  setConfig: (config: PhxAiSettings): Promise<void> => invoke('ai_set_config', { config }),
+  setKey: (key: string): Promise<void> => invoke('ai_set_key', { key }),
+  clearKey: (): Promise<void> => invoke('ai_clear_key'),
+  detectOllama: (): Promise<string[] | null> => invoke('ai_detect_ollama'),
+  testConnection: (): Promise<string> => invoke('ai_test_connection'),
+  chat: (body: Record<string, unknown>): Promise<{ content?: string; tool_calls?: unknown[] }> =>
+    invoke('ai_chat', { body })
 }
 
 export const phxSettings = {
