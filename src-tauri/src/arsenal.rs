@@ -57,8 +57,8 @@ pub struct ArsenalPiece {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArsenalSet {
-    id: String,
-    name: String,
+    pub(crate) id: String,
+    pub(crate) name: String,
     tier: String,
     desc: String,
     price_rub: i64,

@@ -148,6 +148,25 @@
 
   <div class="capbtns">
     <!-- 20 稿图场景 3：通知按钮左侧搜索按钮，悬停提示「全局搜索 · Ctrl+K」 -->
+    <PhxTooltip label={t('nav.assistant')} placement="bottom">
+      <a
+        class="searchbtn"
+        href={resolve('/assistant')}
+        aria-label={t('nav.assistant')}
+      >
+        <svg
+          viewBox="0 0 15 15"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M7.5 1.8 8.8 4.7 12 5.1 9.7 7.3 10.3 10.5 7.5 9 4.7 10.5 5.3 7.3 3 5.1 6.2 4.7Z" />
+          <path d="M12.2 11.2 13.5 12.5" />
+        </svg>
+      </a>
+    </PhxTooltip>
     <PhxTooltip label={`${t('cmdk.search')} · Ctrl+K`} placement="bottom">
       <button
         type="button"

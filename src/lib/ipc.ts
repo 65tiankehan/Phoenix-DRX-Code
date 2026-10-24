@@ -682,6 +682,39 @@ export const phxArsenal = {
     invoke('arsenal_apply', { setId, weaponOnly })
 }
 
+// —— AI 助手执行器（稿图 29；白名单六类操作，tag=kind 对齐 Rust AiOp serde）——
+
+export type PhxAiOp =
+  | { kind: 'skillsAll'; level: number }
+  | { kind: 'tradersMax' }
+  | { kind: 'questsComplete'; qids: string[] }
+  | { kind: 'moneySet'; rub?: number | null; eur?: number | null; usd?: number | null }
+  | { kind: 'clothingUnlockAll'; head?: string | null; voice?: string | null }
+  | { kind: 'setLook'; head?: string | null; voice?: string | null }
+  | { kind: 'arsenalApply'; setId: string; weaponOnly: boolean }
+
+export interface PhxOpResult {
+  index: number
+  ok: boolean
+  error: string | null
+}
+
+export interface PhxAssistantContext {
+  version: string
+  skills: string[]
+  traders: string[]
+  quests: [string, string][]
+  suits: string[]
+  arsenal: [string, string][]
+  heads: string[]
+  voices: string[]
+}
+
+export const phxAssistant = {
+  context: (): Promise<PhxAssistantContext> => invoke('assistant_context'),
+  execute: (ops: PhxAiOp[]): Promise<PhxOpResult[]> => invoke('assistant_execute', { ops })
+}
+
 // —— 问题检测（13 屏：保存拦截弹窗 + 仪表台问题清单）——
 
 /** 问题行（字段名对齐 Rust IssueRow serde camelCase 输出；描述文案由前端按 kind 组装） */

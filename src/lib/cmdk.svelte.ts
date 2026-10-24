@@ -74,7 +74,7 @@ const IC = {
   folder: '<path d="M2.5 13.5V3.5h4.3l1.7 1.9h6v8.1z"/>',
 } as const
 
-/** 面板目的地索引（19 项，显示顺序即数组顺序） */
+/** 面板目的地索引（20 项，显示顺序即数组顺序） */
 export const CMDK_ENTRIES: readonly CmdkEntry[] = [
   // ── 页面（dock 11 页）──
   { id: 'page-home', group: 'pages', nm: 'nav.home', ds: 'cmdk.desc.home', icon: IC.home, route: '/home' },
@@ -88,6 +88,7 @@ export const CMDK_ENTRIES: readonly CmdkEntry[] = [
   { id: 'page-account', group: 'pages', nm: 'nav.account', ds: 'cmdk.desc.account', icon: IC.account, route: '/account' },
   { id: 'page-settings', group: 'pages', nm: 'nav.settings', ds: 'cmdk.desc.settings', icon: IC.gear, route: '/settings' },
   { id: 'page-about', group: 'pages', nm: 'nav.about', ds: 'cmdk.desc.about', icon: IC.about, route: '/about' },
+  { id: 'page-assistant', group: 'pages', nm: 'nav.assistant', ds: 'cmdk.desc.assistant', icon: IC.gear, route: '/assistant' },
   // ── 设置（分组级定位）──
   { id: 'set-general', group: 'settings', nm: 'settings.group.general', ds: 'settings.group.general.sub', icon: IC.gear, route: '/settings', anchor: 'general' },
   { id: 'set-server', group: 'settings', nm: 'settings.group.server', ds: 'settings.group.server.sub', icon: IC.server, route: '/settings', anchor: 'server' },
