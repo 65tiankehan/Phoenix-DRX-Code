@@ -657,6 +657,31 @@ export const phxClothing = {
     invoke('clothing_save', { ownedSuiteIds, head, voice })
 }
 
+// —— 套装军械库（预设页 tab，稿图 32；字段名对齐 Rust arsenal.rs serde camelCase）——
+
+export interface PhxArsenalPiece {
+  kind: string
+  name: string | null
+  detail: string
+}
+
+export interface PhxArsenalSet {
+  id: string
+  name: string
+  tier: string
+  desc: string
+  priceRub: number
+  weapon: PhxArsenalPiece | null
+  pieces: PhxArsenalPiece[]
+  resolvable: boolean
+}
+
+export const phxArsenal = {
+  load: (): Promise<PhxArsenalSet[]> => invoke('arsenal_load'),
+  apply: (setId: string, weaponOnly: boolean): Promise<string | null> =>
+    invoke('arsenal_apply', { setId, weaponOnly })
+}
+
 // —— 问题检测（13 屏：保存拦截弹窗 + 仪表台问题清单）——
 
 /** 问题行（字段名对齐 Rust IssueRow serde camelCase 输出；描述文案由前端按 kind 组装） */

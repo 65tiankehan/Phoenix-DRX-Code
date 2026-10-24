@@ -163,15 +163,15 @@ pub struct StashSaveData {
 /// 物品库：tpl → 条目引用索引（_props 关键字段 + _parent）
 pub(crate) struct ItemsDb {
     /// tpl → (props, parent)
-    entries: HashMap<String, ItemProps>,
+    pub(crate) entries: HashMap<String, ItemProps>,
     names: Option<Value>,
 }
 
 #[derive(Debug, Clone)]
-struct ItemProps {
+pub(crate) struct ItemProps {
     width: i64,
     height: i64,
-    stack_max: i64,
+    pub(crate) stack_max: i64,
     grids: usize,
     recoil_force_up: f64,
 }
@@ -630,7 +630,7 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
 }
 
 /// 添加物品（简化放置引擎，模块头注释有口径说明）
-fn add_item_to_stash(
+pub(crate) fn add_item_to_stash(
     raw: &mut Value,
     stash_id: &str,
     tpl: &str,
@@ -665,7 +665,7 @@ fn add_item_to_stash(
 /// 放置引擎（模块头注释有口径说明）：仓库网格 = stash 模板 Grids[0] 的 CellsV 行 ×
 /// CellsH 列 + 附加行数；已有物品按 location 占位（r=1 横竖互换）；行优先扫描找空位，
 /// 先横放 (W×H)，放不下再竖放 (H×W, r=1)；无空位报错（不静默丢弃）
-fn find_free_slot(
+pub(crate) fn find_free_slot(
     raw: &Value,
     stash_id: &str,
     tpl: &str,
@@ -819,7 +819,7 @@ pub(crate) fn place_build_tree(
 }
 
 /// 把全局武器预设整树复制进仓库（薄壳：读 globals 取根与物品表后调 place_build_tree）
-fn add_build_to_stash(
+pub(crate) fn add_build_to_stash(
     raw: &mut Value,
     stash_id: &str,
     preset_id: &str,
@@ -846,7 +846,7 @@ fn add_build_to_stash(
 
 /// 仓库网格尺寸：stash 模板 Grids[0]._props 的 CellsV（行）/ CellsH（列），
 /// 从 items.json 原始条目回读（ItemsDb 只存了计数，不存格径）
-fn stash_grid_size(db_dir: &str, stash_tpl: &str) -> Result<(i64, i64), String> {
+pub(crate) fn stash_grid_size(db_dir: &str, stash_tpl: &str) -> Result<(i64, i64), String> {
     let txt = fs::read_to_string(
         Path::new(db_dir).join("templates").join("items.json"),
     )

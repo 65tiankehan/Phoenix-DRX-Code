@@ -9,7 +9,9 @@
     phxPresets,
     type PhxBuildView,
     type PhxEquipmentPresetView,
-    type PhxProfileHero
+    type PhxProfileHero,
+    phxArsenal,
+    type PhxArsenalSet
   } from '$lib/ipc'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
@@ -248,7 +250,48 @@
     toast.warning(t('presets.toast.inspectPending'))
   }
 
+  // —— 套装军械库（稿图 32，0.2.0 第 3 段；导航裁决=预设页 tab）——
+  type View = 'mine' | 'arsenal'
+  let view = $state<View>('mine')
+  let sets = $state<PhxArsenalSet[]>([])
+  let chosen = $state<string>('')
+  const chosenSet = $derived(sets.find((s) => s.id === chosen) ?? null)
+  let applying = $state(false)
+
+  const fmtRub = (n: number): string => n.toLocaleString('zh-CN')
+
+  function kindLabel(kind: string): string {
+    switch (kind) {
+      case 'armor': return t('arsenal.kind.armor')
+      case 'helmet': return t('arsenal.kind.helmet')
+      case 'backpack': return t('arsenal.kind.backpack')
+      default: return t('arsenal.kind.rig')
+    }
+  }
+
+  async function loadArsenal(): Promise<void> {
+    try {
+      sets = await phxArsenal.load()
+      if (sets.length > 0 && !sets.some((s) => s.id === chosen)) chosen = sets[0].id
+    } catch (e) {
+      toast.error(String(e))
+    }
+  }
+  async function applySet(weaponOnly: boolean): Promise<void> {
+    if (!chosenSet || applying) return
+    applying = true
+    try {
+      await phxArsenal.apply(chosenSet.id, weaponOnly)
+      toast.success(t(weaponOnly ? 'arsenal.doneWeapon' : 'arsenal.done'))
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      applying = false
+    }
+  }
+
   onMount(() => {
+    void loadArsenal()
     void refresh()
     const off = listen('tray:profile-switched', () => void refresh())
     return () => {
@@ -264,6 +307,17 @@
       <div class="head-meta">{metaText}</div>
     </div>
     <div class="head-actions">
+      <PhxSegmented
+        size="md"
+        role="tablist"
+        ariaLabel={t('presets.view.aria')}
+        bind:value={view}
+        options={[
+          { value: 'mine', label: t('presets.view.mine') },
+          { value: 'arsenal', label: t('presets.view.arsenal') }
+        ]}
+      />
+      {#if view === 'mine'}
       <button class="btn ghost" disabled={!currentId || saving} onclick={() => void importFiles()}>
         {t('presets.act.import')}
       </button>
@@ -273,10 +327,101 @@
       <button class="btn danger-ghost" disabled={!currentId || saving} onclick={() => removeAll()}>
         {t('presets.act.removeAll')}
       </button>
+      {/if}
     </div>
   </header>
 
   <div class="body">
+    {#if view === 'arsenal'}
+      <!-- ===== 套装军械库（稿图 32；价格仅展示，入库不扣钱；写入走备份链） ===== -->
+      <div class="arsenal phx-fade-in">
+        <div class="ar-wall">
+          {#each sets as set (set.id)}
+            <button class="ar-set" type="button" class:on={set.id === chosen} onclick={() => (chosen = set.id)}>
+              <div class="ar-thumb" data-tier={set.tier}>
+                <svg viewBox="0 0 108 54" fill="none">
+                  <path class="l" d="M4 24 L14 21 L14 35 L7 34 Z"/>
+                  <rect class="l" x="14" y="22" width="28" height="12" rx="1.5"/>
+                  <path class="l" d="M24 34 L32 34 L30 46 L23 44 Z"/>
+                  <path class="l" d="M34 34 L42 34 L45 50 L37 50 Z"/>
+                  <rect class="l" x="42" y="24" width="26" height="9" rx="1.5"/>
+                  <rect class="l" x="68" y="25" width="20" height="4.5"/>
+                  <rect class="l" x="88" y="24" width="6" height="7" rx="1"/>
+                  <path class="l2" d="M72 20 L74 20 L74 25"/>
+                </svg>
+                <span class="ar-tier">{set.tier}</span>
+              </div>
+              <div class="ar-body">
+                <div class="ar-n">{set.name}</div>
+                <div class="ar-price">≈ {fmtRub(set.priceRub)} ₽</div>
+              </div>
+            </button>
+          {/each}
+        </div>
+        {#if chosenSet}
+          <div class="ar-detail">
+            <div class="ar-hero">
+              <svg viewBox="0 0 108 54" fill="none">
+                <path class="l" d="M4 24 L14 21 L14 35 L7 34 Z"/>
+                <rect class="l" x="14" y="22" width="28" height="12" rx="1.5"/>
+                <path class="l" d="M24 34 L32 34 L30 46 L23 44 Z"/>
+                <path class="l" d="M34 34 L42 34 L45 50 L37 50 Z"/>
+                <rect class="l" x="42" y="24" width="26" height="9" rx="1.5"/>
+                <rect class="l" x="68" y="25" width="20" height="4.5"/>
+                <rect class="l" x="88" y="24" width="6" height="7" rx="1"/>
+                <path class="l2" d="M72 20 L74 20 L74 25"/>
+                <rect class="l2" x="20" y="15" width="18" height="6" rx="2"/>
+              </svg>
+            </div>
+            <div class="ar-h">
+              <div class="ar-t">{chosenSet.name}</div>
+              <div class="ar-sub">{chosenSet.desc}</div>
+            </div>
+            <div class="ar-list">
+              {#if chosenSet.weapon}
+                <div class="ar-cat">{t('arsenal.cat.weapon')}</div>
+                <div class="ar-item">
+                  <span class="ar-slot w">{t('arsenal.slot.weapon')}</span>
+                  {#if chosenSet.weapon.name}
+                    <span class="ar-in">{chosenSet.weapon.name}</span>
+                  {:else}
+                    <span class="ar-miss">{t('arsenal.missing', { name: chosenSet.weapon.detail })}</span>
+                  {/if}
+                </div>
+              {/if}
+              {#if chosenSet.pieces.length > 0}
+                <div class="ar-cat">{t('arsenal.cat.gear')}</div>
+                {#each chosenSet.pieces as piece, i (i)}
+                  <div class="ar-item">
+                    <span class="ar-slot g">{kindLabel(piece.kind)}</span>
+                    {#if piece.name}
+                      <span class="ar-in">{piece.name}</span>
+                    {:else}
+                      <span class="ar-miss">{t('arsenal.missing', { name: piece.detail })}</span>
+                    {/if}
+                  </div>
+                {/each}
+              {/if}
+            </div>
+            <div class="ar-f">
+              <div class="ar-price-line">
+                <span class="ar-num">≈ {fmtRub(chosenSet.priceRub)} ₽</span>
+                <span class="ar-cap">{t('arsenal.priceNote')}</span>
+              </div>
+              <div class="ar-btns">
+                <button class="btn ghost" type="button" disabled={applying} onclick={() => void applySet(true)}>
+                  {t('arsenal.weaponOnly')}
+                </button>
+                <button class="btn primary" type="button" disabled={applying} onclick={() => void applySet(false)}>
+                  {applying ? t('arsenal.applying') : t('arsenal.applyAll')}
+                </button>
+              </div>
+              <div class="ar-safe">{t('arsenal.backupNote')}</div>
+            </div>
+          </div>
+        {/if}
+      </div>
+    {:else}
     <!-- 骨架层：镜像工具条 + 武器预设卡真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
     <div class="boot phx-boot" class:gone={!booting}>
       <div class="toolbar">
@@ -478,7 +623,8 @@
   {:else if !booting}
     <div class="scroll"><div class="empty">{t('stash.empty.noprofile')}</div></div>
   {/if}
-  </div>
+      {/if}
+</div>
 
   <PhxDialog
     bind:open={dlgOpen}
@@ -1110,4 +1256,64 @@
     width: 13px;
     height: 13px;
   }
+
+  /* ===== 套装军械库（稿图 32） ===== */
+  .arsenal { display: flex; gap: 16px; flex: 1; min-height: 0; }
+  .ar-wall {
+    width: 46%; flex: none; overflow-y: auto; scrollbar-width: none;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start;
+  }
+  .ar-wall::-webkit-scrollbar { display: none; }
+  .ar-set {
+    background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden;
+    box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong); cursor: pointer; border: none;
+    padding: 0; font-family: inherit; text-align: left; color: var(--phx-text);
+  }
+  .ar-set.on { box-shadow: inset 0 0 0 1.5px var(--phx-accent); }
+  .ar-thumb {
+    height: 84px; position: relative; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #16233c, #101013);
+  }
+  .ar-thumb svg { width: 104px; height: 52px; }
+  .ar-thumb .l { fill: rgba(0,145,255,.16); stroke: rgba(0,145,255,.6); stroke-width: 2; }
+  .ar-thumb .l2 { fill: none; stroke: rgba(0,145,255,.4); stroke-width: 1.4; }
+  .ar-tier {
+    position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700;
+    padding: 2px 8px; border-radius: 5px; background: rgba(0,0,0,.45); color: var(--phx-text-2);
+  }
+  .ar-body { padding: 9px 12px 11px; }
+  .ar-n { font-size: 12.5px; font-weight: 700; }
+  .ar-price { font-size: 10.5px; color: var(--phx-warn); margin-top: 3px; font-family: var(--phx-font-mono); }
+  .ar-detail {
+    flex: 1; min-width: 0; background: var(--phx-surface); border-radius: var(--phx-r-card);
+    display: flex; flex-direction: column; overflow: hidden; box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);
+  }
+  .ar-hero {
+    height: 140px; flex: none; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #16233c 0%, #101013 70%);
+  }
+  .ar-hero svg { width: 300px; height: 120px; }
+  .ar-hero .l { fill: rgba(0,145,255,.16); stroke: rgba(0,145,255,.62); stroke-width: 2.2; }
+  .ar-hero .l2 { fill: none; stroke: rgba(0,145,255,.42); stroke-width: 1.5; }
+  .ar-h { padding: 14px 20px 8px; flex: none; }
+  .ar-t { font-size: 18px; font-weight: 700; }
+  .ar-sub { font-size: 12px; color: var(--phx-text-2); margin-top: 4px; line-height: 1.6; }
+  .ar-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 8px; scrollbar-width: none; }
+  .ar-list::-webkit-scrollbar { display: none; }
+  .ar-cat { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--phx-text-3); margin: 12px 0 6px; }
+  .ar-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px;
+    background: var(--phx-surface-2); margin-top: 5px; font-size: 12.5px;
+  }
+  .ar-slot { font-size: 10.5px; font-weight: 700; width: 48px; flex: none; text-align: center; padding: 2px 0; border-radius: 5px; }
+  .ar-slot.w { background: var(--phx-accent-dim); color: var(--phx-accent); }
+  .ar-slot.g { background: var(--phx-green-dim); color: var(--phx-green); }
+  .ar-in { font-weight: 600; }
+  .ar-miss { color: var(--phx-text-3); }
+  .ar-f { flex: none; padding: 12px 20px 16px; border-top: 0.5px solid var(--phx-sep); }
+  .ar-price-line { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .ar-num { font-family: var(--phx-font-mono); font-size: 17px; font-weight: 700; color: var(--phx-warn); }
+  .ar-cap { font-size: 11px; color: var(--phx-text-3); }
+  .ar-btns { display: flex; gap: 10px; }
+  .ar-safe { margin-top: 10px; font-size: 11px; color: var(--phx-text-3); }
 </style>

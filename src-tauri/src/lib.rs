@@ -8,6 +8,7 @@
 mod announcement;
 mod ai;
 mod clothing;
+mod arsenal;
 mod auth;
 mod backup;
 mod character;
@@ -645,6 +646,7 @@ pub fn run() {
             ai::ai_get_config, ai::ai_set_config, ai::ai_set_key, ai::ai_clear_key, ai::ai_detect_ollama,
             ai::ai_test_connection, ai::ai_chat,
             clothing::clothing_load, clothing::clothing_save,
+            arsenal::arsenal_load, arsenal::arsenal_apply,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,
             auth_is_configured, auth_device_start, auth_device_cancel, auth_logout,
             sync_pull, sync_push,
