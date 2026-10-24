@@ -85,7 +85,7 @@
   .st { position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
   .st-on { background: var(--phx-accent-dim); color: var(--phx-accent); }
   .st-off { background: rgba(0,0,0,.45); color: var(--phx-text-3); }
-  .cloth-body { padding: 10px 12px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cloth-body { padding: 10px 12px 12px; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .cloth-n { font-size: 12.5px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cloth-s { font-size: 10.5px; color: var(--phx-text-3); margin-top: 2px; }
   .unlock-btn { height: 26px; padding: 0 10px; border: none; border-radius: 7px; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; background: var(--phx-accent-dim); color: var(--phx-accent); flex: none; }
@@ -139,35 +139,35 @@
         </div>
         <div class="cloth-grid">
           <div class="cloth unlocked">
-            <div class="thumb t1"><span class="st st-on">已解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
-            <div class="cloth-body"><div><div class="cloth-n">初始作训服</div><div class="cloth-s">默认拥有</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>在穿</span></div>
+            <div class="thumb t1"><span class="st st-on">已拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">初始作训服</div><div class="cloth-s">默认拥有</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>穿戴中</span></div>
           </div>
           <div class="cloth unlocked">
-            <div class="thumb t2"><span class="st st-on">已解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
-            <div class="cloth-body"><div><div class="cloth-n">Urban Track 猎装</div><div class="cloth-s">Ragman · Loyalty 2</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>已解锁</span></div>
+            <div class="thumb t2"><span class="st st-on">已拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">Urban Track 猎装</div><div class="cloth-s">Ragman · Loyalty 2</div></div></div>
           </div>
           <div class="cloth unlocked">
-            <div class="thumb t3"><span class="st st-on">已解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
-            <div class="cloth-body"><div><div class="cloth-n">Bear 指挥官</div><div class="cloth-s">Ragman · Loyalty 3</div></div><span class="owned-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>已解锁</span></div>
+            <div class="thumb t3"><span class="st st-on">已拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="cloth-body"><div><div class="cloth-n">Bear 指挥官</div><div class="cloth-s">Ragman · Loyalty 3</div></div></div>
           </div>
           <div class="cloth">
-            <div class="thumb t4"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="thumb t4"><span class="st st-off">未拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
             <div class="cloth-body"><div><div class="cloth-n">USEC 突击装</div><div class="cloth-s">Ragman · Loyalty 4</div></div><button class="unlock-btn" type="button">解锁</button></div>
           </div>
           <div class="cloth">
-            <div class="thumb t2"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="thumb t2"><span class="st st-off">未拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
             <div class="cloth-body"><div><div class="cloth-n">森林巡守</div><div class="cloth-s">Ragman · Loyalty 3</div></div><button class="unlock-btn" type="button">解锁</button></div>
           </div>
           <div class="cloth">
-            <div class="thumb t1"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="thumb t1"><span class="st st-off">未拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
             <div class="cloth-body"><div><div class="cloth-n">冬季作战服</div><div class="cloth-s">Ragman · Loyalty 4</div></div><button class="unlock-btn" type="button">解锁</button></div>
           </div>
           <div class="cloth">
-            <div class="thumb t3"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="thumb t3"><span class="st st-off">未拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
             <div class="cloth-body"><div><div class="cloth-n">Killa 风格套装</div><div class="cloth-s">Ragman · 特殊</div></div><button class="unlock-btn" type="button">解锁</button></div>
           </div>
           <div class="cloth">
-            <div class="thumb t4"><span class="st st-off">未解锁</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
+            <div class="thumb t4"><span class="st st-off">未拥有</span><span class="suit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3l4 2 4-2 4 4-3 3v11H7V10L4 7l4-4z"/></svg></span></div>
             <div class="cloth-body"><div><div class="cloth-n">Admin 制服</div><div class="cloth-s">服务器管理员</div></div><button class="unlock-btn" type="button">解锁</button></div>
           </div>
         </div>
