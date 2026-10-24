@@ -167,7 +167,10 @@ fn detect_existing_install_dir(cfg: &Config) -> Option<PathBuf> {
     for name in [cfg.display_name.as_str(), cfg.app_id.as_str()] {
         if let Ok(k) = root.open_subkey_with_flags(name, KEY_READ) {
             if let Ok(loc) = k.get_value::<String, _>("InstallLocation") {
-                let p = PathBuf::from(&loc);
+                // Tauri NSIS 写入的值自带一对引号（真机取证 2026-10-24：NSIS 键值打印带引号、
+                // 自研键不带），不清洗则 PathBuf 含引号、is_dir 恒 false，迁移探测必失明
+                let cleaned = loc.trim().trim_matches('"');
+                let p = PathBuf::from(cleaned);
                 if p.is_dir() && p.join(&cfg.exe_name).is_file() {
                     return Some(p);
                 }
@@ -367,6 +370,15 @@ fn run_install(app: AppHandle, target: PathBuf, desktop_sc: bool, start_menu_sc:
                     r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{}",
                     cfg.display_name
                 ));
+            }
+            // 拆态自愈（治 0.1.9 引号失明事故造成的双目录）：NSIS 老家目录若仍存在且含主程序，
+            // 视为残留——删除并把桌面/开始菜单快捷方式重指到本次目标（老快捷方式指旧目录会开到旧版）
+            if let Some(local) = std::env::var("LOCALAPPDATA").ok() {
+                let legacy = Path::new(&local).join(&cfg.display_name);
+                if legacy != target && legacy.join(&cfg.exe_name).is_file() {
+                    rm_rf(&legacy);
+                    let _ = create_shortcuts(&cfg, &target, true, true);
+                }
             }
             emit(&app, "done", 100.0, "安装完成");
             true
@@ -580,6 +592,8 @@ fn main() {
                 }
                 let handle = app.handle().clone();
                 let dir = resolve_default_dir();
+                // debug 构建有控制台，release 静默无窗——排查静默装错目录全靠这行日志
+                eprintln!("[DRX-Setup] 静默目标目录 = {}", dir.display());
                 let sc = config().shortcuts;
                 tauri::async_runtime::spawn(async move {
                     let ok = run_install(handle, dir.clone(), sc.desktop, sc.start_menu);
