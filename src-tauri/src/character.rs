@@ -117,12 +117,21 @@ pub struct CharSaveData {
 
 // ———————— 读侧 helpers ————————
 
-/// 当前服务器 database 根目录：<root>\SPT\SPT_Data\database
+/// 当前服务器 `SPT_Data` 根目录：`<spt_dir>\SPT_Data`
+/// （spt_dir 由 `server::spt_dir` 统一解析：4.1 为 root/SPT_Runtime，4.0 为 root/SPT）
+pub(crate) fn spt_data_dir(app: &AppHandle) -> Option<String> {
+    let root = crate::server::spt_dir(&current_server(app)?.path);
+    Some(root.join("SPT_Data").to_string_lossy().to_string())
+}
+
+/// 当前服务器 database 根目录：`<spt_dir>\SPT_Data\database`
 pub(crate) fn database_dir(app: &AppHandle) -> Option<String> {
-    Some(format!(
-        "{}\\SPT\\SPT_Data\\database",
-        current_server(app)?.path.trim_end_matches(['\\', '/'])
-    ))
+    Some(
+        std::path::Path::new(&spt_data_dir(app)?)
+            .join("database")
+            .to_string_lossy()
+            .to_string(),
+    )
 }
 
 /// 部位体征：{part}.Health.{Current,Maximum}
@@ -154,8 +163,11 @@ fn vital_direct(stat: Option<&Value>) -> CharVital {
     }
 }
 
+/// 体征：键在角色节点的 `Health` 下（`Health.BodyParts.<部位>.Health`、
+/// `Health.Hydration/Energy` 直挂），不是直接挂角色根
 fn read_health(ch: Option<&Value>) -> CharHealth {
-    let body = ch.and_then(|h| h.get("BodyParts"));
+    let h = ch.and_then(|c| c.get("Health"));
+    let body = h.and_then(|x| x.get("BodyParts"));
     CharHealth {
         head: vital_in(body.and_then(|b| b.get("Head"))),
         chest: vital_in(body.and_then(|b| b.get("Chest"))),
@@ -164,8 +176,8 @@ fn read_health(ch: Option<&Value>) -> CharHealth {
         right_arm: vital_in(body.and_then(|b| b.get("RightArm"))),
         left_leg: vital_in(body.and_then(|b| b.get("LeftLeg"))),
         right_leg: vital_in(body.and_then(|b| b.get("RightLeg"))),
-        hydration: vital_direct(ch.and_then(|h| h.get("Hydration"))),
-        energy: vital_direct(ch.and_then(|h| h.get("Energy"))),
+        hydration: vital_direct(h.and_then(|x| x.get("Hydration"))),
+        energy: vital_direct(h.and_then(|x| x.get("Energy"))),
     }
 }
 
@@ -252,23 +264,17 @@ pub fn load_char(app: &AppHandle, id: &str) -> Option<CharData> {
                 _ => String::new(),
             })
             .unwrap_or_default(),
-        game_version: info
-            .and_then(|i| i.get("GameVersion"))
+        // 版本：`spt.version` 才是 SPT 版本（如 "4.1.6 (40743)"）；
+        // 4.1 起 `Info.GameVersion` 存的是版本标识（如 edge_of_darkness），只作回退
+        game_version: raw
+            .pointer("/spt/version")
             .and_then(|v| v.as_str())
+            .or_else(|| info.and_then(|i| i.get("GameVersion")).and_then(|v| v.as_str()))
             .unwrap_or("")
             .to_string(),
         pmc: read_side(pmc),
         scav: read_side(raw.pointer("/characters/scav")),
     })
-}
-
-/// 名字查找：locales/global/en.json 的「{key} Name」，缺失兜底「{来源文件名} [{key}]」
-fn localized_name(names: Option<&Value>, key: &str, fallback_file: &str) -> String {
-    names
-        .and_then(|n| n.get(format!("{} Name", key)))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| format!("{} [{}]", fallback_file, key))
 }
 
 /// 特殊槽头名：locale 键兜底 "special slots"（AppData.cs GetPocketsName 基准）
@@ -343,39 +349,81 @@ pub fn load_options(app: &AppHandle) -> CharOptions {
         .ok()
         .and_then(|t| serde_json::from_str::<Value>(&t).ok());
 
-    // 语音 / 头部：合并 bots/types/*.json 的 appearance 对象键
+    // 语音 / 头部候选：按当前人物阵营取 bots/types/{usec|bear}.json 的 appearance，
+    // 只保留有本地化名的项（4.1.6 实测 USEC = 9 头型 / 7 语音）；
+    // 阵营缺失或文件不在时回退全目录聚合。4.1.6 为单数键 head/voice，旧模型为 heads/voices。
+    let side = crate::profile::get_current_profile_id(app)
+        .and_then(|pid| {
+            let dir = profiles_dir(app)?;
+            fs::read_to_string(Path::new(&dir).join(format!("{}.json", pid))).ok()
+        })
+        .and_then(|txt| serde_json::from_str::<Value>(&txt).ok())
+        .and_then(|v| {
+            v.pointer("/characters/pmc/Info/Side")
+                .and_then(|s| s.as_str())
+                .map(str::to_string)
+        })
+        .unwrap_or_default();
+    let locale_name = |key: &str| -> Option<String> {
+        names
+            .as_ref()
+            .and_then(|n| n.get(format!("{} Name", key)))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    };
+    let types_dir = db.join("bots").join("types");
+    let mut sources: Vec<std::path::PathBuf> = Vec::new();
+    match side.to_ascii_lowercase().as_str() {
+        "usec" => sources.push(types_dir.join("usec.json")),
+        "bear" => sources.push(types_dir.join("bear.json")),
+        _ => {}
+    }
+    if sources.is_empty() || sources.iter().any(|p| !p.exists()) {
+        sources.clear();
+        if let Ok(entries) = fs::read_dir(&types_dir) {
+            let mut paths: Vec<_> = entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| e.eq_ignore_ascii_case("json"))
+                        .unwrap_or(false)
+                })
+                .collect();
+            paths.sort();
+            sources = paths;
+        }
+    }
     let mut voices: BTreeMap<String, String> = BTreeMap::new();
     let mut heads: BTreeMap<String, String> = BTreeMap::new();
-    if let Ok(entries) = fs::read_dir(db.join("bots").join("types")) {
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            let is_json = path
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|e| e.eq_ignore_ascii_case("json"))
-                .unwrap_or(false);
-            if !is_json {
-                continue;
-            }
-            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let Ok(txt) = fs::read_to_string(&path) else {
-                continue;
-            };
-            let Ok(v) = serde_json::from_str::<Value>(&txt) else {
-                continue;
-            };
-            let Some(appear) = v.get("appearance") else {
-                continue;
-            };
-            // voice/head 均为「键即 id」的对象（Dictionary<string, T>）
-            for (group, map) in [("voice", &mut voices), ("head", &mut heads)] {
-                if let Some(obj) = appear.get(group).and_then(|g| g.as_object()) {
-                    for key in obj.keys() {
-                        map.entry(key.clone()).or_insert_with(|| {
-                            localized_name(names.as_ref(), key, stem)
-                        });
+    for path in sources {
+        let Ok(txt) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(v) = serde_json::from_str::<Value>(&txt) else {
+            continue;
+        };
+        let Some(appear) = v.get("appearance") else {
+            continue;
+        };
+        // voice/head 均为「键即 id」的对象（Dictionary<string, T>）
+        for (group, alias, map) in [
+            ("voice", "voices", &mut voices),
+            ("head", "heads", &mut heads),
+        ] {
+            for slot in [group, alias] {
+                let Some(obj) = appear.get(slot).and_then(|g| g.as_object()) else {
+                    continue;
+                };
+                for key in obj.keys() {
+                    if map.contains_key(key) {
+                        continue;
+                    }
+                    if let Some(name) = locale_name(key) {
+                        map.insert(key.clone(), name);
                     }
                 }
             }

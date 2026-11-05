@@ -66,10 +66,13 @@ pub(crate) fn is_safe_id(id: &str) -> bool {
 }
 
 pub(crate) fn profiles_dir(app: &AppHandle) -> Option<String> {
-    Some(format!(
-        "{}\\SPT\\user\\profiles",
-        current_server(app)?.path.trim_end_matches(['\\', '/'])
-    ))
+    let root = crate::server::spt_dir(&current_server(app)?.path);
+    Some(
+        root.join("user")
+            .join("profiles")
+            .to_string_lossy()
+            .to_string(),
+    )
 }
 
 fn state_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -202,12 +205,17 @@ pub fn load_hero(app: &AppHandle, id: &str) -> Option<ProfileHero> {
         .cloned()
         .unwrap_or_default();
     let meta = meta_of(id, Some(&raw));
+    // 版本：`spt.version` 是 SPT 版本；`Info.GameVersion` 在 4.1 起是版本标识，仅回退
     let game_version = raw
-        .get("characters")
-        .and_then(|c| c.get("pmc"))
-        .and_then(|p| p.get("Info"))
-        .and_then(|i| i.get("GameVersion"))
+        .pointer("/spt/version")
         .and_then(|v| v.as_str())
+        .or_else(|| {
+            raw.get("characters")
+                .and_then(|c| c.get("pmc"))
+                .and_then(|p| p.get("Info"))
+                .and_then(|i| i.get("GameVersion"))
+                .and_then(|v| v.as_str())
+        })
         .unwrap_or("")
         .to_string();
     Some(ProfileHero {

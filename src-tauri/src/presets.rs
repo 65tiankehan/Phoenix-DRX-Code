@@ -70,15 +70,21 @@ pub struct ImportResult {
 
 // ———————— 读侧 helpers ————————
 
-/// build id：本项目写侧用 "id" 键（preset_add 先例），读侧兼容 "_id" 回退
+/// 4.1 起客户端写入的预设用 PascalCase（Id/Name/Root/Items），旧档与本项目写入用 camelCase；
+/// 读侧两种都认，写侧沿用本项目既有 camelCase。
+fn pick<'a>(v: &'a Value, lower: &str, upper: &str) -> Option<&'a Value> {
+    v.get(lower).or_else(|| v.get(upper))
+}
+
+/// build id：本项目写侧用 "id" 键（preset_add 先例），读侧兼容 "Id" 与 "_id" 回退
 fn build_id(b: &Value) -> Option<&str> {
-    b.get("id")
+    pick(b, "id", "Id")
         .and_then(|v| v.as_str())
         .or_else(|| b.get("_id").and_then(|v| v.as_str()))
 }
 
 fn build_name(b: &Value) -> Option<&str> {
-    b.get("name").and_then(|v| v.as_str())
+    pick(b, "name", "Name").and_then(|v| v.as_str())
 }
 
 fn find_build<'a>(builds: &'a [Value], id: &str) -> Option<&'a Value> {
@@ -107,8 +113,8 @@ fn load_profile(app: &AppHandle, id: &str) -> Option<Value> {
 fn equipment_view(b: &Value, db: &ItemsDb) -> Option<EquipmentPresetView> {
     let id = build_id(b)?.to_string();
     let name = build_name(b)?.to_string();
-    let root = b.get("root").and_then(|v| v.as_str()).unwrap_or("");
-    let items = b.get("items").and_then(|v| v.as_array())?;
+    let root = pick(b, "root", "Root").and_then(|v| v.as_str()).unwrap_or("");
+    let items = pick(b, "items", "Items").and_then(|v| v.as_array())?;
 
     let row_of = |it: &Value| -> Option<StashItemRow> {
         Some(item_row(
@@ -190,8 +196,10 @@ pub fn load_presets(app: &AppHandle, id: &str) -> Option<PresetsData> {
                 .filter_map(|b| {
                     let bid = build_id(b)?;
                     let name = build_name(b).unwrap_or("");
-                    let root = b.get("root").and_then(|v| v.as_str()).unwrap_or(bid);
-                    let items = b.get("items").and_then(|v| v.as_array())?;
+                    let root = pick(b, "root", "Root")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(bid);
+                    let items = pick(b, "items", "Items").and_then(|v| v.as_array())?;
                     build_view(bid, name, root, items, &idb, names.as_ref())
                 })
                 .collect()
@@ -323,13 +331,11 @@ pub fn build_to_stash(
         .and_then(|arr| find_build(arr, target))
         .ok_or("查无该预设")?
         .clone();
-    let root_id = build
-        .get("root")
+    let root_id = pick(&build, "root", "Root")
         .and_then(|v| v.as_str())
         .unwrap_or(target)
         .to_string();
-    let items: Vec<Value> = build
-        .get("items")
+    let items: Vec<Value> = pick(&build, "items", "Items")
         .and_then(|v| v.as_array())
         .cloned()
         .ok_or("预设缺物品表")?;
@@ -404,8 +410,10 @@ pub fn build_import(
         // 校验（参考 ImportWeaponBuildFromFile / ImportEquipmentBuildFromFile）
         let ok = match kind {
             "weapon" => {
-                let root = b.get("root").and_then(|v| v.as_str()).unwrap_or("");
-                b.get("items")
+                let root = pick(&b, "root", "Root")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                pick(&b, "items", "Items")
                     .and_then(|v| v.as_array())
                     .and_then(|items| {
                         items.iter().find(|it| {
@@ -509,4 +517,43 @@ pub fn builds_export_all(
         n += 1;
     }
     Ok(n)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 本机真实档自检（默认忽略）：客户端写入的预设是 PascalCase（Root/Items），
+    /// 且 root 必须是 Items 里某一项的 _id，否则「加入仓库」必然失败。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_weapon_builds_expose_items_and_root() {
+        let text = std::fs::read_to_string(
+            r"E:\EFT\SPT_Runtime\user\profiles\6ae7b434451bc24b48942228.json",
+        )
+        .expect("读真实存档失败");
+        let root: Value = serde_json::from_str(&text).expect("解析真实存档失败");
+        let arr = root
+            .pointer("/userbuilds/weaponBuilds")
+            .and_then(|v| v.as_array())
+            .expect("缺 userbuilds.weaponBuilds");
+        assert!(!arr.is_empty(), "真实档没有武器预设");
+
+        for b in arr {
+            let root_id = pick(b, "root", "Root")
+                .and_then(|v| v.as_str())
+                .expect("预设缺 Root");
+            let items = pick(b, "items", "Items")
+                .and_then(|v| v.as_array())
+                .expect("预设缺 Items");
+            assert!(
+                items
+                    .iter()
+                    .any(|it| it.get("_id").and_then(|v| v.as_str()) == Some(root_id)),
+                "Root={root_id} 不在 Items 内"
+            );
+            assert!(build_id(b).is_some(), "预设缺 id");
+            assert!(build_name(b).is_some(), "预设缺名字");
+        }
+    }
 }

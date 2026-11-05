@@ -2,7 +2,8 @@
 //!
 //! 数据口径（对照参考编辑器 CharacterQuest.cs / Character.cs / AppSettings.cs）：
 //! - 档案 /characters/pmc/Quests：条目 camelCase（qid/startTime/status/statusTimers），
-//!   status 为 QuestStatus 枚举名字符串（Locked=0 … AvailableAfter=9）；
+//!   status 由服务器序列化为**整数**（4.1.6 真实档 `"status": 4`，即 Locked=0 … AvailableAfter=9）；
+//!   内部统一用枚举名处理，读写边界由 status_of / status_value 转换（旧档的枚举名字符串仍可读）；
 //! - 任务类型推断（对齐 Character.UpdateQuestsData）：locale 含 "{qid} name" 或无
 //!   重复任务组 → Standart（trader 取 templates，查无 "unknown"）；否则扫
 //!   RepeatableQuests 各组命中 _id → 组名 + 条目 traderId，显示名取 locale
@@ -10,7 +11,7 @@
 //! - 状态合法性（对齐 AppSettings.GetAvailableStatuses）：常规 6 值、重复 5 值
 //!   （无 Locked）；非法写入按 GetNewStatus 就近修正（清单序取 First），
 //!   无匹配保持原状态；
-//! - 状态时间轴 statusTimers：键 = 状态枚举名，值 Unix 秒，只增不更；
+//! - 状态时间轴 statusTimers：键 = 状态整数（真实档 `{"1":…,"4":…}`），值 Unix 秒，只增不更；
 //! - 完成联动（对齐 SetupCraftForQuest）：任务 → Success 时把联动配方
 //!   （locked 且 requirements 含 QuestComplete=本任务）加入
 //!   UnlockedInfo.unlockedProductionRecipe，离开 Success 移除；只动变更任务
@@ -97,6 +98,43 @@ fn status_num(status: &str) -> i64 {
     }
 }
 
+/// QuestStatus 数值 → 枚举名（服务器序列化方向：档案里 status 存整数，见 4.1.6 真实档）
+fn status_name(n: i64) -> &'static str {
+    match n {
+        0 => "Locked",
+        1 => "AvailableForStart",
+        2 => "Started",
+        3 => "AvailableForFinish",
+        4 => "Success",
+        5 => "Fail",
+        6 => "FailRestartable",
+        7 => "MarkedAsFailed",
+        8 => "Expired",
+        9 => "AvailableAfter",
+        _ => "Locked",
+    }
+}
+
+/// 读档案里的 status：4.1 起为整数（`4`），旧档可能是枚举名字符串；统一归到枚举名供内部使用。
+/// 未知数值按 Locked 处理（服务器侧也只承认 0..9）
+fn status_of(entry: &Value) -> String {
+    match entry.get("status") {
+        Some(Value::Number(n)) => status_name(n.as_i64().unwrap_or(0)).to_string(),
+        Some(Value::String(s)) => s.clone(),
+        _ => "Locked".to_string(),
+    }
+}
+
+/// 写档案时 status 一律落整数（对齐服务器序列化）：`4` 而不是 `"Success"`
+fn status_value(status: &str) -> Value {
+    Value::from(status_num(status).max(0))
+}
+
+/// statusTimers 的键同样是状态整数（真实档 `{"1":…, "4":…}`）
+fn timer_key(status: &str) -> String {
+    status_num(status).max(0).to_string()
+}
+
 /// 合法状态清单（清单序 = GetNewStatus 取 First 的优先序；AppSettings.cs）：
 /// 常规 6 值；重复任务（Weekly/Daily/Daily_Savage）无 Locked 态
 fn legal_statuses(quest_type: &str) -> &'static [&'static str] {
@@ -165,30 +203,58 @@ fn load_ctx(app: &AppHandle, language: &str) -> QuestCtx {
     };
     let db = Path::new(&dir);
 
-    // templates/quests.json：_id / traderId
+    // templates/quests.json：4.1 起为字典 { qid -> quest }（键即 qid，值含 _id/traderId），
+    // 更早版本为数组；两种形态都收
     if let Ok(txt) = fs::read_to_string(db.join("templates").join("quests.json")) {
-        if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&txt) {
-            for t in &arr {
-                let Some(qid) = t.get("_id").and_then(|v| v.as_str()) else {
-                    continue;
-                };
-                ctx.template_ids.push(qid.to_string());
-                ctx.template_traders.insert(
-                    qid.to_string(),
-                    t.get("traderId")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                );
+        if let Ok(parsed) = serde_json::from_str::<Value>(&txt) {
+            let pairs: Vec<(String, String)> = match &parsed {
+                Value::Object(map) => map
+                    .iter()
+                    .map(|(key, t)| {
+                        let qid = t
+                            .get("_id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(key.as_str());
+                        (
+                            qid.to_string(),
+                            t.get("traderId")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                        )
+                    })
+                    .collect(),
+                Value::Array(arr) => arr
+                    .iter()
+                    .filter_map(|t| {
+                        let qid = t.get("_id").and_then(|v| v.as_str())?;
+                        Some((
+                            qid.to_string(),
+                            t.get("traderId")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                        ))
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            };
+            for (qid, trader) in pairs {
+                ctx.template_traders.insert(qid.clone(), trader);
+                ctx.template_ids.push(qid);
             }
         }
     }
 
-    // configs/quest.json：eventQuests 键集
-    if let Ok(txt) = fs::read_to_string(db.join("configs").join("quest.json")) {
-        if let Ok(cfg) = serde_json::from_str::<Value>(&txt) {
-            if let Some(map) = cfg.get("eventQuests").and_then(|v| v.as_object()) {
-                ctx.event_quests.extend(map.keys().cloned());
+    // configs/quest.json：eventQuests 键集。
+    // 位置在 SPT_Data/configs（不在 database 下），4.1.6 实测 30 个配置文件同处
+    if let Some(data_root) = crate::character::spt_data_dir(app) {
+        let cfg_path = Path::new(&data_root).join("configs").join("quest.json");
+        if let Ok(txt) = fs::read_to_string(cfg_path) {
+            if let Ok(cfg) = serde_json::from_str::<Value>(&txt) {
+                if let Some(map) = cfg.get("eventQuests").and_then(|v| v.as_object()) {
+                    ctx.event_quests.extend(map.keys().cloned());
+                }
             }
         }
     }
@@ -379,23 +445,20 @@ pub fn load_quests(app: &AppHandle, id: &str) -> Option<QuestsData> {
             let Some(qid) = entry.get("qid").and_then(|v| v.as_str()) else {
                 continue;
             };
-            let status = entry
-                .get("status")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Locked");
+            let status = status_of(entry);
             let (qtype, trader, quest_name) = resolve_row_info(qid, &ctx);
             rows.push(QuestRow {
                 qid: qid.to_string(),
                 qtype,
                 trader,
-                status: status.to_string(),
+                status: status.clone(),
                 start_time: entry.get("startTime").and_then(|v| v.as_f64()).unwrap_or(0.0),
                 status_timers: entry
                     .get("statusTimers")
                     .cloned()
                     .unwrap_or_else(|| Value::Object(Map::new())),
                 quest_name,
-                unlock_hint: unlock_hint(qid, status, &ctx, &unlocked),
+                unlock_hint: unlock_hint(qid, &status, &ctx, &unlocked),
             });
         }
     }
@@ -497,11 +560,7 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
                 }
                 Some(&new_status) => {
                     let (qtype, _, _) = resolve_row_info(&qid, &ctx);
-                    let current = entry
-                        .get("status")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("Locked")
-                        .to_string();
+                    let current = status_of(entry);
                     let final_status = if current == new_status {
                         current.clone()
                     } else {
@@ -513,11 +572,11 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
                             .entry("statusTimers".to_string())
                             .or_insert_with(|| Value::Object(Map::new()));
                         if let Some(tmap) = timers.as_object_mut() {
-                            // 只增不更：该状态已有时间戳则保留首次
-                            tmap.entry(final_status.clone())
+                            // 只增不更：该状态已有时间戳则保留首次（键为状态整数）
+                            tmap.entry(timer_key(&final_status))
                                 .or_insert_with(|| Value::from(now));
                         }
-                        obj.insert("status".to_string(), Value::from(final_status.clone()));
+                        obj.insert("status".to_string(), status_value(&final_status));
                         // 降级到未开始（≤ AvailableForStart）：清 completedConditions
                         //（参考 ProfileSaver.cs：不清理会导致再升级时条件视为已完成）
                         if final_status == "Locked" || final_status == "AvailableForStart" {
@@ -557,15 +616,17 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
                 resolve_status(&qtype, "Locked", &row.status)
             };
             let mut timers = Map::new();
-            timers.insert("Locked".to_string(), Value::from(now));
+            timers.insert(timer_key("Locked"), Value::from(now));
             if final_status != "Locked" {
-                timers.insert(final_status.clone(), Value::from(now));
+                timers.insert(timer_key(&final_status), Value::from(now));
             }
             new_entries.push(serde_json::json!({
                 "qid": row.qid,
-                "startTime": 0.0,
-                "status": final_status,
+                "startTime": 0,
+                "status": status_value(&final_status),
                 "statusTimers": Value::Object(timers),
+                "completedConditions": [],
+                "availableAfter": 0,
             }));
         }
         quests.extend(new_entries);
@@ -609,4 +670,34 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// 4.1.6 真实档：status 是整数；内部名字与写回整数必须一一对应
+    #[test]
+    fn status_round_trips_server_integer_form() {
+        assert_eq!(status_of(&json!({ "status": 4 })), "Success");
+        assert_eq!(status_of(&json!({ "status": 1 })), "AvailableForStart");
+        assert_eq!(status_value("Success"), json!(4));
+        assert_eq!(status_value("Locked"), json!(0));
+        assert_eq!(timer_key("AvailableForStart"), "1");
+        assert_eq!(timer_key("Success"), "4");
+    }
+
+    /// 旧档可能存枚举名字符串，读取路径仍要认
+    #[test]
+    fn legacy_string_status_still_reads() {
+        assert_eq!(status_of(&json!({ "status": "Started" })), "Started");
+    }
+
+    /// 越界数值与缺字段都归 Locked（服务器只承认 0..9）
+    #[test]
+    fn unknown_status_falls_back_to_locked() {
+        assert_eq!(status_of(&json!({ "status": 42 })), "Locked");
+        assert_eq!(status_of(&json!({})), "Locked");
+    }
 }

@@ -107,10 +107,6 @@ fn clothing_load_sync(app: &AppHandle) -> Result<ClothingData, String> {
         .unwrap_or_default();
 
     let db = database_dir(app).ok_or("未找到服务器数据库目录")?;
-    let server_root = format!(
-        "{}\\SPT\\SPT_Data\\database",
-        crate::server::current_server(app).ok_or("未选择 SPT 服务器")?.path.trim_end_matches(['\\', '/'])
-    );
     let names: Map<String, Value> = fs::read_to_string(
         std::path::Path::new(&db).join("locales").join("global").join("en.json"),
     )
@@ -150,8 +146,13 @@ fn clothing_load_sync(app: &AppHandle) -> Result<ClothingData, String> {
     }
     suits.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-    // 头型/语音候选：bots/*.json 的 appearance.heads / appearance.voices 键
-    let (heads, voices) = load_look_options(&server_root, &names);
+    // 头型/语音候选：按阵营取 bots/types/{usec|bear}.json 的 appearance.head / voice
+    let side = root
+        .pointer("/characters/pmc/Info/Side")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let (heads, voices) = load_look_options(&db, &names, &side);
 
     let cust = root.pointer("/characters/pmc/Customization").cloned().unwrap_or(Value::Null);
     Ok(ClothingData {
@@ -164,34 +165,74 @@ fn clothing_load_sync(app: &AppHandle) -> Result<ClothingData, String> {
     })
 }
 
-fn load_look_options(server_root: &str, names: &Map<String, Value>) -> (Vec<PhxLookOption>, Vec<PhxLookOption>) {
-    let mut heads: Vec<PhxLookOption> = Vec::new();
-    let mut voices: Vec<PhxLookOption> = Vec::new();
-    let push_keys = |file_json: &Value, slot: &str, target: &mut Vec<PhxLookOption>| {
-        let Some(map) = file_json.pointer(&format!("/appearance/{}", slot)).and_then(|v| v.as_object()) else {
-            return;
-        };
-        for key in map.keys() {
-            if !target.iter().any(|o| o.id == *key) {
-                target.push(PhxLookOption {
-                    id: key.clone(),
-                    name: localized_name(names, key),
-                });
+fn load_look_options(
+    server_root: &str,
+    names: &Map<String, Value>,
+    side: &str,
+) -> (Vec<PhxLookOption>, Vec<PhxLookOption>) {
+    // 名字口径同参考 StringExtension.Name()：locale 键是 "{id} Name"；无名字的项不进列表
+    let name_of = |key: &str| -> Option<String> {
+        names
+            .get(&format!("{} Name", key))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+    };
+    let collect = |json: &Value, slots: &[&str], target: &mut Vec<PhxLookOption>| {
+        for slot in slots {
+            let Some(map) = json
+                .pointer(&format!("/appearance/{}", slot))
+                .and_then(|v| v.as_object())
+            else {
+                continue;
+            };
+            for key in map.keys() {
+                if target.iter().any(|o| o.id == *key) {
+                    continue;
+                }
+                if let Some(name) = name_of(key) {
+                    target.push(PhxLookOption {
+                        id: key.clone(),
+                        name,
+                    });
+                }
             }
         }
     };
-    // bots 目录：database/bots/types（参考 DefaultValues）；appearance 的 head/voice
-    // 真实数据为单数键（复数 heads/voices 为参考仓模型映射，一并兼容）
-    if let Ok(files) = fs::read_dir(std::path::Path::new(server_root).join("bots").join("types")) {
-        let mut paths: Vec<_> = files.flatten().map(|e| e.path()).collect();
-        paths.sort();
-        for p in paths {
-            if let Ok(text) = fs::read_to_string(&p) {
-                if let Ok(v) = serde_json::from_str::<Value>(&text) {
-                    push_keys(&v, "head", &mut heads);
-                    push_keys(&v, "heads", &mut heads);
-                    push_keys(&v, "voice", &mut voices);
-                    push_keys(&v, "voices", &mut voices);
+
+    // 阵营真实可选项：bots/types/{usec|bear}.json 的 appearance.head / voice
+    // （4.1.6 单数键，4.1.1 模型 heads/voices，两种都读）。阵营文件缺失或为空时回退全目录聚合。
+    let types_dir = std::path::Path::new(server_root).join("bots").join("types");
+    let side_file = match side.to_ascii_lowercase().as_str() {
+        "usec" => Some(types_dir.join("usec.json")),
+        "bear" => Some(types_dir.join("bear.json")),
+        _ => None,
+    };
+    let mut heads: Vec<PhxLookOption> = Vec::new();
+    let mut voices: Vec<PhxLookOption> = Vec::new();
+    let mut side_hit = false;
+    if let Some(path) = side_file {
+        if let Ok(text) = fs::read_to_string(&path) {
+            if let Ok(v) = serde_json::from_str::<Value>(&text) {
+                collect(&v, &["head", "heads"], &mut heads);
+                collect(&v, &["voice", "voices"], &mut voices);
+                side_hit = !heads.is_empty() && !voices.is_empty();
+            }
+        }
+    }
+    if !side_hit {
+        heads.clear();
+        voices.clear();
+        if let Ok(files) = fs::read_dir(&types_dir) {
+            let mut paths: Vec<_> = files.flatten().map(|e| e.path()).collect();
+            paths.sort();
+            for p in paths {
+                if let Ok(text) = fs::read_to_string(&p) {
+                    if let Ok(v) = serde_json::from_str::<Value>(&text) {
+                        collect(&v, &["head", "heads"], &mut heads);
+                        collect(&v, &["voice", "voices"], &mut voices);
+                    }
                 }
             }
         }
@@ -247,4 +288,40 @@ pub async fn clothing_save(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn en_names(db: &str) -> Map<String, Value> {
+        let text = std::fs::read_to_string(
+            std::path::Path::new(db)
+                .join("locales")
+                .join("global")
+                .join("en.json"),
+        )
+        .expect("读 en.json 失败");
+        serde_json::from_str(&text).expect("解析 en.json 失败")
+    }
+
+    /// 本机真实库自检（默认忽略）：USEC 档只列 USEC 语音/头型，不混入 BEAR
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_usec_side_lists_only_usec_looks() {
+        let db = r"E:\EFT\SPT_Runtime\SPT_Data\database";
+        let names = en_names(db);
+        let (heads, voices) = load_look_options(db, &names, "Usec");
+
+        let vn: Vec<&str> = voices.iter().map(|o| o.name.as_str()).collect();
+        assert_eq!(voices.len(), 7, "voices={vn:?}");
+        assert!(vn.contains(&"Josh"), "voices={vn:?}");
+        assert!(!vn.contains(&"Alex"), "混入 BEAR 语音：{vn:?}");
+        assert!(!vn.contains(&"Boss sanitar"), "混入 SCAV 语音：{vn:?}");
+
+        let hn: Vec<&str> = heads.iter().map(|o| o.name.as_str()).collect();
+        assert!(hn.contains(&"Taylor"), "heads={hn:?}");
+        assert_eq!(heads.len(), 8, "heads={hn:?}");
+        assert!(heads.iter().all(|o| !o.name.trim().is_empty()), "heads 有空名项：{hn:?}");
+    }
 }

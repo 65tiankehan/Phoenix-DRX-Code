@@ -178,37 +178,44 @@ pub(crate) struct ItemProps {
 
 impl ItemsDb {
     pub(crate) fn load(app: &AppHandle, names: Option<&Value>) -> ItemsDb {
+        match database_dir(app) {
+            Some(db) => Self::load_from(Path::new(&db), names),
+            None => ItemsDb {
+                entries: HashMap::new(),
+                names: names.cloned(),
+            },
+        }
+    }
+
+    /// 直接吃 database 目录，便于不依赖 AppHandle 的真机自检
+    pub(crate) fn load_from(db: &Path, names: Option<&Value>) -> ItemsDb {
         let mut entries = HashMap::new();
-        if let Some(db) = database_dir(app) {
-            if let Ok(txt) =
-                fs::read_to_string(Path::new(&db).join("templates").join("items.json"))
-            {
-                // 真实 items.json 是 { tpl -> TarkovItem } 字典（AppData.cs LoadItemsDB 口径）
-                if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt) {
-                    for (tpl, it) in &map {
-                        let p = it.get("_props");
-                        let grids = p
-                            .and_then(|x| x.get("Grids"))
-                            .and_then(|g| g.as_array())
-                            .map(|g| g.len())
-                            .unwrap_or(0);
-                        entries.insert(
-                            tpl.clone(),
-                            ItemProps {
-                                width: p.and_then(|x| x.get("Width")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
-                                height: p.and_then(|x| x.get("Height")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
-                                stack_max: p
-                                    .and_then(|x| x.get("StackMaxSize"))
-                                    .and_then(|v| v.as_f64())
-                                    .unwrap_or(1.0) as i64,
-                                grids,
-                                recoil_force_up: p
-                                    .and_then(|x| x.get("RecoilForceUp"))
-                                    .and_then(|v| v.as_f64())
-                                    .unwrap_or(0.0),
-                            },
-                        );
-                    }
+        if let Ok(txt) = fs::read_to_string(db.join("templates").join("items.json")) {
+            // 真实 items.json 是 { tpl -> TarkovItem } 字典（AppData.cs LoadItemsDB 口径）
+            if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt) {
+                for (tpl, it) in &map {
+                    let p = it.get("_props");
+                    let grids = p
+                        .and_then(|x| x.get("Grids"))
+                        .and_then(|g| g.as_array())
+                        .map(|g| g.len())
+                        .unwrap_or(0);
+                    entries.insert(
+                        tpl.clone(),
+                        ItemProps {
+                            width: p.and_then(|x| x.get("Width")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
+                            height: p.and_then(|x| x.get("Height")).and_then(|v| v.as_f64()).unwrap_or(1.0) as i64,
+                            stack_max: p
+                                .and_then(|x| x.get("StackMaxSize"))
+                                .and_then(|v| v.as_f64())
+                                .unwrap_or(1.0) as i64,
+                            grids,
+                            recoil_force_up: p
+                                .and_then(|x| x.get("RecoilForceUp"))
+                                .and_then(|v| v.as_f64())
+                                .unwrap_or(0.0),
+                        },
+                    );
                 }
             }
         }
@@ -844,8 +851,9 @@ pub(crate) fn add_build_to_stash(
     place_build_tree(raw, stash_id, root_id, pitems, db_dir, db, seq)
 }
 
-/// 仓库网格尺寸：stash 模板 Grids[0]._props 的 CellsV（行）/ CellsH（列），
-/// 从 items.json 原始条目回读（ItemsDb 只存了计数，不存格径）
+/// 仓库网格尺寸：stash 模板 Grids[0]._props 的 cellsV（行）/ cellsH（列），
+/// 从 items.json 原始条目回读（ItemsDb 只存了计数，不存格径）。
+/// 键名大小写随版本变动：4.1 起为小写 `cellsV/cellsH`，4.0 及更早为大写 `CellsV/CellsH`
 pub(crate) fn stash_grid_size(db_dir: &str, stash_tpl: &str) -> Result<(i64, i64), String> {
     let txt = fs::read_to_string(
         Path::new(db_dir).join("templates").join("items.json"),
@@ -859,8 +867,108 @@ pub(crate) fn stash_grid_size(db_dir: &str, stash_tpl: &str) -> Result<(i64, i64
     let g = stash
         .pointer("/_props/Grids/0/_props")
         .ok_or("仓库模板无网格")?;
-    Ok((
-        g.get("CellsV").and_then(|x| x.as_f64()).unwrap_or(0.0) as i64,
-        g.get("CellsH").and_then(|x| x.as_f64()).unwrap_or(0.0) as i64,
-    ))
+    let dim = |lower: &str, upper: &str| -> i64 {
+        g.get(lower)
+            .or_else(|| g.get(upper))
+            .and_then(|x| x.as_f64())
+            .unwrap_or(0.0) as i64
+    };
+    Ok((dim("cellsV", "CellsV"), dim("cellsH", "CellsH")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 本机真实库自检（默认忽略）：4.1.6 的 stash 模板键为小写 cellsV/cellsH
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_stash_grid_reads_lowercase_cells() {
+        let (rows, cols) = stash_grid_size(
+            r"E:\EFT\SPT_Runtime\SPT_Data\database",
+            "5811ce772459770e9e5f9532",
+        )
+        .expect("读取 stash 网格失败");
+        assert_eq!((rows, cols), (68, 10), "读到 {}x{}", rows, cols);
+    }
+
+    /// 端到端自检（默认忽略）：把真实档第一个武器预设落到 stash，只在内存里做、不写盘。
+    /// 覆盖「加入仓库」整条链路：取 Root/Items → 找空位 → 重编 id → 挂树。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_weapon_build_lands_in_stash() {
+        let db_dir = r"E:\EFT\SPT_Runtime\SPT_Data\database";
+        let text = std::fs::read_to_string(
+            r"E:\EFT\SPT_Runtime\user\profiles\6ae7b434451bc24b48942228.json",
+        )
+        .expect("读真实存档失败");
+        let mut raw: Value = serde_json::from_str(&text).expect("解析真实存档失败");
+
+        let build = raw
+            .pointer("/userbuilds/weaponBuilds")
+            .and_then(|v| v.as_array())
+            .and_then(|a| a.first())
+            .expect("没有武器预设")
+            .clone();
+        let root_id = build
+            .get("Root")
+            .and_then(|v| v.as_str())
+            .expect("缺 Root")
+            .to_string();
+        let pitems: Vec<Value> = build
+            .get("Items")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .expect("缺 Items");
+        let stash_id = raw
+            .pointer("/characters/pmc/Inventory/stash")
+            .and_then(|v| v.as_str())
+            .expect("缺 stash")
+            .to_string();
+
+        let db = ItemsDb::load_from(Path::new(db_dir), None);
+        let raw_old_ids: Vec<String> = raw
+            .pointer("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|it| it.get("_id").and_then(|v| v.as_str()).map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let before = raw_old_ids.len();
+
+        place_build_tree(&mut raw, &stash_id, &root_id, &pitems, db_dir, &db, 0)
+            .expect("落位失败");
+
+        let after_items = raw
+            .pointer("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array())
+            .expect("items 缺失");
+        assert!(
+            after_items.len() >= before + pitems.len(),
+            "落位后 items {before} → {}（预设 {} 件）",
+            after_items.len(),
+            pitems.len()
+        );
+        let placed = after_items.iter().any(|it| {
+            it.get("parentId").and_then(|v| v.as_str()) == Some(stash_id.as_str())
+                && it.get("slotId").and_then(|v| v.as_str()) == Some("hideout")
+                && it.get("location").is_some()
+        });
+        assert!(placed, "stash 下没有带坐标的新增根物品");
+
+        // 落位后新根恰好一个；预设里每件物品都应落成一条新记录
+        let before_ids: Vec<String> = raw_old_ids.clone();
+        let new_root = after_items
+            .iter()
+            .filter(|it| {
+                let id = it.get("_id").and_then(|v| v.as_str()).unwrap_or("");
+                it.get("parentId").and_then(|v| v.as_str()) == Some(stash_id.as_str())
+                    && it.get("slotId").and_then(|v| v.as_str()) == Some("hideout")
+                    && !before_ids.iter().any(|b| b == id)
+            })
+            .count();
+        assert_eq!(new_root, 1, "一次加入应只有一个新根，实际 {new_root}");
+    }
 }

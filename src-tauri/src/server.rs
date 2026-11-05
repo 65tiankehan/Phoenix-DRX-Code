@@ -1,10 +1,11 @@
 //! 服务器注册表服务 —— SPT 服务器根目录的登记、校验与当前选择。
-//! 校验基准（参考 4.0.1 DefaultValues.cs）：需要 <root>/SPT/SPT.Server.exe 与
-//! <root>/SPT/user/profiles。注册表持久化在 <appData>/config.json：
-//! { servers: [{id, path}], currentServerId }。
+//! 校验基准（参考 4.1.1 DefaultValues.cs `DefaultServerDirectory`）：服务器目录名 4.1 起为
+//! `SPT_Runtime`、4.0 及更早为 `SPT`，故按 candidates 依次探测，要求
+//! `<服务器目录>/SPT.Server.exe` 与 `<服务器目录>/user/profiles` 同时存在。
+//! 注册表持久化在 <appData>/config.json：{ servers: [{id, path}], currentServerId }。
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
@@ -116,11 +117,52 @@ fn count_profiles(dir: &Path) -> i32 {
         .count() as i32
 }
 
+/// SPT 服务器目录候选名（按代际优先）：4.1 起 = `SPT_Runtime`，4.0 及更早 = `SPT`。
+/// 参考 4.1.1 `DefaultValues.cs` 的 `DefaultServerDirectory = "SPT_Runtime"` 与
+/// `AppSettings.cs` 的 `foreach (var known in new[] { "SPT_Runtime", "SPT" })`。
+const SPT_DIR_CANDIDATES: [&str; 2] = ["SPT_Runtime", "SPT"];
+
+/// 单个候选目录的命中特征：可执行、存档目录、数据库目录
+fn layout_hits(dir: &Path) -> (bool, bool, bool) {
+    (
+        dir.join("SPT.Server.exe").exists(),
+        dir.join("user").join("profiles").exists(),
+        dir.join("SPT_Data").join("database").exists(),
+    )
+}
+
+/// 解析真实 SPT 服务器目录（全仓单一来源：profile / character / clothing 等一律走这里）。
+/// 候选含 root 自身（用户可能直接选进服务器目录）与 `SPT_Runtime` / `SPT` 两个子目录；
+/// 取命中特征最多者，同分保留先命中者（候选顺序即优先级）。全不命中时回落到
+/// `root/SPT_Runtime`（用于把缺失项如实报给界面）。
+pub(crate) fn spt_dir(root: &str) -> PathBuf {
+    let root_path = Path::new(root.trim_end_matches(['\\', '/']));
+    let mut candidates: Vec<PathBuf> = Vec::with_capacity(3);
+    candidates.push(root_path.to_path_buf());
+    for name in SPT_DIR_CANDIDATES {
+        candidates.push(root_path.join(name));
+    }
+
+    let mut best: Option<(PathBuf, u8)> = None;
+    for dir in candidates {
+        let (exe, profiles, db) = layout_hits(&dir);
+        let score = u8::from(exe) + u8::from(profiles) + u8::from(db);
+        if score > 0 && best.as_ref().map_or(true, |(_, s)| score > *s) {
+            best = Some((dir, score));
+        }
+    }
+
+    match best {
+        Some((dir, _)) => dir,
+        None => root_path.join(SPT_DIR_CANDIDATES[0]),
+    }
+}
+
 /// 校验服务器根目录并采集实时状态
 pub fn check_server(root_path: &str) -> ServerStatus {
-    let spt_dir = Path::new(root_path).join("SPT");
-    let exe_ok = spt_dir.join("SPT.Server.exe").exists();
-    let profiles_dir = spt_dir.join("user").join("profiles");
+    let dir = spt_dir(root_path);
+    let exe_ok = dir.join("SPT.Server.exe").exists();
+    let profiles_dir = dir.join("user").join("profiles");
     let profiles_ok = profiles_dir.exists();
 
     let profile_count = if profiles_ok {
@@ -247,3 +289,97 @@ pub fn mark_onboarded(app: &AppHandle) -> Result<(), String> {
     c.onboarded = true;
     save_config(app, &c)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 造一棵临时目录树（内容只需存在）；返回根，由调用方清理
+    fn tree(tag: &str, files: &[&str]) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("phx-spt-{}-{}", tag, std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for rel in files {
+            let p = root.join(rel);
+            if let Some(parent) = p.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(&p, b"{}").unwrap();
+        }
+        root
+    }
+
+    const FULL: [&str; 3] = [
+        "SPT.Server.exe",
+        "user/profiles/one.json",
+        "SPT_Data/database/globals.json",
+    ];
+
+    fn with_prefix(prefix: &str) -> Vec<String> {
+        FULL.iter().map(|f| format!("{}/{}", prefix, f)).collect()
+    }
+
+    fn as_refs(v: &[String]) -> Vec<&str> {
+        v.iter().map(|s| s.as_str()).collect()
+    }
+
+    #[test]
+    fn resolves_runtime_layout() {
+        let files = with_prefix("SPT_Runtime");
+        let root = tree("runtime", &as_refs(&files));
+        let dir = spt_dir(root.to_str().unwrap());
+        assert!(dir.ends_with("SPT_Runtime"), "got {:?}", dir);
+        let st = check_server(root.to_str().unwrap());
+        assert_eq!(st.check, "ok");
+        assert_eq!(st.profile_count, 1);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolves_legacy_layout() {
+        let files = with_prefix("SPT");
+        let root = tree("legacy", &as_refs(&files));
+        let dir = spt_dir(root.to_str().unwrap());
+        assert!(dir.ends_with("SPT"), "got {:?}", dir);
+        assert_eq!(check_server(root.to_str().unwrap()).check, "ok");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn accepts_server_dir_itself() {
+        let root = tree("direct", &FULL);
+        assert_eq!(spt_dir(root.to_str().unwrap()), root);
+        assert_eq!(check_server(root.to_str().unwrap()).check, "ok");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn prefers_runtime_when_both_hit() {
+        let mut files = with_prefix("SPT_Runtime");
+        files.extend(with_prefix("SPT"));
+        let refs = as_refs(&files);
+        let root = tree("both", &refs);
+        let dir = spt_dir(root.to_str().unwrap());
+        assert!(dir.ends_with("SPT_Runtime"), "got {:?}", dir);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn reports_missing_exe() {
+        let root = tree("noexe", &["SPT_Runtime/user/profiles/one.json"]);
+        let st = check_server(root.to_str().unwrap());
+        assert_eq!(st.check, "exe");
+        assert_eq!(st.profile_count, 1);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// 本机真实安装自检（默认忽略：CI 无该目录）。临时验证用
+    /// `cargo test --lib -- --ignored real_installation`
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_installation_is_recognized() {
+        let st = check_server("E:\\EFT");
+        assert_eq!(st.check, "ok", "根目录校验失败：{:?}", st);
+        assert!(st.profile_count >= 1, "存档数未读到：{}", st.profile_count);
+    }
+}
+
