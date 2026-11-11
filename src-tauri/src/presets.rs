@@ -178,11 +178,7 @@ pub fn load_presets(app: &AppHandle, id: &str) -> Option<PresetsData> {
         return None;
     }
     let raw = load_profile(app, id)?;
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let lang = crate::server::data_language(app, Some(&raw));
     let names = locales_table(app, &lang);
     let idb = InspectDb::load(app);
     let sdb = ItemsDb::load(app, names.as_ref());
@@ -344,11 +340,7 @@ pub fn build_to_stash(
         .and_then(|v| v.as_str())
         .ok_or("Inventory.stash 缺失")?
         .to_string();
-    let lang = raw0
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let lang = crate::server::data_language(app, Some(&raw0));
     let names = locales_table(app, &lang);
     let db = ItemsDb::load(app, names.as_ref());
 
@@ -371,11 +363,7 @@ pub fn build_import(
         return Err(format!("Invalid profile id: {}", id));
     }
     let raw0 = load_profile(app, id).ok_or("档案缺失")?;
-    let lang = raw0
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let lang = crate::server::data_language(app, Some(&raw0));
     let names = locales_table(app, &lang);
     let db = ItemsDb::load(app, names.as_ref());
 

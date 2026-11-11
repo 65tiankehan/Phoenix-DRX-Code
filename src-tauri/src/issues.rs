@@ -93,6 +93,32 @@ struct IssuesCtx {
 
 // ———————— 语义辅助（QuestData.cs / CharacterTraderStandingExtended.cs） ————————
 
+/// 档案侧 status 兼容两种序列化：4.1.6 为整数（4），旧档为字符串（"Success"）
+fn status_text(v: Option<&Value>) -> String {
+    match v {
+        Some(Value::Number(n)) => status_name(n.as_i64().unwrap_or(-1)),
+        Some(Value::String(s)) => s.clone(),
+        _ => String::new(),
+    }
+}
+
+fn status_name(n: i64) -> String {
+    match n {
+        0 => "Locked",
+        1 => "AvailableForStart",
+        2 => "Started",
+        3 => "AvailableForFinish",
+        4 => "Success",
+        5 => "Fail",
+        6 => "FailRestartable",
+        7 => "MarkedAsFailed",
+        8 => "Expired",
+        9 => "AvailableAfter",
+        _ => "",
+    }
+    .to_string()
+}
+
 /// QuestStatus 数值序（声明序，即参考枚举比较基准）
 fn status_num(status: &str) -> i64 {
     match status {
@@ -185,12 +211,11 @@ fn load_ctx(app: &AppHandle, language: &str) -> IssuesCtx {
     // globals.json：PMC 等级上限（config/exp/level/maxLevel）+ 经验表（config/exp/level/expTable）
     if let Ok(txt) = fs::read_to_string(db.join("globals.json")) {
         if let Ok(g) = serde_json::from_str::<Value>(&txt) {
-            ctx.max_level = g
-                .pointer("/config/exp/level/maxLevel")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
-            ctx.exp_table = g
-                .pointer("/config/exp/level/expTable")
+            // 4.1.6 真实键名为 snake_case 的 `exp_table`（元素 {exp: N}），且没有 maxLevel：
+            // 等级上限 = exp_table.len() - 1（79 项 → 0..78 级）。
+            let lvl = g.pointer("/config/exp/level");
+            ctx.exp_table = lvl
+                .and_then(|v| v.get("exp_table").or_else(|| v.get("expTable")))
                 .and_then(|v| v.as_array())
                 .map(|a| {
                     a.iter()
@@ -198,29 +223,56 @@ fn load_ctx(app: &AppHandle, language: &str) -> IssuesCtx {
                         .collect()
                 })
                 .unwrap_or_default();
+            ctx.max_level = lvl
+                .and_then(|v| v.get("maxLevel"))
+                .and_then(|v| v.as_i64())
+                .or_else(|| {
+                    if ctx.exp_table.is_empty() {
+                        None
+                    } else {
+                        Some(ctx.exp_table.len() as i64 - 1)
+                    }
+                })
+                .unwrap_or(0);
         }
     }
 
     // templates/quests.json：qid → traderId + conditions
+    // 4.1.6 真实形态是字典 {qid: {...}}，旧档是数组 [{_id, ...}]；
+    // 条目内 conditions 是 {AvailableForStart:[], AvailableForFinish:[], Fail:[]} 三桶，不是单数组。
     if let Ok(txt) = fs::read_to_string(db.join("templates").join("quests.json")) {
-        if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&txt) {
-            for t in &arr {
-                let Some(qid) = t.get("_id").and_then(|v| v.as_str()) else {
-                    continue;
+        if let Ok(doc) = serde_json::from_str::<Value>(&txt) {
+            let entries: Vec<(String, &Value)> = match &doc {
+                Value::Object(map) => map.iter().map(|(k, v)| (k.clone(), v)).collect(),
+                Value::Array(arr) => arr
+                    .iter()
+                    .filter_map(|t| {
+                        t.get("_id")
+                            .and_then(|v| v.as_str())
+                            .map(|id| (id.to_string(), t))
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            };
+            for (qid, t) in entries {
+                let conditions: Vec<Value> = match t.get("conditions") {
+                    Some(Value::Array(a)) => a.clone(),
+                    Some(Value::Object(m)) => m
+                        .values()
+                        .filter_map(|v| v.as_array())
+                        .flat_map(|a| a.iter().cloned())
+                        .collect(),
+                    _ => Vec::new(),
                 };
                 ctx.quests.insert(
-                    qid.to_string(),
+                    qid,
                     QuestTpl {
                         trader_id: t
                             .get("traderId")
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string(),
-                        conditions: t
-                            .get("conditions")
-                            .and_then(|v| v.as_array())
-                            .cloned()
-                            .unwrap_or_default(),
+                        conditions,
                     },
                 );
             }
@@ -401,15 +453,14 @@ fn scan_issues(raw: &Value, ctx: &IssuesCtx) -> Vec<IssueRow> {
         quests
             .iter()
             .find(|q| q.get("qid").and_then(|v| v.as_str()) == Some(qid))
-            .and_then(|q| q.get("status").and_then(|v| v.as_str()))
-            .unwrap_or("")
-            .to_string()
+            .map(|q| status_text(q.get("status")))
+            .unwrap_or_default()
     };
     for q in quests {
         let Some(qid) = q.get("qid").and_then(|v| v.as_str()) else {
             continue;
         };
-        if status_num(q.get("status").and_then(|v| v.as_str()).unwrap_or("")) < 1 {
+        if status_num(&status_text(q.get("status"))) < 1 {
             continue;
         }
         let Some(tpl) = ctx.quests.get(qid) else {
@@ -542,11 +593,7 @@ pub fn issues_scan(app: &AppHandle, id: &str) -> Result<Vec<IssueRow>, String> {
             .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
-    let language = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let language = crate::server::data_language(app, Some(&raw));
     let mut ctx = load_ctx(app, &language);
     if let Some(pmc) = raw.pointer("/characters/pmc") {
         load_traders_ctx(app, pmc, &mut ctx);
@@ -686,11 +733,7 @@ pub fn issues_fix(app: &AppHandle, id: &str, issue_ids: &[String]) -> Result<Iss
     let path = Path::new(&dir).join(format!("{}.json", id));
     let mut raw: Value = serde_json::from_str(&fs::read_to_string(&path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
-    let language = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let language = crate::server::data_language(app, Some(&raw));
     let mut ctx = load_ctx(app, &language);
     if let Some(pmc) = raw.pointer("/characters/pmc") {
         load_traders_ctx(app, pmc, &mut ctx);

@@ -6,7 +6,7 @@
 //!   对象键，名字取 <database>/locales/global/en.json 的「{key} Name」，
 //!   缺失兜底「{文件名} [{key}]」；
 //! - 口袋选项：templates/items.json 中 _parent = 557596e6… 的物品，
-//!   槽数 = 各 Grid._props 的 CellsH×CellsV 之和（任一 Grid._props 缺失则 0），
+//!   槽数 = 各 Grid._props 的 cellsH×cellsV 之和（4.1 小写；任一 Grid._props 缺失则 0），
 //!   特殊槽 = _props.Slots 中 _name 以 SpecialSlot 开头的计数；
 //! - 写回铁律：先备份，后定点替换；数值一律强转整数；口袋仅替换已有物品
 //!   的 _tpl（不存在不新建）；阵营仅 PMC 写 Info.Side。
@@ -298,9 +298,16 @@ fn slots_count(item: &Value) -> i64 {
     for g in grids {
         match g.get("_props") {
             Some(props) if !props.is_null() => {
-                let h = props.get("CellsH").and_then(|v| v.as_i64()).unwrap_or(0);
-                let v = props.get("CellsV").and_then(|c| c.as_i64()).unwrap_or(0);
-                sum += h * v;
+                // 4.1 起 Grid 的 _props 用小写 cellsH/cellsV（Alpha container 实测 2×2），
+                // 4.0 及更早是大写 CellsH/CellsV —— 只读大写会得到 0 格
+                let dim = |lower: &str, upper: &str| -> i64 {
+                    props
+                        .get(lower)
+                        .or_else(|| props.get(upper))
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0)
+                };
+                sum += dim("cellsH", "CellsH") * dim("cellsV", "CellsV");
             }
             _ => return 0,
         }
@@ -557,6 +564,14 @@ fn write_side(side: Option<&mut Value>, data: &CharSideData, is_pmc: bool) {
     }
 }
 
+/// globals.json 的全局武器预设库：4.1.6 真实位置是**顶层** `ItemPresets`（399 条），
+/// 早期按 `config.ItemPresets` 写的旧路径一并兼容（否则图鉴 / 检视 / 套装军械库全空）。
+pub(crate) fn item_presets(g: &Value) -> Option<&serde_json::Map<String, Value>> {
+    g.pointer("/ItemPresets")
+        .or_else(|| g.pointer("/config/ItemPresets"))
+        .and_then(|p| p.as_object())
+}
+
 /// 角色页写回：先强制备份（领域铁律），再定点替换后整体序列化写回
 pub fn save_char(app: &AppHandle, id: &str, data: &CharSaveData) -> Result<SaveResult, String> {
     if !is_safe_id(id) {
@@ -577,4 +592,34 @@ pub fn save_char(app: &AppHandle, id: &str, data: &CharSaveData) -> Result<SaveR
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 本机真实库自检（默认忽略）：4.1.6 的全局武器预设库在 globals **顶层**，
+    /// 条目字段为 _parent / _items（此前按 config.ItemPresets + root/items 读，全空）
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_globals_exposes_item_presets() {
+        let txt = fs::read_to_string(r"E:\EFT\SPT_Runtime\SPT_Data\database\globals.json")
+            .expect("读 globals 失败");
+        let v: Value = serde_json::from_str(&txt).expect("解析 globals 失败");
+        let presets = item_presets(&v).expect("顶层 ItemPresets 未解析出来");
+        assert!(presets.len() > 300, "只解析到 {} 条预设", presets.len());
+        let sample = presets.values().next().expect("预设为空");
+        let root = sample
+            .get("_parent")
+            .and_then(|x| x.as_str())
+            .expect("预设缺 _parent");
+        let items = sample
+            .get("_items")
+            .and_then(|x| x.as_array())
+            .expect("预设缺 _items");
+        assert!(
+            items.iter().any(|i| i.get("_id").and_then(|x| x.as_str()) == Some(root)),
+            "_parent 不在 _items 里"
+        );
+    }
 }

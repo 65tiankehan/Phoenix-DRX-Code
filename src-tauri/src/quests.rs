@@ -421,11 +421,7 @@ pub fn load_quests(app: &AppHandle, id: &str) -> Option<QuestsData> {
         serde_json::from_str(&fs::read_to_string(Path::new(&dir).join(format!("{}.json", id))).ok()?)
             .ok()?;
     let pmc = raw.pointer("/characters/pmc")?;
-    let language = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let language = crate::server::data_language(app, Some(&raw));
     let mut ctx = load_ctx(app, &language);
     ctx.repeatable = repeatable_groups(pmc);
 
@@ -511,11 +507,7 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
     let mut raw: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
     let backup_path = backup_before_write(app, &path)?;
 
-    let language = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let language = crate::server::data_language(app, Some(&raw));
     let mut ctx = load_ctx(app, &language);
     if let Some(pmc) = raw.pointer("/characters/pmc") {
         ctx.repeatable = repeatable_groups(pmc);

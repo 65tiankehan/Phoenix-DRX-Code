@@ -384,7 +384,6 @@
                 <div class="zcard">
                   <div class="zhead">
                     <span class="zname">{a.name}</span>
-                    <span class="zkey">type {a.type}</span>
                     <span class="zlv">{a.level} / {a.maxLevel}</span>
                   </div>
                   <div class="zbar"><i style={`width:${pctOf(a)}%`}></i></div>
@@ -723,12 +722,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .zkey {
-    font-size: 11px;
-    color: var(--phx-text-3);
-    font-family: var(--phx-font-mono);
-    white-space: nowrap;
   }
   .zlv {
     margin-left: auto;

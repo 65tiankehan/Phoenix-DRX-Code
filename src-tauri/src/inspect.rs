@@ -235,11 +235,7 @@ pub fn inspect_weapon(app: &AppHandle, profile_id: &str, item_id: &str) -> Optio
         .pointer("/characters/pmc/Inventory/items")?
         .as_array()?
         .clone();
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let lang = crate::server::data_language(app, Some(&raw));
     let names = locales_table(app, &lang);
     let db = InspectDb::load(app);
     let subtree = collect_subtree(&items, item_id);
@@ -265,7 +261,7 @@ pub fn builds_global(app: &AppHandle) -> Vec<BuildView> {
     let Ok(v) = serde_json::from_str::<Value>(&txt) else {
         return Vec::new();
     };
-    let Some(presets) = v.pointer("/config/ItemPresets").and_then(|p| p.as_object()) else {
+    let Some(presets) = crate::character::item_presets(&v) else {
         return Vec::new();
     };
     let db = InspectDb::load(app);
@@ -273,10 +269,19 @@ pub fn builds_global(app: &AppHandle) -> Vec<BuildView> {
     let names = locales_table(app, "en");
     let mut out: Vec<BuildView> = Vec::new();
     for (pid, preset) in presets {
-        let Some(root_id) = preset.get("root").and_then(|r| r.as_str()) else {
+        // 4.1.6 字段：_parent = 根物品 id、_items = 物品表（参考 ItemPreset.cs）
+        let Some(root_id) = preset
+            .get("_parent")
+            .or_else(|| preset.get("root"))
+            .and_then(|r| r.as_str())
+        else {
             continue;
         };
-        let Some(items) = preset.get("items").and_then(|i| i.as_array()) else {
+        let Some(items) = preset
+            .get("_items")
+            .or_else(|| preset.get("items"))
+            .and_then(|i| i.as_array())
+        else {
             continue;
         };
         // 名称 = 根武器本地化名 + locale[预设 Id]（缺失仅武器名，参考口径）
@@ -319,11 +324,7 @@ pub fn preset_add(app: &AppHandle, profile_id: &str, item_id: &str) -> Result<()
         return Err("查无该武器".to_string());
     }
 
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let lang = crate::server::data_language(app, Some(&raw));
     let names = locales_table(app, &lang);
     let root_tpl = subtree
         .iter()
@@ -365,8 +366,7 @@ pub fn preset_export(path: &str, preset_id: &str, app: &AppHandle) -> Result<(),
     };
     let txt = fs::read_to_string(Path::new(&db_dir).join("globals.json")).map_err(|e| e.to_string())?;
     let v: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
-    let preset = v
-        .pointer("/config/ItemPresets")
+    let preset = crate::character::item_presets(&v)
         .and_then(|p| p.get(preset_id))
         .ok_or("查无该预设")?;
     fs::write(path, serde_json::to_string_pretty(preset).map_err(|e| e.to_string())?)

@@ -101,7 +101,7 @@ fn load_ctx(app: &AppHandle) -> Result<Ctx, String> {
     let mut presets = Vec::new();
     if let Ok(txt) = fs::read_to_string(std::path::Path::new(&db).join("globals.json")) {
         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-            if let Some(map) = v.pointer("/config/ItemPresets").and_then(|p| p.as_object()) {
+            if let Some(map) = crate::character::item_presets(&v) {
                 for (pid, p) in map {
                     let name = p.get("_name").and_then(|n| n.as_str()).unwrap_or("");
                     if !name.is_empty() {

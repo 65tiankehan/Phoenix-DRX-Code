@@ -62,11 +62,8 @@ pub fn load_scav(app: &AppHandle, id: &str) -> Option<ScavData> {
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en");
-    let names = locales_table(app, lang);
+    let lang = crate::server::data_language(app, Some(&raw));
+    let names = locales_table(app, &lang);
     let db = ItemsDb::load(app, names.as_ref());
 
     let row_of = |it: &Value| -> Option<StashItemRow> {

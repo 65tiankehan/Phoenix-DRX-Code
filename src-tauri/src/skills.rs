@@ -76,24 +76,23 @@ pub struct SkillsSaveData {
 
 /// 武器熟练条目：上限（Level2 + Level3）与模板 id 列表（名称回退拼接用）
 #[derive(Debug, Clone)]
-struct MasteringEntry {
+pub(crate) struct MasteringEntry {
     cap: i64,
     tpls: Vec<String>,
 }
 
-/// 武器熟练表：globals config.mastering 的 Name → { cap, tpls }
-fn mastering_table(app: &AppHandle) -> HashMap<String, MasteringEntry> {
+/// 武器熟练表解析（纯函数，供真机自检）：globals 的 `config.Mastering` 数组 → Name → { cap, tpls }
+/// cap = Level2 + Level3（技能点口径）
+pub(crate) fn parse_mastering(txt: &str) -> HashMap<String, MasteringEntry> {
     let mut table = HashMap::new();
-    let Some(db) = database_dir(app) else {
+    let Ok(v) = serde_json::from_str::<Value>(txt) else {
         return table;
     };
-    let Ok(txt) = fs::read_to_string(Path::new(&db).join("globals.json")) else {
-        return table;
-    };
-    let Ok(v) = serde_json::from_str::<Value>(&txt) else {
-        return table;
-    };
-    if let Some(arr) = v.pointer("/config/mastering").and_then(|m| m.as_array()) {
+    // 4.1.6 真实键名是 `config.Mastering`（大写 M）；旧档/设想的小写形式一并兼容。
+    let mastering = v
+        .pointer("/config/Mastering")
+        .or_else(|| v.pointer("/config/mastering"));
+    if let Some(arr) = mastering.and_then(|m| m.as_array()) {
         for m in arr {
             let Some(name) = m.get("Name").and_then(|n| n.as_str()) else {
                 continue;
@@ -119,6 +118,17 @@ fn mastering_table(app: &AppHandle) -> HashMap<String, MasteringEntry> {
         }
     }
     table
+}
+
+/// 武器熟练表：globals config.Mastering 的 Name → { cap, tpls }
+fn mastering_table(app: &AppHandle) -> HashMap<String, MasteringEntry> {
+    let Some(db) = database_dir(app) else {
+        return HashMap::new();
+    };
+    let Ok(txt) = fs::read_to_string(Path::new(&db).join("globals.json")) else {
+        return HashMap::new();
+    };
+    parse_mastering(&txt)
 }
 
 /// 档案语言（/info/language，缺失回退 en）对应的本地化表
@@ -293,11 +303,8 @@ pub fn load_skills(app: &AppHandle, id: &str) -> Option<SkillsData> {
     let mtable = mastering_table(app);
     // 设置开关开启时在内存里补全缺失行（不改文件；用户保存时才随 save_skills 落盘）
     auto_add_missing(app, &mtable, &mut raw);
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en");
-    let names = locales_table(app, lang);
+    let lang = crate::server::data_language(app, Some(&raw));
+    let names = locales_table(app, &lang);
 
     let pmc = raw.pointer("/characters/pmc");
     let scav = raw.pointer("/characters/scav");
@@ -366,4 +373,43 @@ pub fn save_skills(app: &AppHandle, id: &str, data: &SkillsSaveData) -> Result<S
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mastering_reads_capitalized_key() {
+        let txt = r#"{"config":{"Mastering":[{"Name":"M4","Level2":1600,"Level3":2000,"Templates":["x"]}]}}"#;
+        let t = parse_mastering(txt);
+        let m4 = t.get("M4").expect("M4 未解析");
+        assert_eq!(m4.cap, 3600);
+        assert_eq!(m4.tpls, vec!["x".to_string()]);
+    }
+
+    #[test]
+    fn mastering_accepts_legacy_lowercase_key() {
+        let txt = r#"{"config":{"mastering":[{"Name":"AKM","Level2":500,"Level3":600}]}}"#;
+        assert_eq!(parse_mastering(txt).get("AKM").map(|e| e.cap), Some(1100));
+    }
+
+    #[test]
+    fn mastering_missing_gives_empty_table() {
+        assert!(parse_mastering(r#"{"config":{}}"#).is_empty());
+    }
+
+    /// 本机真实库自检（默认忽略）：4.1.6 的熟练表在 config.Mastering（大写），79 条；
+    /// AK74 cap = 2000 + 2200 = 4200。读错大小写会让所有熟练滑杆上限退化成 5100。
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_globals_mastering_has_caps() {
+        let txt = std::fs::read_to_string(r"E:\EFT\SPT_Runtime\SPT_Data\database\globals.json")
+            .expect("读 globals 失败");
+        let t = parse_mastering(&txt);
+        assert_eq!(t.len(), 79, "熟练表条目 {}", t.len());
+        let ak = t.get("AK74").expect("缺 AK74");
+        assert_eq!(ak.cap, 4200, "AK74 cap 应为 Level2+Level3");
+        assert!(!ak.tpls.is_empty(), "AK74 模板表为空");
+    }
 }

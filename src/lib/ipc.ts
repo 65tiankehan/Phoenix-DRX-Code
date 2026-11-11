@@ -471,6 +471,7 @@ export interface PhxAddCategoryRow {
 export interface PhxAddItemRow {
   tpl: string
   name: string
+  shortName: string
   desc: string
   categoryId: string
 }

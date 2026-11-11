@@ -158,6 +158,66 @@ pub(crate) fn spt_dir(root: &str) -> PathBuf {
     }
 }
 
+/// 游戏数据语言：决定读 `SPT_Data/database/locales/global/<lang>.json` 的哪一份。
+///
+/// 优先级：档案 `/info/language` → `user/sptSettings/Game.ini` 的 `Language` → `en`。
+/// 4.1.6 的真实档案没有 `/info/language`（`info` 只有 id/scavId/aid/username/wipe/edition），
+/// 游戏内语言只落在客户端设置 `Game.ini` 里（本机实测 `"Language": "ch"`）；
+/// 取到的文件名不存在时回退 `en`，避免整页名称变空白。
+pub(crate) fn data_language(app: &AppHandle, profile: Option<&serde_json::Value>) -> String {
+    let ini_txt = current_server(app).and_then(|row| {
+        fs::read_to_string(
+            spt_dir(&row.path)
+                .join("user")
+                .join("sptSettings")
+                .join("Game.ini"),
+        )
+        .ok()
+    });
+
+    let picked = pick_language(profile, ini_txt.as_deref()).unwrap_or_else(|| "en".to_string());
+    if locale_exists(app, &picked) {
+        return picked;
+    }
+    if picked != "en" && locale_exists(app, "en") {
+        return "en".to_string();
+    }
+    picked
+}
+
+/// 语言优先级内核（纯函数，便于单测）：档案 `/info/language` → Game.ini 的 `Language`。
+pub(crate) fn pick_language(
+    profile: Option<&serde_json::Value>,
+    ini_txt: Option<&str>,
+) -> Option<String> {
+    if let Some(lang) = profile
+        .and_then(|p| p.pointer("/info/language"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+    {
+        return Some(lang);
+    }
+    let ini = ini_txt?;
+    let v: serde_json::Value = serde_json::from_str(ini).ok()?;
+    v.get("Language")
+        .and_then(|x| x.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// `SPT_Data/database/locales/global/<lang>.json` 是否存在
+fn locale_exists(app: &AppHandle, lang: &str) -> bool {
+    let Some(db) = crate::character::database_dir(app) else {
+        return false;
+    };
+    Path::new(&db)
+        .join("locales")
+        .join("global")
+        .join(format!("{}.json", lang))
+        .exists()
+}
+
 /// 校验服务器根目录并采集实时状态
 pub fn check_server(root_path: &str) -> ServerStatus {
     let dir = spt_dir(root_path);
@@ -380,6 +440,65 @@ mod tests {
         let st = check_server("E:\\EFT");
         assert_eq!(st.check, "ok", "根目录校验失败：{:?}", st);
         assert!(st.profile_count >= 1, "存档数未读到：{}", st.profile_count);
+    }
+
+    #[test]
+    fn profile_language_wins_over_ini() {
+        let raw = serde_json::json!({"info":{"language":"ru"}});
+        let ini = r#"{"Language":"ch"}"#;
+        assert_eq!(pick_language(Some(&raw), Some(ini)).as_deref(), Some("ru"));
+    }
+
+    #[test]
+    fn ini_language_used_when_profile_has_none() {
+        let raw = serde_json::json!({"info":{"id":"x","edition":"SPT Developer"}});
+        let ini = r#"{"Version":1,"Language":"ch"}"#;
+        assert_eq!(pick_language(Some(&raw), Some(ini)).as_deref(), Some("ch"));
+    }
+
+    #[test]
+    fn missing_language_everywhere_returns_none() {
+        let raw = serde_json::json!({"info":{}});
+        assert_eq!(pick_language(Some(&raw), None), None);
+        assert_eq!(pick_language(None, Some("{}")), None);
+    }
+
+    #[test]
+    fn blank_language_is_ignored() {
+        let raw = serde_json::json!({"info":{"language":"  "}});
+        assert_eq!(pick_language(Some(&raw), Some(r#"{"Language":""}"#)), None);
+    }
+
+    /// 本机真实环境自检（默认忽略）：4.1.6 档案没有 /info/language，
+    /// 游戏内语言在 user/sptSettings/Game.ini（本机为 ch），中文包名叫「柯尔特 M4A1 ...」。
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_game_language_resolves_to_chinese() {
+        let ini = std::fs::read_to_string(
+            r"E:\EFT\SPT_Runtime\user\sptSettings\Game.ini",
+        )
+        .expect("读 Game.ini 失败");
+        let profile = std::fs::read_to_string(
+            r"E:\EFT\SPT_Runtime\user\profiles\6af279cd244b9c29e4e2511c.json",
+        )
+        .expect("读存档失败");
+        let raw: serde_json::Value = serde_json::from_str(&profile).unwrap();
+        let lang = pick_language(Some(&raw), Some(&ini)).expect("语言没探到");
+        assert_eq!(lang, "ch", "Game.ini 语言");
+
+        let ch: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                r"E:\EFT\SPT_Runtime\SPT_Data\database\locales\global\ch.json",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let m4 = ch
+            .get("5447a9cd4bdc2dbd208b4567 Name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(m4.contains("M4A1"), "中文名异常：{}", m4);
+        assert!(m4.contains("柯尔特"), "中文名不是中文：{}", m4);
     }
 }
 

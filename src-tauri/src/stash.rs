@@ -102,12 +102,13 @@ pub struct AddCategoryRow {
     pub parent_id: Option<String>,
 }
 
-/// 可添加物品行（desc 供「含描述」搜索；缺失空串）
+/// 可添加物品行（desc 供「含描述」搜索；缺失空串；shortName 供按 M4A1 这类短名搜索）
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddItemRow {
     pub tpl: String,
     pub name: String,
+    pub short_name: String,
     pub desc: String,
     pub category_id: String,
 }
@@ -174,6 +175,8 @@ pub(crate) struct ItemProps {
     pub(crate) stack_max: i64,
     grids: usize,
     recoil_force_up: f64,
+    /// `_props.ShortName`（如 M4A1），供搜索按短名命中
+    short_name: String,
 }
 
 impl ItemsDb {
@@ -214,6 +217,11 @@ impl ItemsDb {
                                 .and_then(|x| x.get("RecoilForceUp"))
                                 .and_then(|v| v.as_f64())
                                 .unwrap_or(0.0),
+                            short_name: p
+                                .and_then(|x| x.get("ShortName"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
                         },
                     );
                 }
@@ -232,6 +240,14 @@ impl ItemsDb {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| tpl.to_string())
+    }
+
+    /// `_props.ShortName`（如 M4A1）；缺失空串
+    pub(crate) fn short_name(&self, tpl: &str) -> String {
+        self.entries
+            .get(tpl)
+            .map(|p| p.short_name.clone())
+            .unwrap_or_default()
     }
 
     /// tpl 是否武器（RecoilForceUp ≠ 0，与 item_row 口径一致；不在库 → false）
@@ -312,11 +328,8 @@ pub fn load_stash(app: &AppHandle, id: &str) -> Option<StashData> {
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en");
-    let names = locales_table(app, lang);
+    let lang = crate::server::data_language(app, Some(&raw));
+    let names = locales_table(app, &lang);
     let db = ItemsDb::load(app, names.as_ref());
 
     // 口袋容器物品 id：parentId == equipment 且 slotId == "Pockets" 的条目
@@ -453,6 +466,7 @@ fn load_addable(app: &AppHandle, db: &ItemsDb) -> (Vec<AddCategoryRow>, Vec<AddI
                     Some(AddItemRow {
                         tpl: tpl.to_string(),
                         name: db.name(tpl),
+                        short_name: db.short_name(tpl),
                         desc: db
                             .names
                             .as_ref()
@@ -505,11 +519,7 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
     let mut raw: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
     let backup_path = backup_before_write(app, &path)?;
 
-    let lang = raw
-        .pointer("/info/language")
-        .and_then(|v| v.as_str())
-        .unwrap_or("en")
-        .to_string();
+    let lang = crate::server::data_language(app, Some(&raw));
     let names = locales_table(app, &lang);
     let db = ItemsDb::load(app, names.as_ref());
     let stash_id = raw
@@ -837,15 +847,21 @@ pub(crate) fn add_build_to_stash(
     let txt = fs::read_to_string(Path::new(db_dir).join("globals.json"))
         .map_err(|e| e.to_string())?;
     let v: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
-    let preset = v
-        .pointer("/config/ItemPresets")
+    // 全局武器预设库在 globals 顶层（4.1.6）；条目字段以下划线开头：
+    // `_parent` = 根物品 id、`_items` = 物品表（参考 ServerClasses/ItemPreset.cs 的 JsonProperty 映射）
+    let preset = crate::character::item_presets(&v)
         .and_then(|p| p.get(preset_id))
         .ok_or("查无该预设")?;
-    let Some(root_id) = preset.get("root").and_then(|r| r.as_str()) else {
+    let Some(root_id) = preset
+        .get("_parent")
+        .or_else(|| preset.get("root"))
+        .and_then(|r| r.as_str())
+    else {
         return Err("预设缺根物品".to_string());
     };
     let pitems = preset
-        .get("items")
+        .get("_items")
+        .or_else(|| preset.get("items"))
         .and_then(|i| i.as_array())
         .ok_or("预设缺物品表")?;
     place_build_tree(raw, stash_id, root_id, pitems, db_dir, db, seq)
@@ -970,5 +986,54 @@ mod tests {
             })
             .count();
         assert_eq!(new_root, 1, "一次加入应只有一个新根，实际 {new_root}");
+    }
+
+    /// 端到端自检（默认忽略）：从**全局预设库**（globals 顶层 ItemPresets，_parent/_items 形态）
+    /// 取一条落到 stash。此前读 config.ItemPresets + root/items 全取不到 → 图鉴「加入仓库」必失败。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_global_preset_lands_in_stash() {
+        let db_dir = r"E:\EFT\SPT_Runtime\SPT_Data\database";
+        let text = std::fs::read_to_string(
+            r"E:\EFT\SPT_Runtime\user\profiles\6ae7b434451bc24b48942228.json",
+        )
+        .expect("读真实存档失败");
+        let mut raw: Value = serde_json::from_str(&text).expect("解析真实存档失败");
+
+        let gtxt = std::fs::read_to_string(Path::new(db_dir).join("globals.json")).unwrap();
+        let g: Value = serde_json::from_str(&gtxt).unwrap();
+        let presets = crate::character::item_presets(&g).expect("全局预设库未解析");
+        // 挑一条能落位的：根模板必须在物品库里有格径（这里直接用第一条 AK-74N）
+        let (pid, _) = presets
+            .iter()
+            .find(|(_, p)| p.get("_name").and_then(|v| v.as_str()) == Some("AK-74N"))
+            .expect("全局预设里没有 AK-74N");
+
+        let stash_id = raw
+            .pointer("/characters/pmc/Inventory/stash")
+            .and_then(|v| v.as_str())
+            .expect("缺 stash")
+            .to_string();
+        let db = ItemsDb::load_from(Path::new(db_dir), None);
+        let before = raw
+            .pointer("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0);
+
+        add_build_to_stash(&mut raw, &stash_id, pid, db_dir, &db, 0)
+            .expect("全局预设入库失败");
+
+        let after = raw
+            .pointer("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array())
+            .expect("items 缺失");
+        assert!(after.len() > before, "落位后物品数没有增加");
+        let placed = after.iter().any(|it| {
+            it.get("parentId").and_then(|v| v.as_str()) == Some(stash_id.as_str())
+                && it.get("slotId").and_then(|v| v.as_str()) == Some("hideout")
+                && it.get("location").is_some()
+        });
+        assert!(placed, "stash 下没有带坐标的新增根物品");
     }
 }

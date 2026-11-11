@@ -47,7 +47,9 @@
   let equipment = $state<{ slot: string; item: PhxStashItemRow | null }[]>([])
   let pockets = $state<PhxStashItemRow[]>([])
   let categories = $state<{ id: string; name: string; parentId: string | null }[]>([])
-  let addable = $state<{ tpl: string; name: string; desc: string; categoryId: string }[]>([])
+  let addable = $state<
+    { tpl: string; name: string; shortName: string; desc: string; categoryId: string }[]
+  >([])
   let rubles = $state(0)
   let dollars = $state(0)
   let euros = $state(0)
@@ -79,7 +81,13 @@
     return addable.filter((a) => {
       if (curCat !== rootId && a.categoryId !== curCat) return false
       if (!q) return true
-      return a.name.toLowerCase().includes(q) || (aDesc && a.desc.toLowerCase().includes(q))
+      // 名称 / 短名（M4A1）/ 模板 id 三者都命中，中文名与英文缩写都能搜
+      return (
+        a.name.toLowerCase().includes(q) ||
+        a.shortName.toLowerCase().includes(q) ||
+        a.tpl.toLowerCase().includes(q) ||
+        (aDesc && a.desc.toLowerCase().includes(q))
+      )
     })
   })
 
