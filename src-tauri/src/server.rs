@@ -478,10 +478,15 @@ mod tests {
             r"E:\EFT\SPT_Runtime\user\sptSettings\Game.ini",
         )
         .expect("读 Game.ini 失败");
-        let profile = std::fs::read_to_string(
-            r"E:\EFT\SPT_Runtime\user\profiles\6af279cd244b9c29e4e2511c.json",
-        )
-        .expect("读存档失败");
+        // 存档 id 会随玩家开新档变化，取任意一份真实档即可（本用例只验语言探测口径）
+        let dir = std::path::Path::new(r"E:\EFT\SPT_Runtime\user\profiles");
+        let path = std::fs::read_dir(dir)
+            .expect("读 profiles 目录失败")
+            .flatten()
+            .map(|e| e.path())
+            .find(|p| p.extension().and_then(|x| x.to_str()) == Some("json"))
+            .expect("profiles 目录里没有存档");
+        let profile = std::fs::read_to_string(&path).expect("读存档失败");
         let raw: serde_json::Value = serde_json::from_str(&profile).unwrap();
         let lang = pick_language(Some(&raw), Some(&ini)).expect("语言没探到");
         assert_eq!(lang, "ch", "Game.ini 语言");

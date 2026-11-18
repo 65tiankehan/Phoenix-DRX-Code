@@ -55,6 +55,21 @@ pub(crate) const EQUIP_SLOTS: &[&str] = &[
 
 // ———————— 类型 ————————
 
+/// 按模板 id 汇总整份库存里的货币总额。
+/// 参考 4.1.1 `CharacterInventory.GetMoneyCountString`：
+/// `Items.Where(x => x.Tpl == moneys).Sum(x => x.Upd.StackObjectsCount ?? 0)` —— 不限父级，
+/// 因此钱装在钱箱 / SICC 包 / 口袋里都能算到（旧实现只认 stash 直接子项，装了钱箱就显示 0）。
+pub(crate) fn sum_money(items: &[Value], tpl: &str) -> i64 {
+    items
+        .iter()
+        .filter(|it| it.get("_tpl").and_then(|v| v.as_str()) == Some(tpl))
+        .filter_map(|it| {
+            it.pointer("/upd/StackObjectsCount")
+                .and_then(|v| v.as_f64())
+        })
+        .sum::<f64>() as i64
+}
+
 /// 仓库附加行数：真值在角色 `Bonuses[]`（type="StashRows"）的 value。
 /// 参考 4.1.1 CharacterBonus.cs / Character.cs——`StashRowsBonusCount` 只是计算属性，
 /// 存档 JSON 里没有这个键（此前读幻键恒 0，已修）
@@ -359,17 +374,11 @@ pub fn load_stash(app: &AppHandle, id: &str) -> Option<StashData> {
         .filter_map(row_of)
         .collect();
 
-    // 货币聚合
-    let money_sum = |tpl: &str| -> i64 {
-        items
-            .iter()
-            .filter(|it| {
-                it.get("_tpl").and_then(|v| v.as_str()) == Some(tpl)
-                    && it.get("parentId").and_then(|v| v.as_str()) == Some(stash_id)
-            })
-            .filter_map(|it| it.pointer("/upd/StackObjectsCount").and_then(|v| v.as_f64()))
-            .sum::<f64>() as i64
-    };
+    // 货币聚合：按 tpl 全量求和，不限父级 ——
+    // 参考 CharacterInventory.GetMoneyCountString 就是 `Items.Where(x => x.Tpl == moneys).Sum(...)`；
+    // 玩家常常把钱塞在钱箱/SICC 包里（本机实测两个 59fb016586f7746d0d4b423a 钱箱内各躺 3700 万），
+    // 只统计 stash 直接子项会显示 0。
+    let money_sum = |tpl: &str| -> i64 { sum_money(items, tpl) };
 
     // 装备槽：固定槽序逐槽找 parentId == equipment 的物品
     let equipment: Vec<EquipSlotRow> = EQUIP_SLOTS
@@ -532,26 +541,37 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
         match op {
             StashOp::AddMoney { tpl, amount } => {
                 let amount = *amount;
-                // 表格口径简化：优先叠加现有货币堆（不占新格子），无堆则走放置引擎开新捆
-                //（新捆带 location：参考 GetSlotsMap 定位路径，无 location 游戏内可能不可见）
-                let stacked = raw
-                    .pointer_mut("/characters/pmc/Inventory/items")
-                    .and_then(Value::as_array_mut)
-                    .ok_or("Inventory.items 缺失")?
-                    .iter_mut()
-                    .find(|it| {
-                        it.get("_tpl").and_then(Value::as_str) == Some(tpl.as_str())
-                            && it.get("parentId").and_then(Value::as_str) == Some(stash_id.as_str())
-                    })
-                    .and_then(|it| it.pointer_mut("/upd/StackObjectsCount"))
-                    .map(|cur| {
-                        let cap = db.entries.get(tpl).map(|p| p.stack_max).unwrap_or(i64::MAX);
-                        let v = (cur.as_f64().unwrap_or(0.0) as i64 + amount.max(0)).min(cap);
-                        *cur = json!(v);
-                    });
-                if stacked.is_none() {
-                    let cap = db.entries.get(tpl).map(|p| p.stack_max).unwrap_or(i64::MAX);
-                    let count = amount.max(0).min(cap);
+                let cap = db.entries.get(tpl).map(|p| p.stack_max).unwrap_or(i64::MAX);
+                // 叠加口径与读取一致：不限父级（钱多在钱箱 / SICC 包里），
+                // 先找一捆还有余量的同类货币叠加，全部满了才在仓库顶层开新捆。
+                let mut left = amount.max(0);
+                {
+                    let slots = raw
+                        .pointer_mut("/characters/pmc/Inventory/items")
+                        .and_then(Value::as_array_mut)
+                        .ok_or("Inventory.items 缺失")?;
+                    for it in slots.iter_mut() {
+                        if left <= 0 {
+                            break;
+                        }
+                        if it.get("_tpl").and_then(Value::as_str) != Some(tpl.as_str()) {
+                            continue;
+                        }
+                        let Some(cur) = it.pointer_mut("/upd/StackObjectsCount") else {
+                            continue;
+                        };
+                        let now = cur.as_f64().unwrap_or(0.0) as i64;
+                        let room = (cap - now).max(0);
+                        if room == 0 {
+                            continue;
+                        }
+                        let add = room.min(left);
+                        *cur = json!(now + add);
+                        left -= add;
+                    }
+                }
+                if left > 0 {
+                    let count = left.min(cap);
                     let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
                     let (place_x, place_y, rotated) =
                         find_free_slot(&raw, &stash_id, tpl, &db_dir, &db)?;
@@ -1035,5 +1055,51 @@ mod tests {
                 && it.get("location").is_some()
         });
         assert!(placed, "stash 下没有带坐标的新增根物品");
+    }
+
+    /// 货币必须能从容器内部算到：玩家常把钱放进钱箱（59fb016586f7746d0d4b423a）。
+    #[test]
+    fn sum_money_counts_stacks_inside_containers() {
+        let items: Vec<Value> = serde_json::from_str(
+            r#"[
+              {"_id":"cash1","_tpl":"59fb016586f7746d0d4b423a","parentId":"STASH","slotId":"hideout"},
+              {"_id":"m1","_tpl":"5449016a4bdc2d6f028b456f","parentId":"cash1","slotId":"main","upd":{"StackObjectsCount":1000000}},
+              {"_id":"m2","_tpl":"5449016a4bdc2d6f028b456f","parentId":"cash1","slotId":"main","upd":{"StackObjectsCount":706323}},
+              {"_id":"m3","_tpl":"5449016a4bdc2d6f028b456f","parentId":"STASH","slotId":"hideout","upd":{"StackObjectsCount":5000}},
+              {"_id":"d1","_tpl":"5696686a4bdc2da3298b456a","parentId":"cash1","slotId":"main","upd":{"StackObjectsCount":935}}
+            ]"#,
+        )
+        .unwrap();
+        assert_eq!(sum_money(&items, RUBLE_TPL), 1_711_323);
+        assert_eq!(sum_money(&items, DOLLAR_TPL), 935);
+        assert_eq!(sum_money(&items, EURO_TPL), 0);
+    }
+
+    /// 本机真实档自检（默认忽略）：钱在钱箱里也必须算出来，不能是 0。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_profile_money_is_counted() {
+        let dir = r"E:\EFT\SPT_Runtime\user\profiles";
+        let mut found = None;
+        for e in std::fs::read_dir(dir).expect("读 profiles 失败").flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("json") {
+                continue;
+            }
+            let txt = std::fs::read_to_string(&p).unwrap();
+            let v: Value = serde_json::from_str(&txt).unwrap();
+            let items = v
+                .pointer("/characters/pmc/Inventory/items")
+                .and_then(|x| x.as_array());
+            if let Some(items) = items {
+                let r = sum_money(items, RUBLE_TPL);
+                if r > 0 {
+                    found = Some((p.display().to_string(), r));
+                    break;
+                }
+            }
+        }
+        let (path, rubles) = found.expect("没有任何存档能算出卢布");
+        assert!(rubles > 1_000_000, "{} 只算出 {} 卢布", path, rubles);
     }
 }

@@ -341,12 +341,24 @@ pub fn load_options(app: &AppHandle) -> CharOptions {
     let db = Path::new(&db);
 
     // 经验增量表：globals.json 的 config.exp.level.exp_table
+    // 4.1.6 真实元素是对象 `{exp: N}`（79 项），旧版才是裸数字，两种都要吃；
+    // 读成空表会让前端 maxLevel 退化成 1，等级一改就被钳成 1。
     if let Ok(txt) = fs::read_to_string(db.join("globals.json")) {
         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
             opts.exp_table = v
                 .pointer("/config/exp/level/exp_table")
+                .or_else(|| v.pointer("/config/exp/level/expTable"))
                 .and_then(|t| t.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_i64()).collect())
+                .map(|a| {
+                    a.iter()
+                        .map(|x| {
+                            x.get("exp")
+                                .and_then(|e| e.as_i64())
+                                .or_else(|| x.as_i64())
+                                .unwrap_or(0)
+                        })
+                        .collect()
+                })
                 .unwrap_or_default();
         }
     }
@@ -502,7 +514,9 @@ fn write_side(side: Option<&mut Value>, data: &CharSideData, is_pmc: bool) {
     }
     info["Nickname"] = json!(data.nickname);
     info["LowerNickname"] = json!(data.nickname.to_lowercase());
-    info["Level"] = json!(data.level.max(0));
+    // 等级最低 1（C# CharacterInfo.Level setter 同样把非法值挡在 1 以上；
+    // 写 0 会让客户端读档时按经验反推出 0 级并卡住）
+    info["Level"] = json!(data.level.max(1));
     info["Experience"] = json!(data.experience.max(0));
 
     // 外观：Customization 缺失则建；空值不写，避免塞空串覆盖
@@ -621,5 +635,48 @@ mod tests {
             items.iter().any(|i| i.get("_id").and_then(|x| x.as_str()) == Some(root)),
             "_parent 不在 _items 里"
         );
+    }
+
+    /// 经验表两种形态：4.1.6 是 `[{exp:N},…]` 对象数组，旧版是裸数字数组。
+    /// 读成空表会让前端 maxLevel 退化成 1，等级一改就被钳成 1（真机症状）。
+    #[test]
+    fn exp_table_reads_object_form() {
+        let a: Vec<i64> = serde_json::from_str::<Value>(r#"[{"exp":0},{"exp":1000},{"exp":3017}]"#)
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| {
+                x.get("exp")
+                    .and_then(|e| e.as_i64())
+                    .or_else(|| x.as_i64())
+                    .unwrap_or(0)
+            })
+            .collect();
+        assert_eq!(a, vec![0, 1000, 3017]);
+    }
+
+    /// 本机真实库自检（默认忽略）：exp_table 必须解析出 79 档（上限 78 级）
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_globals_exp_table_has_levels() {
+        let txt = fs::read_to_string(r"E:\EFT\SPT_Runtime\SPT_Data\database\globals.json")
+            .expect("读 globals 失败");
+        let v: Value = serde_json::from_str(&txt).expect("解析 globals 失败");
+        let table: Vec<i64> = v
+            .pointer("/config/exp/level/exp_table")
+            .and_then(|t| t.as_array())
+            .expect("exp_table 不是数组")
+            .iter()
+            .map(|x| {
+                x.get("exp")
+                    .and_then(|e| e.as_i64())
+                    .or_else(|| x.as_i64())
+                    .unwrap_or(0)
+            })
+            .collect();
+        assert_eq!(table.len(), 79, "exp_table 档数不对");
+        assert_eq!(table[1], 1000);
+        assert_eq!(*table.last().unwrap(), 12_000_000);
     }
 }
