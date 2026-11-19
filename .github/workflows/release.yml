@@ -126,15 +126,27 @@ jobs:
           Write-Host "latest.json 已生成 → $out"
           Get-Content $out
 
+      - name: 打包 Forge 上架 zip
+        shell: pwsh
+        run: |
+          # SPT Forge 的 Download Link 只接受 .7z / .zip，exe 会被拒；
+          # zip 里放自研安装包 + 安装说明，玩家解压后运行 exe。
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          $installer = Get-ChildItem 'src-tauri/target/release/bundle/drx-setup' -Filter '*-installer.exe' | Select-Object -First 1
+          if (-not $installer) { Write-Error '缺少自研安装包' }
+          & ./scripts/pack-forge.ps1 -Installer $installer.FullName -Version $version -OutDir 'src-tauri/target/release/bundle'
+          if ($LASTEXITCODE -ne 0) { Write-Error 'Forge 上架包打包失败' }
+
       - name: 校验产物齐全
         shell: pwsh
         run: |
           $bundle = 'src-tauri/target/release/bundle'
-          $files = Get-ChildItem $bundle -Recurse -Include *.msi,*.exe,*.sig,latest.json
+          $files = Get-ChildItem $bundle -Recurse -Include *.msi,*.exe,*.sig,*.zip,latest.json
           $files | ForEach-Object { Write-Host "$($_.FullName)  $([math]::Round($_.Length/1MB,1)) MB" }
           if (-not ($files | Where-Object Name -like '*.msi'))  { Write-Error '缺少 msi 安装包' }
           if (-not ($files | Where-Object Name -like '*-setup.exe')) { Write-Error '缺少 nsis 安装包' }
           if (-not ($files | Where-Object Name -like '*-installer.exe')) { Write-Error '缺少自研安装包' }
+          if (-not ($files | Where-Object Name -like '*-win-x64.zip')) { Write-Error '缺少 Forge 上架 zip' }
           if (-not ($files | Where-Object Name -like '*.sig')) { Write-Error '缺少更新签名文件' }
           if (-not ($files | Where-Object Name -eq 'latest.json')) { Write-Error '缺少 latest.json 更新清单' }
 
@@ -144,7 +156,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASES_PAT }}
         run: |
           $tag = $env:RELEASE_TAG
-          $files = Get-ChildItem src-tauri/target/release/bundle -Recurse -Include *.msi,*.exe,*.sig,latest.json |
+          $files = Get-ChildItem src-tauri/target/release/bundle -Recurse -Include *.msi,*.exe,*.sig,*.zip,latest.json |
             ForEach-Object { $_.FullName }
           gh release create $tag --repo $env:RELEASE_REPO --title $tag --notes "Phoenix-DRX $tag，由发布流水线自动构建发布；latest.json 供应用内更新使用。" @files
           if ($LASTEXITCODE -ne 0) {

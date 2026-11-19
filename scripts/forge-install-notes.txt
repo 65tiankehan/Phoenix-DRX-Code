@@ -1,0 +1,61 @@
+Phoenix DRX {{VERSION}} — Windows x64
+=====================================
+
+包里只有一个可执行文件：
+
+  Phoenix-DRX_{{VERSION}}_x64-installer.exe
+
+双击运行即可安装。安装器会自动探测已有的旧版本（NSIS 安装版 / MSI），
+在原地升级并保留你的设置，装完自动启动。
+
+SHA-256（安装器本体）:
+  {{SHA256}}
+
+
+要求
+----
+- Windows 10 / 11 x64
+- SPT 4.1.x（程序会自动在服务器根目录下寻找 SPT_Runtime，也兼容旧版的 SPT 文件夹）
+
+首次启动要选一次 SPT 服务器根目录（例如 E:\EFT），选中后自动读取存档。
+
+
+数据安全
+--------
+任何一次写入存档之前都会先自动备份，保存在：
+
+  %APPDATA%\com.phoenix.drx\backups\<存档ID>_<服务器ID>\
+
+自动保留最近 10 份，可在程序内「备份」页一键回滚。
+
+
+它不是服务器 mod
+----------------
+Phoenix DRX 是独立桌面程序，不放进 user\mods\，不注入游戏进程，也不改服务器文件
+——它只读写你自己机器上的本地存档 JSON。
+
+
+链接
+----
+官网     https://65tiankehan.github.io/Phoenix-DRX/
+源码     https://github.com/65tiankehan/Phoenix-DRX-Code
+发版页   https://github.com/65tiankehan/Phoenix-DRX-releases/releases
+SPT Forge https://forge.sp-tarkov.com/
+
+许可：MIT
+本项目与 Battlestate Games 及 SPT 官方团队均无关联。
+
+
+English
+-------
+Unzip, then run Phoenix-DRX_{{VERSION}}_x64-installer.exe. The installer detects and
+takes over an older installation in place, keeping your settings.
+
+Requires Windows 10/11 x64 and SPT 4.1.x. On first launch, pick your SPT server root
+(e.g. E:\EFT).
+
+Every write to your profile is preceded by an automatic backup (last 10 kept, roll back
+from the Backups page).
+
+This is a standalone desktop editor, not a server mod: nothing goes into user\mods\,
+the game process is never injected, and no server files are modified.
