@@ -22,6 +22,14 @@ A desktop editor for SPT 4.1.x profiles. It reads and writes the profile JSON on
 - **Problem scan** — checks level vs exp table, quest status consistency, and other mismatches.
 - **Backups** — automatic backup before every write, 10 kept, one-click rollback.
 
+## Screenshots
+
+![Welcome to Phoenix](https://raw.githubusercontent.com/65tiankehan/Phoenix-DRX-Code/master/docs/forge/screenshots/01-welcome.png)
+
+![Safety before editing — auto backup, multi-server, seventeen editor entries](https://raw.githubusercontent.com/65tiankehan/Phoenix-DRX-Code/master/docs/forge/screenshots/02-safety.png)
+
+![All set](https://raw.githubusercontent.com/65tiankehan/Phoenix-DRX-Code/master/docs/forge/screenshots/03-all-set.png)
+
 ## Install
 
 1. Download the `.zip` from the Download button.
