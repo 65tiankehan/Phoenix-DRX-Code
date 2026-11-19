@@ -2669,7 +2669,7 @@ dependencies = [
 
 [[package]]
 name = "phoenix-drx"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "chrono",
  "keyring",

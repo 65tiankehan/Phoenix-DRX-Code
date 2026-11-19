@@ -37,12 +37,28 @@ struct SetDef {
 
 #[derive(Deserialize, Clone)]
 struct WeaponDef {
+    /// 首选：globals.ItemPresets 的 preset id（4.1.6 校准后的主通路）
+    #[serde(default)]
+    preset: Option<String>,
+    /// 展示名（缺省回退预设自身的 _name）
+    #[serde(default)]
+    label: Option<String>,
+    /// 兼容旧配置：按预设名匹配（做归一化后比较）
+    #[serde(default)]
     candidates: Vec<String>,
 }
 
 #[derive(Deserialize)]
 struct PieceDef {
     kind: String,
+    /// 首选：templates/items.json 的 tpl
+    #[serde(default)]
+    tpl: Option<String>,
+    /// 展示名（缺省回退模板的 ShortName）
+    #[serde(default)]
+    label: Option<String>,
+    /// 兼容旧配置：按 ShortName 匹配
+    #[serde(default)]
     candidates: Vec<String>,
 }
 
@@ -69,22 +85,34 @@ pub struct ArsenalSet {
     resolvable: bool,
 }
 
-fn eq_ci(a: &str, b: &str) -> bool {
-    a.trim().eq_ignore_ascii_case(b.trim())
+/// 宽松归一化：忽略大小写与 `_ - . 空格` 的差异
+/// （`AK-74M_default` 与 `AK-74M Default` 视为同一个名字）
+fn norm(s: &str) -> String {
+    s.chars()
+        .filter(|c| !matches!(c, '_' | '-' | '.' | ' '))
+        .flat_map(|c| c.to_lowercase())
+        .collect()
+}
+
+fn eq_loose(a: &str, b: &str) -> bool {
+    norm(a) == norm(b)
 }
 
 /// 解析上下文：items.json 原始表（ShortName/_id/MaxDurability）+ ItemPresets
-struct Ctx {
+pub(crate) struct Ctx {
     items: HashMap<String, Value>, // tpl -> entry
     short_index: HashMap<String, String>, // lower(shortname) -> tpl
     presets: Vec<(String, String)>, // (preset_id, _name)
+}fn load_ctx(app: &AppHandle) -> Result<Ctx, String> {
+    let db = database_dir(app).ok_or("未选择 SPT 服务器")?;
+    Ok(ctx_from_db(&db))
 }
 
-fn load_ctx(app: &AppHandle) -> Result<Ctx, String> {
-    let db = database_dir(app).ok_or("未选择 SPT 服务器")?;
+/// 从 database 目录构建解析上下文（与 AppHandle 解耦，便于真机自检）
+pub(crate) fn ctx_from_db(db: &str) -> Ctx {
     let mut items = HashMap::new();
     let mut short_index = HashMap::new();
-    if let Ok(txt) = fs::read_to_string(std::path::Path::new(&db).join("templates").join("items.json")) {
+    if let Ok(txt) = fs::read_to_string(std::path::Path::new(db).join("templates").join("items.json")) {
         if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt) {
             for (tpl, entry) in map {
                 let short = entry
@@ -92,14 +120,14 @@ fn load_ctx(app: &AppHandle) -> Result<Ctx, String> {
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
                 if !short.is_empty() {
-                    short_index.insert(short.to_lowercase(), tpl.clone());
+                    short_index.entry(short.to_lowercase()).or_insert_with(|| tpl.clone());
                 }
                 items.insert(tpl, entry);
             }
         }
     }
     let mut presets = Vec::new();
-    if let Ok(txt) = fs::read_to_string(std::path::Path::new(&db).join("globals.json")) {
+    if let Ok(txt) = fs::read_to_string(std::path::Path::new(db).join("globals.json")) {
         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
             if let Some(map) = crate::character::item_presets(&v) {
                 for (pid, p) in map {
@@ -111,22 +139,57 @@ fn load_ctx(app: &AppHandle) -> Result<Ctx, String> {
             }
         }
     }
-    Ok(Ctx { items, short_index, presets })
+    Ctx { items, short_index, presets }
+}
+
+/// 全部套装的解析结果（(set_id, 是否全部解析成功)），供真机自检使用
+#[cfg(test)]
+pub(crate) fn resolve_all(db: &str) -> Vec<(String, bool)> {
+    let ctx = ctx_from_db(db);
+    let defs: Value = match serde_json::from_str(SETS_JSON) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    let empty = Vec::new();
+    let raw_sets = defs.get("sets").and_then(|v| v.as_array()).unwrap_or(&empty);
+    let mut out = Vec::new();
+    for rs in raw_sets {
+        let Ok(def) = serde_json::from_value::<SetDef>(rs.clone()) else {
+            continue;
+        };
+        let w_ok = def.weapon.is_none() || resolve_weapon(&ctx, &def.weapon).is_some();
+        let p_ok = def.armor.iter().all(|p| resolve_piece(&ctx, p).is_some());
+        out.push((def.id, w_ok && p_ok));
+    }
+    out
 }
 
 fn resolve_weapon(ctx: &Ctx, def: &Option<WeaponDef>) -> Option<(String, String)> {
     let w = def.as_ref()?;
+    if let Some(pid) = &w.preset {
+        if let Some((_, name)) = ctx.presets.iter().find(|(p, _)| p == pid) {
+            return Some((pid.clone(), w.label.clone().unwrap_or_else(|| name.clone())));
+        }
+    }
     for c in &w.candidates {
-        for (pid, name) in &ctx.presets {
-            if eq_ci(name, c) {
-                return Some((pid.clone(), name.clone()));
-            }
+        if let Some((pid, name)) = ctx.presets.iter().find(|(_, n)| eq_loose(n, c)) {
+            return Some((pid.clone(), name.clone()));
         }
     }
     None
 }
 
 fn resolve_piece(ctx: &Ctx, p: &PieceDef) -> Option<(String, String)> {
+    if let Some(tpl) = &p.tpl {
+        if let Some(entry) = ctx.items.get(tpl) {
+            let short = entry
+                .pointer("/_props/ShortName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let shown = p.label.clone().unwrap_or_else(|| short.to_string());
+            return Some((tpl.clone(), shown));
+        }
+    }
     for c in &p.candidates {
         if let Some(tpl) = ctx.short_index.get(&c.to_lowercase()) {
             let name = ctx
@@ -141,14 +204,21 @@ fn resolve_piece(ctx: &Ctx, p: &PieceDef) -> Option<(String, String)> {
     None
 }
 
-fn piece_view(kind: &str, resolved: Option<(String, String)>, candidates: &[String]) -> ArsenalPiece {
+/// 未解析时的兜底显示：优先配置里的中文 label，其次旧候选名，最后 tpl
+fn fallback_label(label: Option<&String>, candidates: &[String], tpl: Option<&String>) -> String {
+    if let Some(l) = label {
+        return l.clone();
+    }
+    if let Some(c) = candidates.first() {
+        return c.clone();
+    }
+    tpl.cloned().unwrap_or_default()
+}
+
+fn piece_view(kind: &str, resolved: Option<(String, String)>, fallback: String) -> ArsenalPiece {
     match resolved {
         Some((_, name)) => ArsenalPiece { kind: kind.into(), name: Some(name), detail: String::new() },
-        None => ArsenalPiece {
-            kind: kind.into(),
-            name: None,
-            detail: candidates.first().cloned().unwrap_or_default(),
-        },
+        None => ArsenalPiece { kind: kind.into(), name: None, detail: fallback },
     }
 }
 
@@ -172,12 +242,16 @@ pub async fn arsenal_load(app: AppHandle) -> Result<Vec<ArsenalSet>, String> {
             let mut pieces = Vec::new();
             for p in &def.armor {
                 let r = resolve_piece(&ctx, p);
-                pieces.push(piece_view(&p.kind, r, &p.candidates));
+                let fb = fallback_label(p.label.as_ref(), &p.candidates, p.tpl.as_ref());
+                pieces.push(piece_view(&p.kind, r, fb));
             }
             let resolvable = (def.weapon.is_none() || w_res.is_some())
                 && pieces.iter().all(|p| p.name.is_some());
             out.push(ArsenalSet {
-                weapon: def.weapon.as_ref().map(|w| piece_view("weapon", w_res.clone().map(|(a, b)| (a, b)), &w.candidates)),
+                weapon: def.weapon.as_ref().map(|w| {
+                    let fb = fallback_label(w.label.as_ref(), &w.candidates, w.preset.as_ref());
+                    piece_view("weapon", w_res.clone(), fb)
+                }),
                 id: def.id,
                 name: def.name,
                 tier: def.tier,
@@ -308,4 +382,122 @@ fn add_gear(
     }
     items.push(it);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loose_match_ignores_separators() {
+        assert!(eq_loose("AK-74M_default", "AK-74M Default"));
+        assert!(eq_loose("m4a1_std", "M4A1_Std"));
+        assert!(!eq_loose("AK-74M Default", "AK-101 Default"));
+    }
+
+    fn ctx(presets: &[(&str, &str)], items: &[(&str, (&str, &str))]) -> Ctx {
+        let mut map = HashMap::new();
+        let mut idx = HashMap::new();
+        for (tpl, (short, name)) in items {
+            map.insert(
+                tpl.to_string(),
+                json!({ "_id": tpl, "_props": { "ShortName": short, "Name": name } }),
+            );
+            idx.insert(short.to_lowercase(), tpl.to_string());
+        }
+        Ctx {
+            items: map,
+            short_index: idx,
+            presets: presets.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect(),
+        }
+    }
+
+    #[test]
+    fn preset_id_wins_over_candidates() {
+        let c = ctx(&[("p1", "AK-74M Default")], &[]);
+        let def = Some(WeaponDef {
+            preset: Some("p1".into()),
+            label: Some("AK-74M".into()),
+            candidates: vec!["不存在的名字".into()],
+        });
+        assert_eq!(resolve_weapon(&c, &def), Some(("p1".into(), "AK-74M".into())));
+    }
+
+    #[test]
+    fn legacy_candidates_still_resolve_with_separator_difference() {
+        let c = ctx(&[("p1", "AK-74M Default")], &[]);
+        let def = Some(WeaponDef {
+            preset: None,
+            label: None,
+            candidates: vec!["AK-74M_default".into()],
+        });
+        assert_eq!(resolve_weapon(&c, &def), Some(("p1".into(), "AK-74M Default".into())));
+    }
+
+    #[test]
+    fn unknown_preset_falls_back_to_candidates() {
+        let c = ctx(&[("p1", "AK-74M Default")], &[]);
+        let def = Some(WeaponDef {
+            preset: Some("stale".into()),
+            label: None,
+            candidates: vec!["AK-74M Default".into()],
+        });
+        assert_eq!(resolve_weapon(&c, &def), Some(("p1".into(), "AK-74M Default".into())));
+    }
+
+    #[test]
+    fn piece_tpl_resolves_and_prefers_label() {
+        let c = ctx(&[], &[("t1", ("gjel", "6B13"))]);
+        let p = PieceDef {
+            kind: "armor".into(),
+            tpl: Some("t1".into()),
+            label: Some("6B13 丛林".into()),
+            candidates: vec![],
+        };
+        assert_eq!(resolve_piece(&c, &p), Some(("t1".into(), "6B13 丛林".into())));
+    }
+
+    #[test]
+    fn unknown_piece_tpl_is_not_invented() {
+        let c = ctx(&[], &[("t1", ("gjel", "6B13"))]);
+        let p = PieceDef {
+            kind: "armor".into(),
+            tpl: Some("missing".into()),
+            label: Some("配错的".into()),
+            candidates: vec![],
+        };
+        assert_eq!(resolve_piece(&c, &p), None);
+        assert_eq!(fallback_label(p.label.as_ref(), &p.candidates, p.tpl.as_ref()), "配错的");
+    }
+
+    #[test]
+    fn bundled_config_only_uses_ids_or_candidates() {
+        // 配置自洽性：每套必须有武器，且每个防具都有 tpl 或候选名
+        let defs: Value = serde_json::from_str(SETS_JSON).unwrap();
+        let sets = defs.get("sets").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(sets.len(), 12);
+        for s in sets {
+            let d: SetDef = serde_json::from_value(s.clone()).unwrap();
+            let w = d.weapon.as_ref().expect("套装缺 weapon");
+            assert!(w.preset.is_some() || !w.candidates.is_empty(), "{} 武器无标识", d.id);
+            if let Some(p) = &w.preset {
+                assert_eq!(p.len(), 24, "{} 武器 preset id 长度不对", d.id);
+            }
+            for p in &d.armor {
+                assert!(p.tpl.is_some() || !p.candidates.is_empty(), "{} 的 {} 无标识", d.id, p.kind);
+                if let Some(t) = &p.tpl {
+                    assert_eq!(t.len(), 24, "{} 的 {} tpl 长度不对", d.id, p.kind);
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_database_resolves_all_twelve_sets() {
+        let rows = resolve_all(r"E:\EFT\SPT_Runtime\SPT_Data\database");
+        assert_eq!(rows.len(), 12);
+        let failed: Vec<_> = rows.iter().filter(|(_, ok)| !ok).map(|(id, _)| id.clone()).collect();
+        assert!(failed.is_empty(), "以下套装有未解析项：{:?}", failed);
+    }
 }

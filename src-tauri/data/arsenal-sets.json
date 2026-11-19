@@ -1,5 +1,5 @@
 {
-  "$comment": "套装军械库（稿图 32，0.2.0 第 3 段）。所有条目均为「候选名列表」，运行时对真实服务器数据库解析：weapon 按 globals.json ItemPresets 的 _name 大小写不敏感匹配；armor 各件按 templates/items.json 的 ShortName 匹配。找不到的件在 UI 标「未找到」并跳过（诚实原则，不编造）。新版本加套餐只改本文件。",
+  "$comment": "套装军械库：武器用 globals.ItemPresets 的 preset id，防具用 templates/items.json 的 tpl。已按 SPT 4.1.6 真实数据校准。",
   "sets": [
     {
       "id": "starter",
@@ -7,10 +7,21 @@
       "tier": "入门级",
       "desc": "便宜耐造的入门三件：一把默认步枪、软甲、头盔。适合开荒第一桶金。",
       "priceRub": 85000,
-      "weapon": { "candidates": ["AK-74M_default", "SKS_default"] },
+      "weapon": {
+        "preset": "5acf7db286f7743a9c7092e3",
+        "label": "AK-74M Default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["PACA", "6B23-1"] },
-        { "kind": "helmet", "candidates": ["6B47", "Kolpak-1S"] }
+        {
+          "kind": "armor",
+          "tpl": "5648a7494bdc2d9d488b4583",
+          "label": "PACA"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5a7c4850e899ef00150be885",
+          "label": "6B47"
+        }
       ]
     },
     {
@@ -19,11 +30,26 @@
       "tier": "经济流",
       "desc": "中期性价比组合：可靠步枪、四级甲、通用胸挂。",
       "priceRub": 420000,
-      "weapon": { "candidates": ["AK-74M_default", "AK-101_default"] },
+      "weapon": {
+        "preset": "5acf7dd986f774486e1281bf",
+        "label": "AK-101 Default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["6B13-M", "6B3TM-01"] },
-        { "kind": "helmet", "candidates": ["6B47", "SSH-68"] },
-        { "kind": "rig", "candidates": ["BlackRock 606", "BlackRock", "WTRIG"] }
+        {
+          "kind": "armor",
+          "tpl": "5c0e51be86f774598e797894",
+          "label": "6B13 丛林"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5a7c4850e899ef00150be885",
+          "label": "6B47"
+        },
+        {
+          "kind": "rig",
+          "tpl": "5648a69d4bdc2ded0b8b457b",
+          "label": "BlackRock"
+        }
       ]
     },
     {
@@ -32,11 +58,26 @@
       "tier": "满配级",
       "desc": "高配 M4A1 + 六级护甲 + 四级头盔 + 大容量胸挂。中后期任何地图正面作战。",
       "priceRub": 1240000,
-      "weapon": { "candidates": ["M4A1_default"] },
+      "weapon": {
+        "preset": "5af08cf886f774223c269184",
+        "label": "M4A1_Std"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["6B13-M", "Slick"] },
-        { "kind": "helmet", "candidates": ["Ratnik-BSh", "6B47"] },
-        { "kind": "rig", "candidates": ["BlackRock 606", "ANA Alpha"] }
+        {
+          "kind": "armor",
+          "tpl": "5e4abb5086f77406975c9342",
+          "label": "Slick"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5a7c4850e899ef00150be885",
+          "label": "6B47"
+        },
+        {
+          "kind": "rig",
+          "tpl": "592c2d1a86f7746dbe2af32a",
+          "label": "Alpha"
+        }
       ]
     },
     {
@@ -45,10 +86,21 @@
       "tier": "狙击手",
       "desc": "栓动狙击 + 高等级护甲与头盔，安静解决远处的问题。",
       "priceRub": 980000,
-      "weapon": { "candidates": ["SV-98_default", "Mosin9130_default"] },
+      "weapon": {
+        "preset": "58414a16245977599247970a",
+        "label": "SV-98 Default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["6B13-M", "Gzhel-K"] },
-        { "kind": "helmet", "candidates": ["Ratnik-BSh", "Altyn"] }
+        {
+          "kind": "armor",
+          "tpl": "5ab8e79e86f7742d8b372e78",
+          "label": "Gzhel-K"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5aa7e276e5b5b000171d0647",
+          "label": "Altyn"
+        }
       ]
     },
     {
@@ -57,12 +109,31 @@
       "tier": "战备级",
       "desc": "室内近战全配置：满配武器、重甲、大背包，不带医疗不进门。",
       "priceRub": 2150000,
-      "weapon": { "candidates": ["M4A1_default", "HK 416A5_default"] },
+      "weapon": {
+        "preset": "5c0d1e9386f77440120288b7",
+        "label": "HK416 default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["Slick", "6B13-M"] },
-        { "kind": "helmet", "candidates": ["Ratnik-BSh", "Maska-1Sch"] },
-        { "kind": "rig", "candidates": ["ANA Alpha", "BlackRock 606"] },
-        { "kind": "backpack", "candidates": ["Triumph", "Attack 2"] }
+        {
+          "kind": "armor",
+          "tpl": "5e4abb5086f77406975c9342",
+          "label": "Slick"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5c091a4e0db834001d5addc8",
+          "label": "Maska-1SCh"
+        },
+        {
+          "kind": "rig",
+          "tpl": "592c2d1a86f7746dbe2af32a",
+          "label": "Alpha"
+        },
+        {
+          "kind": "backpack",
+          "tpl": "5df8a4d786f77412672a1e3b",
+          "label": "6Sh118"
+        }
       ]
     },
     {
@@ -71,9 +142,16 @@
       "tier": "娱乐",
       "desc": "便宜到可以随便死：一把霰弹、杂物胸挂，体验 Scav 人生。",
       "priceRub": 30000,
-      "weapon": { "candidates": ["MP-153_default", "MP-133_default"] },
+      "weapon": {
+        "preset": "58414907245977598f1ad38d",
+        "label": "MP-153 Default"
+      },
       "armor": [
-        { "kind": "rig", "candidates": ["WTRIG", "Loot bag"] }
+        {
+          "kind": "rig",
+          "tpl": "59e7643b86f7742cbf2c109a",
+          "label": "WT胸挂"
+        }
       ]
     },
     {
@@ -82,9 +160,16 @@
       "tier": "挑战",
       "desc": "只有一把手枪和基础医疗——给自己上强度用的开局。",
       "priceRub": 5000,
-      "weapon": { "candidates": ["PM_default", "TT_default"] },
+      "weapon": {
+        "preset": "58414967245977598f1ad391",
+        "label": "PM Default"
+      },
       "armor": [
-        { "kind": "rig", "candidates": ["Loot bag", "WTRIG"] }
+        {
+          "kind": "rig",
+          "tpl": "5d5d8ca986f7742798716522",
+          "label": "微型胸挂"
+        }
       ]
     },
     {
@@ -93,10 +178,21 @@
       "tier": "潜行",
       "desc": "消音武器 + 轻甲轻盔，安静进出，不惊动任何人。",
       "priceRub": 310000,
-      "weapon": { "candidates": ["MP5_default", "VAL_default"] },
+      "weapon": {
+        "preset": "59411aa786f7747aeb37f9a5",
+        "label": "MP5 Default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["PACA", "6B23-1"] },
-        { "kind": "helmet", "candidates": ["Kolpak-1S", "6B47"] }
+        {
+          "kind": "armor",
+          "tpl": "5648a7494bdc2d9d488b4583",
+          "label": "PACA"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "59e7711e86f7746cae05fbe1",
+          "label": "Kolpak"
+        }
       ]
     },
     {
@@ -105,11 +201,26 @@
       "tier": "CQB",
       "desc": "短管武器 + 重甲 + 胸挂，贴脸解决问题的配置。",
       "priceRub": 660000,
-      "weapon": { "candidates": ["MP5_default", "AK-105_default"] },
+      "weapon": {
+        "preset": "5acf7e7986f774401e19c3a0",
+        "label": "AK-105 Default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["6B13-M", "Gzhel-K"] },
-        { "kind": "helmet", "candidates": ["6B47", "Ratnik-BSh"] },
-        { "kind": "rig", "candidates": ["BlackRock 606", "WTRIG"] }
+        {
+          "kind": "armor",
+          "tpl": "5ab8e79e86f7742d8b372e78",
+          "label": "Gzhel-K"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5a7c4850e899ef00150be885",
+          "label": "6B47"
+        },
+        {
+          "kind": "rig",
+          "tpl": "59e7643b86f7742cbf2c109a",
+          "label": "WT胸挂"
+        }
       ]
     },
     {
@@ -118,11 +229,26 @@
       "tier": "火力压制",
       "desc": "弹链机枪 + 重甲 + 大背包，锁住一条走廊。",
       "priceRub": 1500000,
-      "weapon": { "candidates": ["RSASS_default", "M249_default"] },
+      "weapon": {
+        "preset": "5c0d1ec986f77439512a1a72",
+        "label": "RPK16 nomag"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["6B13-M", "Slick"] },
-        { "kind": "helmet", "candidates": ["Ratnik-BSh", "6B47"] },
-        { "kind": "backpack", "candidates": ["Triumph", "Attack 2"] }
+        {
+          "kind": "armor",
+          "tpl": "5c0e541586f7747fa54205c9",
+          "label": "6B13 Killa"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5a7c4850e899ef00150be885",
+          "label": "6B47"
+        },
+        {
+          "kind": "backpack",
+          "tpl": "5c0e774286f77468413cc5b2",
+          "label": "Blackjack 50"
+        }
       ]
     },
     {
@@ -131,11 +257,26 @@
       "tier": "通用",
       "desc": "均衡配置：可靠武器、护甲、胸挂，什么都 能打一点。",
       "priceRub": 760000,
-      "weapon": { "candidates": ["AK-101_default", "AK-74M_default"] },
+      "weapon": {
+        "preset": "5acf7dd986f774486e1281bf",
+        "label": "AK-101 Default"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["6B23-1", "PACA"] },
-        { "kind": "helmet", "candidates": ["6B47", "SSH-68"] },
-        { "kind": "rig", "candidates": ["Azimut", "BlackRock 606"] }
+        {
+          "kind": "armor",
+          "tpl": "5c0e5bab86f77461f55ed1f3",
+          "label": "6B23-1 EMR"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5c06c6a80db834001b735491",
+          "label": "SSh-68"
+        },
+        {
+          "kind": "rig",
+          "tpl": "603648ff5a45383c122086ac",
+          "label": "Azimut"
+        }
       ]
     },
     {
@@ -144,11 +285,26 @@
       "tier": "特殊",
       "desc": "顶配收藏组合：满配武器 + 顶级护甲头盔胸挂，纯为收藏陈列。",
       "priceRub": 3000000,
-      "weapon": { "candidates": ["M4A1_default", "RSASS_default"] },
+      "weapon": {
+        "preset": "5af08cf886f774223c269184",
+        "label": "M4A1_Std"
+      },
       "armor": [
-        { "kind": "armor", "candidates": ["Slick", "6B13-M"] },
-        { "kind": "helmet", "candidates": ["Altyn", "Ratnik-BSh"] },
-        { "kind": "rig", "candidates": ["ANA Alpha", "Azimut"] }
+        {
+          "kind": "armor",
+          "tpl": "5e4abb5086f77406975c9342",
+          "label": "Slick"
+        },
+        {
+          "kind": "helmet",
+          "tpl": "5aa7e276e5b5b000171d0647",
+          "label": "Altyn"
+        },
+        {
+          "kind": "rig",
+          "tpl": "592c2d1a86f7746dbe2af32a",
+          "label": "Alpha"
+        }
       ]
     }
   ]
