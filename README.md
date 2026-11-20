@@ -40,7 +40,7 @@
 - 发版页：https://github.com/65tiankehan/Phoenix-DRX-releases/releases
 - SPT Forge：https://forge.sp-tarkov.com/ 搜索 `Phoenix DRX`（可订阅、留言、报问题）
 
-推荐下载 `Phoenix-DRX_x.y.z_x64-installer.exe`（自研安装器，会探测并接管旧版；也可用 `-setup.exe` 或 `.msi`）。
+推荐下载 `Phoenix-DRX_x.y.z_x64-installer.exe`（自研安装器，会探测并接管旧版）。它跟随系统语言显示中文或英文；也可用 `-setup.exe` 或 `.msi`（标准 Windows 安装器，界面随打包语言固定）。
 
 ## 永远免费
 

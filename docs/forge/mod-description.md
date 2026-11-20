@@ -34,7 +34,7 @@ A desktop editor for SPT 4.1.x profiles. It reads and writes the profile JSON on
 
 1. Download the `.zip` from the Download button.
 2. Unpack it and run `Phoenix-DRX_<version>_x64-installer.exe`.
-3. The installer detects and takes over an older installation in place, keeping your settings.
+3. The installer detects and takes over an older installation in place, keeping your settings. It follows your Windows display language (Chinese or English).
 4. On first launch, pick your SPT server root (e.g. `E:\EFT`).
 
 Requires Windows 10/11 x64 and SPT 4.1.x.
