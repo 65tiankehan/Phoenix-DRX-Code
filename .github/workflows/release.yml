@@ -154,7 +154,8 @@ jobs:
           if (-not ($files | Where-Object Name -like '*.msi'))  { Write-Error '缺少 msi 安装包' }
           if (-not ($files | Where-Object Name -like '*-setup.exe')) { Write-Error '缺少 nsis 安装包' }
           if (-not ($files | Where-Object Name -like '*-installer.exe')) { Write-Error '缺少自研安装包' }
-          if (-not ($files | Where-Object Name -like '*-win-x64.zip')) { Write-Error '缺少 Forge 上架 zip' }
+          # 注意：产物名是 `..._0.2.5_win-x64.zip`（下划线分隔），模式不能用 `*-win-x64.zip`
+          if (-not ($files | Where-Object Name -like '*_win-x64.zip')) { Write-Error '缺少 Forge 上架 zip' }
           if (-not ($files | Where-Object Name -like '*.sig')) { Write-Error '缺少更新签名文件' }
           if (-not ($files | Where-Object Name -eq 'latest.json')) { Write-Error '缺少 latest.json 更新清单' }
 
