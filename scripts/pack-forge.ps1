@@ -78,3 +78,7 @@ Write-Host "  安装器  : $exeName"
 Write-Host "  安装器哈希: $installerHash"
 Write-Host ''
 Write-Host 'Forge 表单：Download Link 用 zip 的直链；VirusTotal 传这个 zip（不是 exe）。'
+
+# 显式以 0 退出：点调用 .ps1 不会自动设置 $LASTEXITCODE（它会沿用上一条原生命令的退出码），
+# 调用方若用 $LASTEXITCODE 判定，就会把「脚本其实成功了」误判成失败（2026-11-20 v0.2.5 CI 事故）。
+exit 0

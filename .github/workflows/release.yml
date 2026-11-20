@@ -134,8 +134,16 @@ jobs:
           $version = $env:RELEASE_TAG.TrimStart('v')
           $installer = Get-ChildItem 'src-tauri/target/release/bundle/drx-setup' -Filter '*-installer.exe' | Select-Object -First 1
           if (-not $installer) { Write-Error '缺少自研安装包' }
-          & ./scripts/pack-forge.ps1 -Installer $installer.FullName -Version $version -OutDir 'src-tauri/target/release/bundle'
-          if ($LASTEXITCODE -ne 0) { Write-Error 'Forge 上架包打包失败' }
+          # 用 try/catch 判成败：点调用 .ps1 不设 $LASTEXITCODE，靠它判定会把成功误判成失败（v0.2.5 事故）
+          try {
+            & ./scripts/pack-forge.ps1 -Installer $installer.FullName -Version $version -OutDir 'src-tauri/target/release/bundle'
+          } catch {
+            Write-Host $_
+            Write-Error 'Forge 上架包打包失败'
+          }
+          $zip = Get-ChildItem 'src-tauri/target/release/bundle' -Filter 'Phoenix-DRX_*_win-x64.zip' | Select-Object -First 1
+          if (-not $zip) { Write-Error '缺少 Forge 上架 zip' }
+          Write-Host "Forge zip: $($zip.FullName) ($($zip.Length) bytes)"
 
       - name: 校验产物齐全
         shell: pwsh
