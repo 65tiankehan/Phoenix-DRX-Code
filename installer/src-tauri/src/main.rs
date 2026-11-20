@@ -53,11 +53,22 @@ fn webview2_guard() {
         std::ffi::OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
     }
     if !webview2_installed() {
+        let (body, title) = if ui_language() == "zh-CN" {
+            (
+                "Phoenix-DRX 安装器需要系统的 WebView2 运行环境。\n点击「确定」打开微软官方下载页，安装后重新运行本安装器。",
+                "Phoenix-DRX 安装",
+            )
+        } else {
+            (
+                "The Phoenix-DRX installer needs the Microsoft WebView2 runtime.\nClick OK to open the official download page, then run this installer again.",
+                "Phoenix-DRX Setup",
+            )
+        };
         unsafe {
             MessageBoxW(
                 std::ptr::null_mut(),
-                wide("Phoenix-DRX 安装器需要系统的 WebView2 运行环境。\n点击「确定」打开微软官方下载页，安装后重新运行本安装器。").as_ptr(),
-                wide("Phoenix-DRX 安装").as_ptr(),
+                wide(body).as_ptr(),
+                wide(title).as_ptr(),
                 MB_OK | MB_ICONWARNING | MB_SETFOREGROUND,
             );
             ShellExecuteW(
@@ -85,6 +96,9 @@ struct Config {
     publisher: String,
     version: String,
     tagline: String,
+    /// 英文副标题；缺省时回退 `tagline`（老配置兼容）
+    #[serde(default)]
+    tagline_en: Option<String>,
     default_dir_name: String,
     payload_size_mb: f64,
     shortcuts: ShortcutsCfg,
@@ -121,6 +135,11 @@ struct AdsSlide {
     color: String,
     title: String,
     desc: String,
+    /// 英文版文案；缺省时前端回退中文字段
+    #[serde(default)]
+    title_en: Option<String>,
+    #[serde(default)]
+    desc_en: Option<String>,
     url: Option<String>,
 }
 
@@ -131,6 +150,8 @@ struct LaunchInfo {
     default_dir: String,
     install_dir: String,
     launch_mode: String, // install | uninstall
+    /// 安装器界面语言（`zh-CN` | `en-US`），由系统显示语言决定，与 WebView 的 navigator.language 保持一致
+    ui_language: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -147,6 +168,33 @@ struct InstallState {
 
 fn config() -> Config {
     serde_json::from_str(CONFIG_JSON).expect("installer-config.json 非法")
+}
+
+/// 安装器界面语言：取系统显示语言的主语言 ID（低 10 位），中文家族 → `zh-CN`，其余一律 `en-US`。
+/// Rust 侧消息框与 WebView 页面共用这一个判断，避免两边语言不一致。
+/// 调试入口：环境变量 `PHX_INSTALLER_LANG=en-US|zh-CN` 可强制语言，用于在中文机上核对英文界面（不改变正式行为）。
+#[cfg(windows)]
+fn ui_language() -> &'static str {
+    if let Ok(forced) = std::env::var("PHX_INSTALLER_LANG") {
+        if forced.eq_ignore_ascii_case("en-US") {
+            return "en-US";
+        }
+        if forced.eq_ignore_ascii_case("zh-CN") {
+            return "zh-CN";
+        }
+    }
+    // SAFETY: GetUserDefaultUILanguage 无参数、无副作用；失败时系统返回默认语言 ID，不会 panic。
+    let langid = unsafe { windows_sys::Win32::Globalization::GetUserDefaultUILanguage() };
+    if langid & 0x3FF == 0x04 {
+        "zh-CN"
+    } else {
+        "en-US"
+    }
+}
+
+#[cfg(not(windows))]
+fn ui_language() -> &'static str {
+    "en-US"
 }
 
 fn default_install_dir() -> PathBuf {
@@ -405,6 +453,7 @@ fn installer_info() -> LaunchInfo {
         default_dir: resolve_default_dir().to_string_lossy().to_string(),
         install_dir,
         launch_mode: mode.into(),
+        ui_language: ui_language().into(),
     }
 }
 

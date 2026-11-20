@@ -1,7 +1,8 @@
 import zhCN from './zh-CN.json'
 import enUS from './en-US.json'
+import { localeFromSystem, type Locale } from './locale'
 
-export type Locale = 'zh-CN' | 'en-US'
+export type { Locale }
 export type MessageKey = keyof typeof zhCN
 
 const dicts: Record<Locale, Record<string, string>> = {
@@ -11,15 +12,19 @@ const dicts: Record<Locale, Record<string, string>> = {
 
 const LOCALE_KEY = 'phx.locale'
 
-/** 启动即读持久化语言（localStorage 同步读，避免首帧语言闪烁） */
+/** 启动即读持久化语言（localStorage 同步读，避免首帧语言闪烁）；没有记录时跟随系统 */
 function initialLocale(): Locale {
   try {
     const saved = localStorage.getItem(LOCALE_KEY)
     if (saved === 'zh-CN' || saved === 'en-US') return saved
   } catch {
-    /* 存储不可用时回落默认 */
+    /* 存储不可用时走系统判定 */
   }
-  return 'zh-CN'
+  try {
+    return localeFromSystem(navigator.languages)
+  } catch {
+    return 'zh-CN'
+  }
 }
 
 /** 当前语言（runes 全局状态；切换入口在设置页，偏好持久化在 localStorage） */

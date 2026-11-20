@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>Phoenix-DRX 安装</title>
+<title>Phoenix-DRX Setup</title>
 <style>
   :root {
     --phx-win-bg: #09090b;
@@ -191,25 +191,25 @@
       </div>
       <div class="su-slot">
         <div class="field-card">
-          <div class="f-label">安装位置</div>
+          <div class="f-label" data-i18n="installDir"></div>
           <div class="f-row">
             <div class="f-path" id="pathText"></div>
-            <button class="btn btn-ghost btn-sm" type="button" id="browseBtn">浏览…</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="browseBtn" data-i18n="browse">浏览…</button>
           </div>
           <div class="f-size" id="sizeLine"></div>
         </div>
         <div class="opt-row">
-          <span class="opt-text">创建桌面快捷方式</span>
+          <span class="opt-text" data-i18n="desktopShortcut">创建桌面快捷方式</span>
           <button class="sw" type="button" id="swDesktop"></button>
         </div>
         <div class="opt-row">
-          <span class="opt-text">开始菜单快捷方式<span class="sub">建议保留，卸载与「添加/删除程序」依赖安装登记</span></span>
+          <span class="opt-text" data-i18n-html="startMenuShortcut">开始菜单快捷方式<span class="sub">建议保留，卸载与「添加/删除程序」依赖安装登记</span></span>
           <button class="sw on" type="button" id="swStartMenu"></button>
         </div>
         <div class="car-strip bottom" id="adWelcome"></div>
       </div>
       <div class="su-actions">
-        <button class="btn btn-primary" type="button" id="installBtn">立即安装</button>
+        <button class="btn btn-primary" type="button" id="installBtn" data-i18n="install">立即安装</button>
       </div>
     </div>
 
@@ -223,8 +223,8 @@
           </svg>
         </div>
         <div>
-          <div class="su-h-title">正在安装</div>
-          <div class="su-h-sub">解压文件到安装目录，并完成系统登记</div>
+          <div class="su-h-title" data-i18n="installingTitle">正在安装</div>
+          <div class="su-h-sub" data-i18n="installingSub">解压文件到安装目录，并完成系统登记</div>
         </div>
       </div>
       <div class="su-slot">
@@ -247,20 +247,20 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
         </div>
         <div>
-          <div class="su-h-title">安装完成</div>
+          <div class="su-h-title" data-i18n="doneTitle">安装完成</div>
           <div class="su-h-sub" id="doneSub"></div>
         </div>
       </div>
       <div class="su-slot">
         <div class="opt-row">
-          <span class="opt-text">安装完成后立即运行 Phoenix-DRX</span>
+          <span class="opt-text" data-i18n="runAfter">安装完成后立即运行 Phoenix-DRX</span>
           <button class="sw on" type="button" id="swRun"></button>
         </div>
-        <div class="warn-note" style="margin-top:12px"><b>小贴士</b>首次启动需要选择 SPT 服务器目录；以后更新会直接在应用内提示，无需重新下载安装包。</div>
+        <div class="warn-note" style="margin-top:12px" data-i18n-html="doneTip"><b>小贴士</b>首次启动需要选择 SPT 服务器目录；以后更新会直接在应用内提示，无需重新下载安装包。</div>
         <div class="car-strip bottom" id="adDone"></div>
       </div>
       <div class="su-actions">
-        <button class="btn btn-primary" type="button" id="finishBtn">完成</button>
+        <button class="btn btn-primary" type="button" id="finishBtn" data-i18n="finish">完成</button>
       </div>
     </div>
 
@@ -272,24 +272,24 @@
         </div>
         <div>
           <div class="su-h-title" id="uTitle">卸载 Phoenix-DRX？</div>
-          <div class="su-h-sub">将移除程序本体、快捷方式与安装登记</div>
+          <div class="su-h-sub" data-i18n="uninstallSub">将移除程序本体、快捷方式与安装登记</div>
         </div>
       </div>
       <div class="su-slot">
         <div class="field-card">
-          <div class="f-label">安装目录</div>
+          <div class="f-label" data-i18n="installFolder"></div>
           <div class="f-path" id="uDir"></div>
         </div>
         <div class="opt-row">
-          <span class="opt-text">同时删除个人数据<span class="sub">存档编辑记录、设置与本地备份（默认保留）</span></span>
+          <span class="opt-text" data-i18n-html="delData">同时删除个人数据<span class="sub">存档编辑记录、设置与本地备份（默认保留）</span></span>
           <button class="sw" type="button" id="swDelData"></button>
         </div>
-        <div class="warn-note" style="margin-top:12px"><b>提示</b>卸载前请确认 SPT 游戏与存档未被本程序占用；游戏本体与存档不受影响。</div>
+        <div class="warn-note" style="margin-top:12px" data-i18n-html="uninstallNote"><b>提示</b>卸载前请确认 SPT 游戏与存档未被本程序占用；游戏本体与存档不受影响。</div>
         <div class="car-strip bottom" id="adUninstall"></div>
       </div>
       <div class="su-actions">
-        <button class="btn btn-ghost" type="button" id="uCancelBtn">取消</button>
-        <button class="btn btn-danger" type="button" id="uGoBtn">卸载</button>
+        <button class="btn btn-ghost" type="button" id="uCancelBtn" data-i18n="cancel">取消</button>
+        <button class="btn btn-danger" type="button" id="uGoBtn" data-i18n="uninstall">卸载</button>
       </div>
     </div>
 
@@ -299,11 +299,11 @@
 <!-- 中止安装确认 -->
 <div class="abort-overlay" id="abortOverlay">
   <div class="abort-card">
-    <div class="abort-t">确定中止安装？</div>
-    <div class="abort-s">已复制到安装目录的文件可能残留，中止后可重新运行安装器覆盖安装。</div>
+    <div class="abort-t" data-i18n="abortTitle">确定中止安装？</div>
+    <div class="abort-s" data-i18n="abortSub">已复制到安装目录的文件可能残留，中止后可重新运行安装器覆盖安装。</div>
     <div class="abort-btns">
-      <button class="btn btn-ghost" type="button" id="abortNo" style="flex:1">继续安装</button>
-      <button class="btn btn-danger" type="button" id="abortYes" style="flex:1">中止安装</button>
+      <button class="btn btn-ghost" type="button" id="abortNo" style="flex:1" data-i18n="keepInstalling">继续安装</button>
+      <button class="btn btn-danger" type="button" id="abortYes" style="flex:1" data-i18n="abortInstall">中止安装</button>
     </div>
   </div>
 </div>
@@ -313,12 +313,111 @@
   const { listen } = window.__TAURI__.event
   const { getCurrentWindow } = window.__TAURI__.window
 
+  /* 双语字典：key 与 index.html 里的 data-i18n / data-i18n-html 一一对应。
+     缺 key 时回退中文（开发期就能看出来），英文文案由 installer-config.json 的 *En 字段提供特色轮播。 */
+  const I18N = {
+    'zh-CN': {
+      titleInstall: '{name} 安装',
+      titleUninstall: '{name} 卸载',
+      welcomeTitle: '欢迎安装 {name}',
+      welcomeSub: '版本 {v} · {tagline}',
+      sizeLine: '需要空间约 {mb} MB · 仅当前用户安装，无需管理员权限',
+      installDir: '安装位置',
+      installFolder: '安装目录',
+      browse: '浏览…',
+      desktopShortcut: '创建桌面快捷方式',
+      startMenuShortcut: '开始菜单快捷方式<span class="sub">建议保留，卸载与「添加/删除程序」依赖安装登记</span>',
+      install: '立即安装',
+      installingTitle: '正在安装',
+      installingSub: '解压文件到安装目录，并完成系统登记',
+      installingHead: '正在卸载',
+      doneTitle: '安装完成',
+      doneSub: '已安装到 {dir}',
+      runAfter: '安装完成后立即运行 Phoenix-DRX',
+      doneTip: '<b>小贴士</b>首次启动需要选择 SPT 服务器目录；以后更新会直接在应用内提示，无需重新下载安装包。',
+      finish: '完成',
+      uninstallTitle: '卸载 {name}？',
+      uninstallSub: '将移除程序本体、快捷方式与安装登记',
+      delData: '同时删除个人数据<span class="sub">存档编辑记录、设置与本地备份（默认保留）</span>',
+      uninstallNote: '<b>提示</b>卸载前请确认 SPT 游戏与存档未被本程序占用；游戏本体与存档不受影响。',
+      cancel: '取消',
+      uninstall: '卸载',
+      abortTitle: '确定中止安装？',
+      abortSub: '已复制到安装目录的文件可能残留，中止后可重新运行安装器覆盖安装。',
+      keepInstalling: '继续安装',
+      abortInstall: '中止安装',
+      adTag: '推广',
+      stepExtracting: '解压程序文件',
+      stepRegistry: '写入安装登记（添加/删除程序）',
+      stepShortcuts: '创建快捷方式',
+      ustepKilling: '结束正在运行的主程序',
+      ustepRemoving: '清理快捷方式、登记与程序文件',
+      ustepDone: '卸载完成',
+      errInit: '初始化错误：',
+      errInstall: '安装失败：',
+      errUninstall: '卸载失败：'
+    },
+    'en-US': {
+      titleInstall: '{name} Setup',
+      titleUninstall: '{name} Setup',
+      welcomeTitle: 'Welcome to {name}',
+      welcomeSub: 'Version {v} · {tagline}',
+      sizeLine: 'About {mb} MB required · installs for the current user, no admin rights needed',
+      installDir: 'Install location',
+      installFolder: 'Install folder',
+      browse: 'Browse…',
+      desktopShortcut: 'Create a desktop shortcut',
+      startMenuShortcut: 'Start menu shortcut<span class="sub">Recommended — uninstall and “Add or remove programs” rely on this entry</span>',
+      install: 'Install',
+      installingTitle: 'Installing',
+      installingSub: 'Extracting files and registering the install',
+      installingHead: 'Uninstalling',
+      doneTitle: 'Installation complete',
+      doneSub: 'Installed to {dir}',
+      runAfter: 'Launch Phoenix-DRX when done',
+      doneTip: '<b>Tip</b>On first launch you pick your SPT server folder. Later updates are offered inside the app — no need to download an installer again.',
+      finish: 'Finish',
+      uninstallTitle: 'Uninstall {name}?',
+      uninstallSub: 'This removes the program, its shortcuts and the install registration',
+      delData: 'Also delete personal data<span class="sub">Editing history, settings and local backups (kept by default)</span>',
+      uninstallNote: '<b>Note</b>Make sure SPT and your profile are not in use by this program. The game and your profiles are not affected.',
+      cancel: 'Cancel',
+      uninstall: 'Uninstall',
+      abortTitle: 'Abort the installation?',
+      abortSub: 'Files already copied to the install folder may remain. You can run the installer again to overwrite.',
+      keepInstalling: 'Keep installing',
+      abortInstall: 'Abort',
+      adTag: 'Ad',
+      stepExtracting: 'Extracting program files',
+      stepRegistry: 'Writing the install registration',
+      stepShortcuts: 'Creating shortcuts',
+      ustepKilling: 'Closing the running app',
+      ustepRemoving: 'Removing shortcuts, registration and files',
+      ustepDone: 'Uninstall complete',
+      errInit: 'Startup error: ',
+      errInstall: 'Install failed: ',
+      errUninstall: 'Uninstall failed: '
+    }
+  }
+  let LANG = 'zh-CN'
+  function t(key, params) {
+    const dict = I18N[LANG] || I18N['zh-CN']
+    let out = dict[key] ?? I18N['zh-CN'][key] ?? key
+    if (params) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m))
+    return out
+  }
+  function applyStaticText() {
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n) })
+    document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml) })
+    document.title = 'Phoenix-DRX Setup'
+  }
+
   const $ = (id) => document.getElementById(id)
   /* 初始化/运行期错误上屏：安装器没有 devtools 常开场景，出错必须可见 */
   function showFatal(msg) {
     const el = document.createElement('div')
     el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99;font-size:11px;color:#ff6961;background:rgba(0,0,0,.85);padding:8px 10px;border-radius:8px;word-break:break-all'
-    el.textContent = '初始化错误：' + msg
+    el.textContent = t('errInit') + msg
     document.body.appendChild(el)
   }
   window.addEventListener('error', (e) => showFatal(e.message))
@@ -347,11 +446,11 @@
     document.querySelectorAll('.car-strip').forEach((el) => {
       if (!state.info.config.ads.enabled) { el.style.display = 'none'; return }
       const s = slides[carIdx]
-      const tag = s.kind === 'ad' ? '<span class="ad-tag">推广</span>' : ''
+      const tag = s.kind === 'ad' ? '<span class="ad-tag">' + t('adTag') + '</span>' : ''
       const dots = slides.map((_, i) => `<span class="car-dot ${i === carIdx ? 'on' : ''}" data-i="${i}"></span>`).join('')
       el.innerHTML = `
         <div class="car-ico sl-${s.color[0]}">${SLIDE_ICON[s.color] || SLIDE_ICON.accent}</div>
-        <div class="car-copy"><div class="car-t">${s.title}${tag}</div><div class="car-s">${s.desc}</div></div>
+        <div class="car-copy"><div class="car-t">${LANG === 'zh-CN' ? s.title : (s.titleEn || s.title)}${tag}</div><div class="car-s">${LANG === 'zh-CN' ? s.desc : (s.descEn || s.desc)}</div></div>
         <div class="car-dots">${dots}</div>`
       el.querySelectorAll('.car-dot').forEach((d) =>
         d.addEventListener('click', (ev) => { ev.stopPropagation(); carIdx = +d.dataset.i; renderCarousels() })
@@ -375,22 +474,22 @@
 
   /* 安装中步骤（S2 实装三项；WebView2 检测在安装器启动前完成——缺失时本机消息框引导，不进清单，不放假步骤） */
   const STEPS = [
-    { key: 'extracting', text: '解压程序文件' },
-    { key: 'registry', text: '写入安装登记（添加/删除程序）' },
-    { key: 'shortcuts', text: '创建快捷方式' }
+    { key: 'extracting', text: 'stepExtracting' },
+    { key: 'registry', text: 'stepRegistry' },
+    { key: 'shortcuts', text: 'stepShortcuts' }
   ]
   /* 卸载步骤（run_uninstall 的三个阶段） */
   const USTEPS = [
-    { key: 'killing', text: '结束正在运行的主程序' },
-    { key: 'removing', text: '清理快捷方式、登记与程序文件' },
-    { key: 'udone', text: '卸载完成' }
+    { key: 'killing', text: 'ustepKilling' },
+    { key: 'removing', text: 'ustepRemoving' },
+    { key: 'udone', text: 'ustepDone' }
   ]
   function renderSteps(list, activeKey) {
     const idx = list.findIndex((s) => s.key === activeKey)
     $('steps').innerHTML = list.map((s, i) => {
       const cls = i < idx ? 'done' : i === idx ? 'active' : 'pending'
       const check = cls === 'done' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>' : ''
-      return `<div class="step ${cls}"><span class="st-ico ${cls}">${check}</span><span class="st-text">${s.text}</span></div>`
+      return `<div class="step ${cls}"><span class="st-ico ${cls}">${check}</span><span class="st-text">${t(s.text)}</span></div>`
     }).join('')
   }
 
@@ -401,11 +500,14 @@
 
   async function init() {
     state.info = await invoke('installer_info')
+  /* 语言在拿到 Rust 侧的系统语言判定后立刻生效：先刷静态文案，再走下面的动态文案 */
+  LANG = state.info.uiLanguage || 'zh-CN'
+  applyStaticText()
     const cfg = state.info.config
-    $('tbLabel').textContent = `${cfg.displayName} 安装`
-    $('wTitle').textContent = `欢迎安装 ${cfg.displayName}`
-    $('wSub').textContent = `版本 ${cfg.version} · ${cfg.tagline}`
-    $('sizeLine').textContent = `需要空间约 ${cfg.payloadSizeMb} MB · 仅当前用户安装，无需管理员权限`
+    $('tbLabel').textContent = t('titleInstall', { name: cfg.displayName })
+    $('wTitle').textContent = t('welcomeTitle', { name: cfg.displayName })
+    $('wSub').textContent = t('welcomeSub', { v: cfg.version, tagline: (LANG === 'zh-CN' ? cfg.tagline : (cfg.taglineEn || cfg.tagline)) })
+    $('sizeLine').textContent = t('sizeLine', { mb: cfg.payloadSizeMb })
     state.targetDir = state.info.defaultDir
     renderPath($('pathText'), state.targetDir, cfg.defaultDirName)
     $('swDesktop').classList.toggle('on', cfg.shortcuts.desktop)
@@ -459,15 +561,15 @@
     /* 卸载模式（Uninstall.exe 以 --uninstall 启动）：仅一屏确认 → 复用安装中视图显示进度 */
     state.mode = state.info.launchMode
     if (state.mode === 'uninstall') {
-      $('tbLabel').textContent = `${cfg.displayName} 卸载`
-      $('uTitle').textContent = `卸载 ${cfg.displayName}？`
+      $('tbLabel').textContent = t('titleUninstall', { name: cfg.displayName })
+      $('uTitle').textContent = t('uninstallTitle', { name: cfg.displayName })
       $('uDir').textContent = state.info.installDir
       show('viewUninstall')
       $('uCancelBtn').addEventListener('click', () => getCurrentWindow().close())
       bindSwitch('swDelData', () => state.delData, (v) => (state.delData = v))
       $('uGoBtn').addEventListener('click', () => {
         show('viewInstalling')
-        $('viewInstalling').querySelector('.su-h-title').textContent = '正在卸载'
+        $('viewInstalling').querySelector('.su-h-title').textContent = t('installingHead')
         renderSteps(USTEPS, 'killing')
         invoke('uninstall_start', { keepData: !state.delData }).catch((e) => {
           $('errLine').style.display = 'block'
@@ -486,12 +588,12 @@
         $('progFill').style.width = '100%'
         if (state.mode === 'uninstall') return // 卸载完成由 Rust 侧 app.exit 收尾
         state.installDone = true
-        $('doneSub').textContent = `已安装到 ${state.targetDir}`
+        $('doneSub').textContent = t('doneSub', { dir: state.targetDir })
         setTimeout(() => show('viewDone'), 350)
       } else if (p.phase === 'error') {
         renderSteps(steps, lastKey)
         $('errLine').style.display = 'block'
-        $('errLine').textContent = (state.mode === 'uninstall' ? '卸载失败：' : '安装失败：') + p.step
+        $('errLine').textContent = (state.mode === 'uninstall' ? t('errUninstall') : t('errInstall')) + p.step
       } else {
         renderSteps(steps, p.phase)
         $('progPct').textContent = Math.floor(p.percent) + '%'
