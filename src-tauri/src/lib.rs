@@ -13,6 +13,7 @@ mod assistant;
 mod auth;
 mod backup;
 mod character;
+mod encyclopedia;
 mod health;
 mod hideout;
 mod inspect;
@@ -308,6 +309,12 @@ async fn weapon_export(
 #[tauri::command]
 async fn presets_load(app: AppHandle, id: String) -> Option<PresetsData> {
     presets::load_presets(&app, &id)
+}
+
+/// 物品图鉴：全量分类树 + 物品行（只读，不碰存档）
+#[tauri::command]
+async fn encyclopedia_catalog(app: AppHandle) -> Option<encyclopedia::Catalog> {
+    encyclopedia::catalog(&app)
 }
 
 /// 移除单个预设（先备份）
@@ -636,6 +643,7 @@ pub fn run() {
             health_load, health_save,
             hideout_load, hideout_save,
             stash_load, stash_save,
+            encyclopedia_catalog,
             scav_load, scav_save,
             inspect_weapon, builds_global, preset_add, preset_export, weapon_export,
             presets_load, build_remove, builds_remove_all, build_to_stash,

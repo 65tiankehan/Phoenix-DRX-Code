@@ -81,6 +81,7 @@
     | '/quests'
     | '/hideout'
     | '/presets'
+    | '/encyclopedia'
 
   interface DashEntry {
     key: keyof typeof ICON
@@ -108,7 +109,7 @@
         { key: 'traders', to: '/traders' },
         { key: 'stash', to: '/stash' },
         { key: 'pockets', soon: true },
-        { key: 'encyclopedia', soon: true },
+        { key: 'encyclopedia', to: '/encyclopedia' },
         { key: 'inspect', to: '/inspect' },
         { key: 'dataDir' }
       ]

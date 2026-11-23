@@ -493,7 +493,7 @@ export type PhxStashOp =
   | { op: 'addMoney'; tpl: string; amount: number }
   | { op: 'setBonusRows'; count: number }
   | { op: 'removeItems'; ids: string[] }
-  | { op: 'addItem'; tpl: string }
+  | { op: 'addItem'; tpl: string; count?: number }
   | { op: 'addBuild'; presetId: string }
 
 export interface PhxStashSaveData {
@@ -505,6 +505,39 @@ export const phxStash = {
   load: (id: string): Promise<PhxStashData | null> => invoke('stash_load', { id }),
   save: (id: string, data: PhxStashSaveData): Promise<PhxSaveResult> =>
     invoke('stash_save', { id, data })
+}
+
+/** 物品图鉴：分类树 + 全量物品行（只读，服务端数据库直读） */
+export interface PhxCatalogCategory {
+  id: string
+  name: string
+  parent: string | null
+  /** 相对根节点的层级：1 = 一级分类 */
+  depth: number
+  count: number
+}
+
+export interface PhxCatalogItem {
+  tpl: string
+  name: string
+  short: string
+  /** 最贴近的叶子分类 id */
+  leaf: string
+  w: number
+  h: number
+  stack: number
+  price: number
+  rarity: string
+}
+
+export interface PhxCatalog {
+  categories: PhxCatalogCategory[]
+  items: PhxCatalogItem[]
+  orphans: number
+}
+
+export const phxEncyclopedia = {
+  catalog: (): Promise<PhxCatalog | null> => invoke('encyclopedia_catalog')
 }
 
 /** Scav 装备 / 口袋页数据（装备槽 + 口袋物品 + 口袋容器名；与 PMC 仓库装备同构） */

@@ -20,7 +20,7 @@ use crate::traders::{load_traders, save_traders, TradersSaveData, TraderSaveRow}
 // ----- 白名单操作定义（前端预览卡 ↔ 执行器共用） -----
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AiOp {
     /// 全部战斗与身体素质技能设为 N 级（1..=51，Progress=N*100 夹 cap；跳过 bot 技能）
     SkillsAll { level: i64 },
@@ -280,4 +280,41 @@ fn set_money(app: &AppHandle, tpl: &str, target: i64) -> Result<(), String> {
     let text = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, text).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// AI 计划里 arsenalApply 的字段是 camelCase（前端与提示词 schema 都按 `setId`/`weaponOnly`），
+    /// enum 必须 rename_all_fields，否则报 `missing field 'set_id'`。
+    #[test]
+    fn arsenal_apply_op_accepts_camel_case_fields() {
+        let op: AiOp = serde_json::from_str(
+            r#"{"kind":"arsenalApply","setId":"mid","weaponOnly":true}"#,
+        )
+        .expect("camelCase setId/weaponOnly 应能反序列化");
+        match op {
+            AiOp::ArsenalApply { set_id, weapon_only } => {
+                assert_eq!(set_id, "mid");
+                assert!(weapon_only);
+            }
+            _ => panic!("变体不符"),
+        }
+    }
+
+    /// 单词字段的变体不受影响；未知 kind 仍应报错
+    #[test]
+    fn other_ai_ops_still_deserialize() {
+        for raw in [
+            r#"{"kind":"skillsAll","level":51}"#,
+            r#"{"kind":"moneySet","rub":1000}"#,
+            r#"{"kind":"clothingUnlockAll","head":"h","voice":"v"}"#,
+            r#"{"kind":"setLook"}"#,
+        ] {
+            let op: AiOp = serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{raw} 失败: {e}"));
+            let _ = op;
+        }
+        assert!(serde_json::from_str::<AiOp>(r#"{"kind":"nope"}"#).is_err());
+    }
 }

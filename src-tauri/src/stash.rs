@@ -146,7 +146,7 @@ pub struct StashData {
 
 /// 写回操作（op 列表逐条执行，一次备份）
 #[derive(Debug, Deserialize)]
-#[serde(tag = "op", rename_all = "camelCase")]
+#[serde(tag = "op", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum StashOp {
     AddMoney {
         tpl: String,
@@ -160,6 +160,9 @@ pub enum StashOp {
     },
     AddItem {
         tpl: String,
+        /// 要加的数量；旧前端只传 tpl 时按 1 处理
+        #[serde(default)]
+        count: Option<i64>,
     },
     /// 把全局武器预设整树复制进仓库（根走放置引擎定位，零件挂根下原 slotId，
     /// 全部物品 id 重映射避免与档案冲突；图鉴「加入仓库」）
@@ -648,9 +651,17 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
                         .unwrap_or(true)
                 });
             }
-            StashOp::AddItem { tpl } => {
+            StashOp::AddItem { tpl, count } => {
                 let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
-                add_item_to_stash(&mut raw, &stash_id, tpl, &db_dir, &db, seq as u32)?;
+                add_item_to_stash(
+                    &mut raw,
+                    &stash_id,
+                    tpl,
+                    &db_dir,
+                    &db,
+                    seq as u32,
+                    count.unwrap_or(1),
+                )?;
             }
             StashOp::AddBuild { preset_id } => {
                 let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
@@ -667,6 +678,9 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
 }
 
 /// 添加物品（简化放置引擎，模块头注释有口径说明）
+///
+/// `want` 为要加的数量：可堆叠物品先补满仓库里已有的同类堆，再开新叠；
+/// 不可堆叠物品一件一个。上限 100，避免一次点击把仓库塞爆。
 pub(crate) fn add_item_to_stash(
     raw: &mut Value,
     stash_id: &str,
@@ -674,28 +688,81 @@ pub(crate) fn add_item_to_stash(
     db_dir: &str,
     db: &ItemsDb,
     seq: u32,
+    want: i64,
 ) -> Result<(), String> {
     let props = db
         .entries
         .get(tpl)
         .ok_or_else(|| format!("未知物品模板: {}", tpl))?;
     let stack_max = props.stack_max.max(1);
-    let (place_x, place_y, rotated) = find_free_slot(raw, stash_id, tpl, db_dir, db)?;
-    let items = raw
-        .pointer_mut("/characters/pmc/Inventory/items")
-        .and_then(|v| v.as_array_mut())
-        .ok_or("Inventory.items 缺失")?;
-    let mut new_it = json!({
-        "_id": new_item_id(seq),
-        "_tpl": tpl,
-        "parentId": stash_id,
-        "slotId": "hideout",
-        "location": { "x": place_x, "y": place_y, "r": if rotated { 1 } else { 0 } }
-    });
+    let mut left = want.clamp(1, 100);
+
+    // 先把仓库里已有的同类堆补满（只有直接挂在仓库下的算，容器内的不动 —— 与加钱口径一致）
     if stack_max > 1 {
-        new_it["upd"] = json!({ "StackObjectsCount": 1 });
+        let ids: Vec<String> = raw
+            .pointer("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter(|it| {
+                        it.get("parentId").and_then(Value::as_str) == Some(stash_id)
+                            && it.get("_tpl").and_then(Value::as_str) == Some(tpl)
+                    })
+                    .filter_map(|it| it.get("_id").and_then(Value::as_str).map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        for id in ids {
+            if left <= 0 {
+                break;
+            }
+            let Some(items) = raw
+                .pointer_mut("/characters/pmc/Inventory/items")
+                .and_then(Value::as_array_mut)
+            else {
+                break;
+            };
+            let Some(it) = items
+                .iter_mut()
+                .find(|i| i.get("_id").and_then(Value::as_str) == Some(id.as_str()))
+            else {
+                continue;
+            };
+            let Some(cur) = it.pointer_mut("/upd/StackObjectsCount") else {
+                continue;
+            };
+            let now = cur.as_f64().unwrap_or(0.0) as i64;
+            let room = (stack_max - now).max(0);
+            if room == 0 {
+                continue;
+            }
+            let add = room.min(left);
+            *cur = json!(now + add);
+            left -= add;
+        }
     }
-    items.push(new_it);
+
+    // 剩余的开新叠/新件
+    while left > 0 {
+        let count = left.min(stack_max);
+        let (place_x, place_y, rotated) = find_free_slot(raw, stash_id, tpl, db_dir, db)?;
+        let items = raw
+            .pointer_mut("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array_mut())
+            .ok_or("Inventory.items 缺失")?;
+        let mut new_it = json!({
+            "_id": new_item_id(seq.wrapping_add(items.len() as u32)),
+            "_tpl": tpl,
+            "parentId": stash_id,
+            "slotId": "hideout",
+            "location": { "x": place_x, "y": place_y, "r": if rotated { 1 } else { 0 } }
+        });
+        if stack_max > 1 {
+            new_it["upd"] = json!({ "StackObjectsCount": count });
+        }
+        items.push(new_it);
+        left -= count;
+    }
     Ok(())
 }
 
@@ -916,6 +983,33 @@ pub(crate) fn stash_grid_size(db_dir: &str, stash_tpl: &str) -> Result<(i64, i64
 mod tests {
     use super::*;
 
+    /// 前端发的是 camelCase（`{op:'addBuild', presetId}`），
+    /// enum 光加 rename_all 不会重命名字段，必须 rename_all_fields —— 否则报
+    /// `missing field 'preset_id'`（v0.2.5 图鉴「加入仓库」事故）。
+    #[test]
+    fn add_build_op_accepts_camel_case_preset_id() {
+        let d: StashSaveData =
+            serde_json::from_str(r#"{"ops":[{"op":"addBuild","presetId":"6aeb01f9"}]}"#)
+                .expect("camelCase presetId 应能反序列化");
+        match d.ops.as_slice() {
+            [StashOp::AddBuild { preset_id }] => assert_eq!(preset_id, "6aeb01f9"),
+            other => panic!("变体不符: {:?}", other.len()),
+        }
+    }
+
+    /// 其余变体的字段不受影响
+    #[test]
+    fn other_ops_still_deserialize() {
+        let d: StashSaveData = serde_json::from_str(
+            r#"{"ops":[{"op":"addMoney","tpl":"5696686a4bdc2da3298b456a","amount":1000},
+                       {"op":"setBonusRows","count":2},
+                       {"op":"removeItems","ids":["a"]},
+                       {"op":"addItem","tpl":"x"}]}"#,
+        )
+        .expect("其它 op 应能反序列化");
+        assert_eq!(d.ops.len(), 4);
+    }
+
     /// 本机真实库自检（默认忽略）：4.1.6 的 stash 模板键为小写 cellsV/cellsH
     #[test]
     #[ignore = "需要本机 SPT 安装 E:\\EFT"]
@@ -1101,5 +1195,88 @@ mod tests {
         }
         let (path, rubles) = found.expect("没有任何存档能算出卢布");
         assert!(rubles > 1_000_000, "{} 只算出 {} 卢布", path, rubles);
+    }
+
+    /// 图鉴「加入」的数量字段：camelCase 的 count 能解出，省略时为 None（按 1 件处理）
+    #[test]
+    fn add_item_accepts_optional_count() {
+        let with: StashSaveData = serde_json::from_str(
+            r#"{"ops":[{"op":"addItem","tpl":"5449016a4bdc2d6f028b456f","count":5}]}"#,
+        )
+        .unwrap();
+        match &with.ops[0] {
+            StashOp::AddItem { count, .. } => assert_eq!(*count, Some(5)),
+            other => panic!("解成了 {:?}", other),
+        }
+        let without: StashSaveData = serde_json::from_str(
+            r#"{"ops":[{"op":"addItem","tpl":"5449016a4bdc2d6f028b456f"}]}"#,
+        )
+        .unwrap();
+        match &without.ops[0] {
+            StashOp::AddItem { count, .. } => assert_eq!(*count, None),
+            other => panic!("解成了 {:?}", other),
+        }
+    }
+
+    /// 本机真实档自检（默认忽略）：一次加 12 件可堆叠小件，总量必须正好多 12。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_add_item_honours_count() {
+        let db_dir = r"E:\EFT\SPT_Runtime\SPT_Data\database";
+        let mut raw: Value = {
+            let dir = r"E:\EFT\SPT_Runtime\user\profiles";
+            let mut got = None;
+            for e in std::fs::read_dir(dir).expect("读 profiles 失败").flatten() {
+                let p = e.path();
+                if p.extension().and_then(|x| x.to_str()) != Some("json") {
+                    continue;
+                }
+                if let Ok(t) = std::fs::read_to_string(&p) {
+                    if let Ok(v) = serde_json::from_str::<Value>(&t) {
+                        if v.pointer("/characters/pmc/Inventory/stash").is_some() {
+                            got = Some(v);
+                            break;
+                        }
+                    }
+                }
+            }
+            got.expect("没有可用存档")
+        };
+        let db = ItemsDb::load_from(Path::new(db_dir), None);
+        // 挑一个可堆叠、1×1 的模板，保证仓库放得下 12 件
+        let tpl = db
+            .entries
+            .iter()
+            .find(|(_, p)| p.stack_max >= 8 && p.width == 1 && p.height == 1)
+            .map(|(k, _)| k.clone())
+            .expect("物品库里没有 1×1 可堆叠物品");
+        let stash_id = raw
+            .pointer("/characters/pmc/Inventory/stash")
+            .and_then(|v| v.as_str())
+            .expect("缺 stash")
+            .to_string();
+
+        let count_in = |v: &Value| -> i64 {
+            v.pointer("/characters/pmc/Inventory/items")
+                .and_then(|x| x.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter(|it| {
+                            it.get("parentId").and_then(Value::as_str) == Some(stash_id.as_str())
+                                && it.get("_tpl").and_then(Value::as_str) == Some(tpl.as_str())
+                        })
+                        .map(|it| {
+                            it.pointer("/upd/StackObjectsCount")
+                                .and_then(Value::as_i64)
+                                .unwrap_or(1)
+                        })
+                        .sum()
+                })
+                .unwrap_or(0)
+        };
+        let before = count_in(&raw);
+        add_item_to_stash(&mut raw, &stash_id, &tpl, db_dir, &db, 0, 12).expect("加物品失败");
+        let after = count_in(&raw);
+        assert_eq!(after - before, 12, "{} 加 12 件后差 {}", tpl, after - before);
     }
 }
