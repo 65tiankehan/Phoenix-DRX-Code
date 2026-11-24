@@ -63,15 +63,29 @@ describe('视觉 token 单一来源（tokens.css）', () => {
     expect(missing).toEqual([])
   })
 
-  it('每个 token 只定义一次（无重复定义）', () => {
-    const defined = css.match(/--phx-[\w-]+\s*:/g) ?? []
-    const counts = new Map<string, number>()
-    for (const d of defined) {
-      const name = d.replace(/\s*:$/, '')
-      counts.set(name, (counts.get(name) ?? 0) + 1)
+  it('每个 token 只定义一次（暗色基座内无重复，浅色块只做覆盖不引入新名字）', () => {
+    // 2026-11-24 起有浅色主题：`:root` 是暗色基座，`:root[data-theme='light']` 是覆盖块。
+    // 覆盖块允许重定义同名 token（那是它的职责），但**不许**引入暗色没有的 token —— 否则暗色下会缺值。
+    const lightHeader = ":root[data-theme='light']"
+    const lightIdx = css.indexOf(lightHeader)
+    const darkPart = lightIdx >= 0 ? css.slice(0, lightIdx) : css
+    const lightPart = lightIdx >= 0 ? css.slice(lightIdx) : ''
+
+    const names = (part: string): string[] =>
+      (part.match(/--phx-[\w-]+\s*:/g) ?? []).map((d) => d.replace(/\s*:$/, ''))
+
+    const duplicatesIn = (part: string): [string, number][] => {
+      const counts = new Map<string, number>()
+      for (const name of names(part)) counts.set(name, (counts.get(name) ?? 0) + 1)
+      return [...counts.entries()].filter(([, n]) => n > 1)
     }
-    const duplicated = [...counts.entries()].filter(([, n]) => n > 1)
-    expect(duplicated).toEqual([])
+
+    expect(duplicatesIn(darkPart)).toEqual([])
+    expect(duplicatesIn(lightPart)).toEqual([])
+
+    const darkNames = new Set(names(darkPart))
+    const introducedByLight = [...new Set(names(lightPart))].filter((n) => !darkNames.has(n))
+    expect(introducedByLight).toEqual([])
   })
 
   it('本文件内定义的变量全部带 --phx- 前缀（单一来源纪律）', () => {

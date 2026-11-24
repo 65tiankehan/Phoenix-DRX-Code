@@ -20,6 +20,7 @@
   import { applyMotionClass } from '$lib/motion'
   import { toast } from '$lib/toast.svelte'
   import { t } from '$lib/i18n/i18n.svelte'
+  import { initTheme } from '$lib/theme.svelte'
 
   let { children }: { children: Snippet } = $props()
 
@@ -79,6 +80,7 @@
 
   onMount(() => {
     applyMotionClass() // 感官层基线：启动即挂减少动效偏好（托盘窗也要）
+    initTheme() // 主题三档（视觉基线 §三）：薄窗也要，否则托盘面板在浅色下还是暗的
     if (isThin) return // 薄窗（托盘面板/更新窗）：不参与首启编排
     void phxApp.flags().then((flags) => {
       splashMode = flags.splashSeen ? 'short' : 'full'

@@ -300,7 +300,7 @@
     width: 720px;
     height: 56px;
     margin-top: 12px;
-    border: 1.5px dashed rgba(255, 255, 255, 0.28);
+    border: 1.5px dashed var(--phx-sep-strong);
     border-radius: var(--phx-r-card);
     background: transparent;
     color: var(--phx-text-2);

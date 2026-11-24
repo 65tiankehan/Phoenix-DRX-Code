@@ -1279,10 +1279,10 @@
   .ar-thumb {
     height: 84px; flex: none; position: relative; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #16233c, #101013);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--phx-accent) 16%, var(--phx-surface)), var(--phx-surface));
   }
   .ar-thumb svg { width: 104px; height: 52px; display: block; }
-  .ar-set.on .ar-thumb { background: linear-gradient(135deg, #1d3050, #101013); }
+  .ar-set.on .ar-thumb { background: linear-gradient(135deg, color-mix(in srgb, var(--phx-accent) 24%, var(--phx-surface)), var(--phx-surface)); }
   .ar-thumb .l { fill: rgba(0,145,255,.16); stroke: rgba(0,145,255,.6); stroke-width: 2; }
   .ar-thumb .l2 { fill: none; stroke: rgba(0,145,255,.4); stroke-width: 1.4; }
   .ar-tier {
@@ -1299,7 +1299,7 @@
   }
   .ar-hero {
     height: 140px; flex: none; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #16233c 0%, #101013 70%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--phx-accent) 16%, var(--phx-surface)) 0%, var(--phx-surface) 70%);
   }
   .ar-hero svg { width: 300px; height: 120px; }
   .ar-hero .l { fill: rgba(0,145,255,.16); stroke: rgba(0,145,255,.62); stroke-width: 2.2; }

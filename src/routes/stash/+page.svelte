@@ -55,11 +55,22 @@
   let euros = $state(0)
   let bonusRows = $state(0)
   let hasModded = $state(false)
+  /** 仓库网格尺寸（0 = 服务器没给，退回列表视图） */
+  let stashCols = $state(0)
+  let stashRows = $state(0)
   let loaded = $state(false)
   /** 首次加载中：骨架屏缓冲；数据到位或确认无档案后关闭 */
   let booting = $state(true)
   let saving = $state(false)
   let seg = $state<Seg>('stash')
+  /** 仓库主区视图：格子（默认，稿图 09 屏）/ 列表（表格，便于批量找 id） */
+  let viewMode = $state<'grid' | 'list'>('grid')
+  /** 单格物品只放缩写：取名称首段（空格/括号前）最多 6 个字 */
+  function shortOf(name: string): string {
+    const head = name.split(/[\s(（]/)[0] ?? name
+    return head.slice(0, 6)
+  }
+
   let fName = $state('')
   let fId = $state('')
   let aName = $state('')
@@ -100,6 +111,116 @@
     )
   })
   const moddedCount = $derived(visItems.filter((i) => i.modded).length)
+  /** 有格位的物品（容器内子件 x = -1，不参与格子绘制） */
+  const placed = $derived(visItems.filter((i) => i.x >= 0 && i.y >= 0))
+  /** 格子视图可用：档案给出了网格尺寸且至少一件物品有坐标 */
+  const canGrid = $derived(stashCols > 0 && stashRows > 0)
+  /** 格子视图里被点选的物品（点一下选中，再决定检视/删除，避免误触） */
+  let selId = $state('')
+  /** 拖动摆放：dragId 非空表示正在拖某件物品 */
+  let dragId = $state('')
+  let dragDx = 0
+  let dragDy = 0
+  let gstageEl = $state<HTMLDivElement | null>(null)
+  /** 跟随光标的幽灵块：拖起来要看得见手上拿着什么 */
+  let dragPos = $state<{ x: number; y: number } | null>(null)
+  let dragBox = $state({ w: 0, h: 0, lx: 0, ly: 0 })
+  let dragLabel = $state('')
+  /** 刚落位的物品：松手成功后闪一下，让「放下了」看得见 */
+  let justMoved = $state('')
+  const selItem = $derived(visItems.find((i) => i.id === selId) ?? null)
+  /** 占用格数（旋转时宽高互换）；空格数 = 总格 - 占用 */
+  const usedCells = $derived(
+    placed.reduce((n, i) => n + (i.rot ? i.h : i.w) * (i.rot ? i.w : i.h), 0)
+  )
+  const freeCells = $derived(Math.max(0, stashCols * stashRows - usedCells))
+  /** 右侧「添加物品」快捷结果：按当前搜索词过滤，最多 3 条 */
+  const quickAddable = $derived.by(() => {
+    const q = aName.trim().toLowerCase()
+    const hit = q
+      ? addable.filter(
+          (a) =>
+            a.name.toLowerCase().includes(q) ||
+            a.shortName.toLowerCase().includes(q) ||
+            a.tpl.toLowerCase().includes(q)
+        )
+      : addable
+    return hit.slice(0, 3)
+  })
+
+  /** 底格坐标列表（行优先）；比 Array(n) + Math.floor 干净，也免掉未使用占位变量 */
+  const gridCells = $derived.by(() => {
+    const out: Array<{ x: number; y: number }> = []
+    for (let y = 0; y < stashRows; y++) {
+      for (let x = 0; x < stashCols; x++) out.push({ x, y })
+    }
+    return out
+  })
+
+  function switchView(mode: 'grid' | 'list'): void {
+    playSound('toggle')
+    viewMode = mode
+  }
+
+  function selectItem(id: string): void {
+    playSound('ui')
+    selId = selId === id ? '' : id
+  }
+
+  type Placed = (typeof placed)[number]
+
+  /** 指针位置 → 0 基格坐标（夹在网格范围内） */
+  function cellSize(): number {
+    if (!gstageEl) return 0
+    const box = gstageEl.getBoundingClientRect()
+    return (box.width - 4 * (stashCols - 1)) / stashCols
+  }
+
+  function startDrag(ev: PointerEvent, it: Placed): void {
+    if (ev.button !== 0 || !canGrid) return
+    const el = ev.currentTarget as HTMLElement
+    const rect = el.getBoundingClientRect()
+    dragDx = ev.clientX - rect.left
+    dragDy = ev.clientY - rect.top
+    dragBox = { w: rect.width, h: rect.height, lx: dragDx, ly: dragDy }
+    dragLabel = it.w * it.h > 1 ? it.name : shortOf(it.name)
+    dragId = it.id
+    dragPos = { x: ev.clientX, y: ev.clientY }
+    el.setPointerCapture(ev.pointerId)
+  }
+
+  /** 拖动过程：只更新幽灵坐标，不碰其它 state，避免整张格子重渲染 */
+  function moveDrag(ev: PointerEvent): void {
+    if (!dragId) return
+    dragPos = { x: ev.clientX, y: ev.clientY }
+  }
+
+  async function endDrag(ev: PointerEvent, it: Placed): Promise<void> {
+    const wasDragging = dragId === it.id
+    dragId = ''
+    dragPos = null
+    if (!wasDragging || !gstageEl) return
+    const box = gstageEl.getBoundingClientRect()
+    const step = cellSize() + 4
+    // 用「指针 - 抓取偏移」反推左上角所在格，抓边角时整体才不会偏一格
+    const left = ev.clientX - dragDx - box.left
+    const top = ev.clientY - dragDy - box.top
+    const w = it.rot ? it.h : it.w
+    const nx = Math.max(0, Math.min(stashCols - w, Math.round(left / step)))
+    const ny = Math.max(0, Math.round(top / step))
+    if (nx === it.x && ny === it.y) {
+      selectItem(it.id)
+      return
+    }
+    const movedId = it.id
+    await runOps([{ op: 'moveItem', id: movedId, x: nx, y: ny, rot: it.rot }], true)
+    justMoved = movedId
+    setTimeout(() => {
+      if (justMoved === movedId) justMoved = ''
+    }, 700)
+  }
+
+
 
   const metaText = $derived(loaded ? t('stash.meta.loaded') : t('stash.meta.none'))
 
@@ -107,6 +228,13 @@
 
   /** 装备槽名 i18n：stash.slot.{slotId}，意外槽位原样显示 slotId */
   const slotName = (slot: string): string => t(`stash.slot.${slot}` as MessageKey)
+
+  /** 清除检索：名称与模板编号一起清空 */
+  function clearFilters(): void {
+    playSound('ui')
+    fName = ''
+    fId = ''
+  }
 
   function toggleDesc(): void {
     playSound('toggle')
@@ -204,6 +332,8 @@
       pockets = []
       categories = []
       addable = []
+      stashCols = 0
+      stashRows = 0
       loaded = false
       return
     }
@@ -217,6 +347,8 @@
     euros = data.euros
     bonusRows = data.bonusRows
     hasModded = data.hasModded
+    stashCols = data.gridCols
+    stashRows = data.gridRows
     // 默认选中第一个顶层分类（无子分类时退回根 = 全部物品）
     curCat = topCats[0]?.id ?? rootId
     loaded = true
@@ -263,6 +395,12 @@
     </div>
     <div class="head-actions">
       {#if seg === 'stash'}
+        <button class="btn ghost" type="button" onclick={() => { playSound('ui'); seg = 'add' }} disabled={!loaded}>
+          {t('stash.act.addItem')}
+        </button>
+        <button class="btn ghost" type="button" onclick={() => switchView(viewMode === 'grid' ? 'list' : 'grid')} disabled={!canGrid}>
+          {t('stash.view.toggle')}
+        </button>
         <button class="btn danger-ghost" type="button" onclick={askClearStash} disabled={!items.length || saving}>
           {t('stash.act.clearStash')}
         </button>
@@ -281,47 +419,45 @@
   <div class="body">
     <!-- 骨架层：镜像工具行 + 货币条/物品列表真实布局；数据就绪加 .gone 淡出，与新内容交叉淡化（感官层基线 §二） -->
     <div class="boot phx-boot" class:gone={!booting}>
+      <!-- 骨架按新布局镜像：子页签 + 搜索行 / 左格子墙 + 右三卡 -->
       <div class="toolbar">
         <i class="phx-sk seg-sk"></i>
         <i class="phx-sk seg-sk"></i>
         <i class="phx-sk seg-sk"></i>
         <span class="fspacer"></span>
-        <i class="phx-sk sfld-sk"></i>
-        <i class="phx-sk sfld-sk"></i>
+        <i class="phx-sk sfld-sk" style="flex:1;max-width:420px"></i>
+        <i class="phx-sk sfld-sk" style="width:230px"></i>
+        <i class="phx-sk abtn-sk"></i>
       </div>
       <div class="scroll">
-        <div class="stashmeta">
-          {#each skRows(3) as r (r)}
-            <i class="phx-sk mcap-sk"></i>
-          {/each}
-          <div class="bonus">
-            <i class="phx-sk slim" style="width:56px;height:14px"></i>
-            <i class="phx-sk step-sk"></i>
-          </div>
-        </div>
-        <section class="qgroup">
-          <div class="ghead">
-            <i class="phx-sk slim" style="width:72px"></i>
-            <i class="phx-sk gc-sk"></i>
-          </div>
-          <div class="qcard">
-            {#each skRows(6) as r (r)}
-              <div class="mrow">
-                <i class="phx-sk av-sk"></i>
-                <i class="phx-sk" style="width:62%"></i>
-                <span></span>
-                <i class="phx-sk" style="width:70%"></i>
-                <div class="acts">
-                  <i class="phx-sk abtn-sk"></i>
-                  <i class="phx-sk abtn-sk"></i>
-                </div>
+        <div class="stashbody">
+          <section class="qgroup grow">
+            <div class="ghead">
+              <i class="phx-sk slim" style="width:72px"></i>
+              <span class="fspacer"></span>
+              <i class="phx-sk abtn-sk"></i>
+              <i class="phx-sk abtn-sk"></i>
+            </div>
+            <div class="gskel">
+              {#each skRows(30) as r (r)}
+                <i class="phx-sk gskel-cell"></i>
+              {/each}
+            </div>
+          </section>
+          <aside class="side">
+            {#each skRows(3) as c (c)}
+              <div class="card mini">
+                <i class="phx-sk slim" style="width:72px"></i>
+                {#each skRows(3) as r (r)}
+                  <div class="between">
+                    <i class="phx-sk slim" style="width:54px"></i>
+                    <i class="phx-sk slim" style="width:70px"></i>
+                  </div>
+                {/each}
               </div>
             {/each}
-          </div>
-          <div class="tfoot">
-            <i class="phx-sk slim" style="width:128px"></i>
-          </div>
-        </section>
+          </aside>
+        </div>
       </div>
     </div>
   {#if loaded}
@@ -337,14 +473,16 @@
       />
       <span class="fspacer"></span>
       {#if seg === 'stash'}
-        <div class="sfield">
+        <div class="sfield growf">
           <span class="sico"><PhxIcon markup={ICON.search} /></span>
-          <input type="text" placeholder={t('stash.search.name')} bind:value={fName} />
+          <input type="text" placeholder={t('stash.search.inStash')} bind:value={fName} />
         </div>
-        <div class="sfield">
-          <span class="sico"><PhxIcon markup={ICON.search} /></span>
-          <input type="text" placeholder={t('stash.search.id')} bind:value={fId} />
+        <div class="sfield idf">
+          <input type="text" placeholder={t('stash.search.byTpl')} bind:value={fId} />
         </div>
+        <button class="btn ghost sm" type="button" onclick={clearFilters} disabled={!fName && !fId}>
+          {t('stash.filter.clear')}
+        </button>
       {:else if seg === 'add'}
         <div class="sfield">
           <span class="sico"><PhxIcon markup={ICON.search} /></span>
@@ -358,71 +496,171 @@
 
     <div class="scroll phx-fade-in">
       {#if seg === 'stash'}
-        <!-- 货币与附加行数：含 modded 物品时加钱区禁用（稿图注 4） -->
-        <div class="stashmeta">
-          {#each MONEY as m (m.tpl)}
-            <div class="mcap" class:disabled={hasModded}>
-              <span class="sym">{m.sym}</span>
-              <span class="val">{fmtMoney(m.get())}</span>
-              <PhxTooltip label={t('stash.aria.addMoney', { sym: m.sym })}>
-                <button class="madd" type="button" aria-label={t('stash.aria.addMoney', { sym: m.sym })} disabled={hasModded || saving} onclick={() => addMoney(m.tpl, m.add)}>
-                  <PhxIcon markup={ICON.plus} />
-                </button>
-              </PhxTooltip>
-            </div>
-          {/each}
-          <div class="bonus">
-            <span>{t('stash.bonus')}</span>
-            <div class="step">
-              <button type="button" aria-label="-2" onclick={() => stepBonus(-2)}>−</button>
-              <span class="num">{bonusRows}</span>
-              <button type="button" aria-label="+2" onclick={() => stepBonus(2)}>＋</button>
-            </div>
-          </div>
-        </div>
         {#if hasModded}
           <div class="warn">
             <span class="warn-ico"><PhxIcon markup={ICON.warn} /></span>
             <span>{t('stash.warn.modded')}</span>
           </div>
         {/if}
-        <section class="qgroup">
-          <div class="ghead">
-            <span class="gtitle">{t('stash.g.items')}</span>
-            <span class="gcount">{visItems.length}</span>
-          </div>
-          <div class="qcard">
-            {#each visItems as it (it.id)}
-              <div class="mrow">
-                <span class="icon-b">{it.name.charAt(0)}</span>
-                <div class="iname">{it.name}{it.count > 1 ? ` ×${it.count}` : ''}</div>
-                <span class="mmod" class:show={it.modded}><PhxIcon markup={ICON.warn} /></span>
-                <span class="iid">{it.tpl}</span>
-                <div class="acts">
-                  {#if it.isWeapon}
-                    <!-- 检视入口（10 屏弹窗已落地）：武器行跳转检视页并自动开弹窗 -->
-                    <PhxTooltip label={t('stash.aria.inspect')}>
-                      <button class="abtn" type="button" aria-label={t('stash.aria.inspect')} onclick={() => { playSound('pop'); goto(resolve(`/inspect?id=${it.id}`)) }}>
-                        <PhxIcon markup={ICON.search} />
+        <div class="stashbody">
+          <section class="qgroup grow">
+            <div class="ghead">
+              <span class="gtitle">{viewMode === 'grid' ? t('stash.g.grid') : t('stash.g.items')}</span>
+              <span class="gcount">{visItems.length}</span>
+              <span class="fspacer"></span>
+              {#if canGrid}
+                <div class="vsw">
+                  <button type="button" class:on={viewMode === 'grid'} onclick={() => switchView('grid')}>{t('stash.view.grid')}</button>
+                  <button type="button" class:on={viewMode === 'list'} onclick={() => switchView('list')}>{t('stash.view.list')}</button>
+                </div>
+              {/if}
+            </div>
+            {#if viewMode === 'grid' && canGrid}
+              <div class="gridwrap">
+                {#if selItem}
+                  <div class="gsel">
+                    <span class="gsname">{selItem.name}{selItem.count > 1 ? ` ×${selItem.count}` : ''}</span>
+                    <span class="gsid">{selItem.tpl}</span>
+                    <span class="fspacer"></span>
+                    {#if selItem.isWeapon}
+                      <button class="gsbtn" type="button" onclick={() => { playSound('pop'); goto(resolve(`/inspect?id=${selItem!.id}`)) }}>
+                        {t('stash.aria.inspect')}
                       </button>
-                    </PhxTooltip>
-                  {/if}
-                  <PhxTooltip label={t('stash.aria.del')}>
-                    <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(it.id)}>
-                      <PhxIcon markup={ICON.trash} />
+                    {/if}
+                    <button class="gsbtn del" type="button" onclick={() => askRemove(selItem!.id)}>
+                      {t('stash.aria.del')}
+                    </button>
+                  </div>
+                {/if}
+                <div class="gstage" bind:this={gstageEl} style="grid-template-columns:repeat({stashCols}, minmax(0, 1fr))">
+                  <!-- 单层 CSS Grid：底格与物品共用同一套网格线。格子边长由 aspect-ratio 撑出，
+                       物品用 grid-column / grid-row 占位，尺寸自动跟随容器，不再手算像素。 -->
+                  {#each gridCells as c (`${c.x}:${c.y}`)}
+                    <span class="gcell" style="grid-column:{c.x + 1};grid-row:{c.y + 1}"></span>
+                  {/each}
+                  {#each placed as it (it.id)}
+                    <button
+                      class="gitem"
+                      class:on={selId === it.id}
+                      class:dragging={dragId === it.id}
+                      class:pulse={justMoved === it.id}
+                      type="button"
+                      style="grid-column:{it.x + 1} / span {it.rot ? it.h : it.w};grid-row:{it.y + 1} / span {it.rot ? it.w : it.h}"
+                      onpointerdown={(ev) => startDrag(ev, it)}
+                      onpointermove={moveDrag}
+                      onpointerup={(ev) => endDrag(ev, it)}
+                    >
+                      <span class="gname" class:wide={it.w * it.h > 1}>
+                        {it.w * it.h > 1 ? it.name : shortOf(it.name)}
+                      </span>
+                      {#if it.count > 1}<span class="gnum">×{it.count}</span>{/if}
+                      {#if it.modded}<span class="gmod"><PhxIcon markup={ICON.warn} /></span>{/if}
+                    </button>
+                  {/each}
+                </div>
+
+                {#if dragPos}
+                  <div
+                    class="gdrag"
+                    style="transform:translate3d({dragPos.x - dragBox.lx}px, {dragPos.y - dragBox.ly}px, 0) scale(1.03);width:{dragBox.w}px;height:{dragBox.h}px"
+                  >
+                    <span class="gdrag-name">{dragLabel}</span>
+                  </div>
+                {/if}
+
+
+                <div class="ghint">{t('stash.grid.hint')}</div>
+                {#if !visItems.length}<div class="empty">{t('stash.grid.empty')}</div>{/if}
+              </div>
+            {:else}
+              <div class="qcard">
+                {#each visItems as it (it.id)}
+                  <div class="mrow">
+                    <span class="icon-b">{it.name.charAt(0)}</span>
+                    <div class="iname">{it.name}{it.count > 1 ? ` ×${it.count}` : ''}</div>
+                    <span class="mmod" class:show={it.modded}><PhxIcon markup={ICON.warn} /></span>
+                    <span class="iid">{it.tpl}</span>
+                    <div class="acts">
+                      {#if it.isWeapon}
+                        <!-- 检视入口（10 屏弹窗已落地）：武器行跳转检视页并自动开弹窗 -->
+                        <PhxTooltip label={t('stash.aria.inspect')}>
+                          <button class="abtn" type="button" aria-label={t('stash.aria.inspect')} onclick={() => { playSound('pop'); goto(resolve(`/inspect?id=${it.id}`)) }}>
+                            <PhxIcon markup={ICON.search} />
+                          </button>
+                        </PhxTooltip>
+                      {/if}
+                      <PhxTooltip label={t('stash.aria.del')}>
+                        <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(it.id)}>
+                          <PhxIcon markup={ICON.trash} />
+                        </button>
+                      </PhxTooltip>
+                    </div>
+                  </div>
+                {/each}
+                {#if !visItems.length}<div class="empty">{t('stash.empty.none')}</div>{/if}
+              </div>
+            {/if}
+            {#if visItems.length}
+              <div class="tfoot">
+                {t('stash.foot', { n: visItems.length, m: moddedCount })}
+              </div>
+            {/if}
+          </section>
+
+          <aside class="side">
+            <div class="card mini">
+              <div class="mini-h">{t('stash.money.title')}<span class="muted" style="font-weight:400">{t('stash.money.note')}</span></div>
+              {#each MONEY as m (m.tpl)}
+                <div class="mrow">
+                  <span class="msym">{m.sym}</span>
+                  <span class="mval">{fmtMoney(m.get())}</span>
+                  <PhxTooltip label={t('stash.aria.addMoney', { sym: m.sym })}>
+                    <button class="madd" type="button" aria-label={t('stash.aria.addMoney', { sym: m.sym })} disabled={hasModded || saving} onclick={() => addMoney(m.tpl, m.add)}>
+                      <PhxIcon markup={ICON.plus} />
                     </button>
                   </PhxTooltip>
                 </div>
+              {/each}
+              <div class="macts">
+                <button class="chip" type="button" disabled={hasModded || saving} onclick={() => addMoney(MONEY[0].tpl, 1000000)}>+ {t('stash.money.m1')}</button>
+                <button class="chip" type="button" disabled={hasModded || saving} onclick={() => addMoney(MONEY[0].tpl, 10000000)}>+ {t('stash.money.m10')}</button>
               </div>
-            {/each}
-            {#if !visItems.length}<div class="empty">{t('stash.empty.none')}</div>{/if}
-          </div>
-          {#if visItems.length}
-            <div class="tfoot">
-              {t('stash.foot', { n: visItems.length, m: moddedCount })}
             </div>
-          {/if}
-        </section>
+
+            <div class="card mini">
+              <div class="mini-h">{t('stash.stat.title')}</div>
+              <div class="between"><span class="muted">{t('stash.stat.items')}</span><span class="num">{items.length}</span></div>
+              <div class="between">
+                <span class="muted">{t('stash.stat.used')}</span>
+                <span class="num">{usedCells} / {freeCells}</span>
+              </div>
+              <div class="between" style="border-top:1px solid var(--phx-sep);padding-top:8px;margin-top:8px">
+                <span class="muted">{t('stash.bonus')}</span>
+                <div class="step">
+                  <button type="button" aria-label="-2" onclick={() => stepBonus(-2)}>−</button>
+                  <span class="num">{bonusRows}</span>
+                  <button type="button" aria-label="+2" onclick={() => stepBonus(2)}>＋</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card mini">
+              <div class="mini-h">{t('stash.quick.add')}<span class="muted" style="font-weight:400">{t('stash.quick.from')}</span></div>
+              <div class="sfield">
+                <span class="sico"><PhxIcon markup={ICON.search} /></span>
+                <input type="text" placeholder={t('stash.quick.ph')} bind:value={aName} />
+              </div>
+              {#each quickAddable as a (a.tpl)}
+                <div class="qrow">
+                  <span class="qname">{a.name}</span>
+                  <span class="qiid">{a.tpl.slice(0, 8)}…</span>
+                  <button class="qadd" type="button" disabled={saving} onclick={() => addItem(a.tpl)}>{t('stash.act.add')}</button>
+                </div>
+              {/each}
+              {#if !quickAddable.length}<div class="qnone">{t('stash.empty.none')}</div>{/if}
+            </div>
+          </aside>
+        </div>
       {:else if seg === 'add'}
         <!-- 警示横幅：对齐参考 ItemsAdding 顶部 Warning -->
         <div class="warn">
@@ -636,29 +874,9 @@
     border-radius: 8px;
   }
 
-  .boot .mcap-sk {
-    width: 92px;
-    height: 30px;
-    border-radius: 999px;
-  }
 
-  .boot .step-sk {
-    width: 88px;
-    height: 26px;
-    border-radius: 8px;
-  }
 
-  .boot .gc-sk {
-    width: 24px;
-    height: 16px;
-    border-radius: 8px;
-  }
 
-  .boot .av-sk {
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
-  }
 
   .boot .abtn-sk {
     width: 26px;
@@ -666,10 +884,6 @@
     border-radius: 7px;
   }
 
-  .boot .tfoot {
-    display: flex;
-    justify-content: center;
-  }
 
   /* ---- 工具行：子页分段 + 过滤框 + 含描述勾选 ---- */
   .toolbar {
@@ -749,33 +963,47 @@
   }
 
   /* ---- 货币条 + 附加行数 ---- */
-  .stashmeta {
-    margin-top: 16px;
+  .mrow {
     display: flex;
     align-items: center;
     gap: 8px;
+    height: 28px;
   }
-  .mcap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 6px 0 12px;
-    background: var(--phx-surface-2);
-    border-radius: 999px;
-  }
-  .mcap.disabled {
-    opacity: 0.5;
-  }
-  .mcap .sym {
+  .msym {
+    width: 18px;
     font-size: 12px;
     font-weight: 700;
     color: var(--phx-text-2);
+    flex: 0 0 auto;
   }
-  .mcap .val {
+  .mval {
+    margin-left: auto;
     font-family: var(--phx-font-mono);
     font-size: 12px;
     color: var(--phx-text);
+  }
+  .macts {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .chip {
+    flex: 1;
+    height: 26px;
+    border: 1px solid var(--phx-sep-strong);
+    border-radius: 7px;
+    background: var(--phx-surface-2);
+    color: var(--phx-text-2);
+    font-size: 11.5px;
+    cursor: pointer;
+  }
+  .chip:not(:disabled):hover {
+    background: var(--phx-surface-3);
+    color: var(--phx-text);
+  }
+  .chip:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
   .madd {
     width: 20px;
@@ -802,14 +1030,6 @@
   .madd :global(svg) {
     width: 10px;
     height: 10px;
-  }
-  .bonus {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--phx-text-2);
   }
   .step {
     display: flex;
@@ -1135,4 +1355,272 @@
     color: var(--phx-text-3);
     padding: 7px 14px 7px 26px;
   }
-</style>
+
+  /* ———————— 格子视图（稿图 09 屏） ———————— */
+  .stashbody {
+    display: grid;
+    /* 主列吃掉剩余宽度、右栏固定 268：格子卡片铺满整行，格子本身按容器宽度
+       自适应（recalcCell）并居中 —— 原来是 auto + justify-content:start，
+       窗口一宽右侧就空出一大块（用户截图里绿框那块） */
+    grid-template-columns: minmax(0, 1fr) 268px;
+    gap: 14px;
+    align-items: stretch;
+    min-height: 0;
+  }
+  .stashbody .grow { min-width: 0; }
+  .vsw {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 7px;
+    background: var(--phx-surface-3);
+  }
+  .vsw button {
+    padding: 3px 10px;
+    font-size: 11.5px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--phx-text-2);
+    cursor: pointer;
+  }
+  .vsw button.on {
+    background: var(--phx-surface);
+    color: var(--phx-text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .gskel {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 4px;
+    padding: 12px;
+  }
+  .gskel-cell {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    height: auto;
+  }
+  .gridwrap {
+    padding: 12px 14px 10px;
+    border-radius: var(--phx-r-card);
+    background: var(--phx-surface);
+    border: 0.5px solid var(--phx-sep);
+    /* 40~68 行会远超一屏：格子区自己滚，高度吃到页头与 dock 安全区之间，
+       不再留出下方那片空白（原先是 -400，窗口一高就短一截） */
+    max-height: calc(100vh - 332px);
+    min-height: min(520px, calc(100vh - 332px));
+    overflow-y: auto;
+  }
+  /* 格子舞台：两层同一个 grid 参数叠放 —— 底格层画格子，物品层用 grid-column/row 定位。
+     格子尺寸完全由容器宽度按 1fr 均分决定，窗口怎么变都对，不再手算像素。 */
+  .gstage {
+    display: grid;
+    gap: 4px;
+    max-width: 100%;
+  }
+  .gcell {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    background: var(--phx-surface-3);
+    border: 1px solid var(--phx-sep);
+  }
+  /* 物品块：稿图的做法 —— 居中显示，单格给缩写、多格给全名 */
+  .gitem {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 4px;
+    border: 1px solid var(--phx-sep-strong);
+    border-radius: 5px;
+    background: var(--phx-surface);
+    color: var(--phx-text-2);
+    text-align: center;
+    cursor: pointer;
+    overflow: hidden;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .gitem:hover { background: var(--phx-surface-3); }
+  .gitem.on {
+    background: var(--phx-accent-soft);
+    border-color: var(--phx-accent);
+    color: var(--phx-accent);
+    font-weight: 600;
+  }
+  /* 单格只给两三个字（稿图那样 AK / 甲 / 弹），多格才铺全名 */
+  .gitem {
+    cursor: grab;
+    transition: none;
+  }
+  .gitem.dragging {
+    opacity: 0.22;
+    border-style: dashed;
+  }
+  /* 落位成功：边框闪一下，让「放下了」看得见 */
+  .gitem.pulse {
+    animation: gpulse 0.7s ease-out;
+  }
+  @keyframes gpulse {
+    0% {
+      box-shadow: 0 0 0 0 var(--phx-accent);
+      border-color: var(--phx-accent);
+    }
+    100% {
+      box-shadow: 0 0 0 14px transparent;
+      border-color: var(--phx-sep-strong);
+    }
+  }
+  /* 跟随光标的幽灵块：半透明 + 轻微倾斜，抓起来的即时反馈 */
+  .gdrag {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 40;
+    pointer-events: none;
+    display: flex;
+    align-items: flex-start;
+    padding: 6px;
+    border-radius: 7px;
+    background: var(--phx-surface);
+    border: 1px solid var(--phx-accent);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+    opacity: 0.92;
+    will-change: transform;
+  }
+  .gdrag-name {
+    font-size: 12px;
+    line-height: 1.25;
+    color: var(--phx-text);
+    overflow: hidden;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+  }
+  .gname {
+    font-size: 9.5px;
+    line-height: 1.15;
+    color: inherit;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-all;
+    max-width: 100%;
+  }
+  .gname.wide {
+    font-size: 10.5px;
+    font-weight: 600;
+    word-break: break-word;
+  }
+  .gnum {
+    font-size: 10px;
+    color: var(--phx-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .gmod {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 10px;
+    height: 10px;
+    color: var(--phx-warn);
+  }
+  .gsel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    background: var(--phx-accent-soft);
+    font-size: 12px;
+  }
+  .gsname { font-weight: 600; color: var(--phx-text); }
+  .gsid { color: var(--phx-text-3); font-size: 10.5px; font-family: var(--phx-mono, ui-monospace); }
+  .gsbtn {
+    padding: 3px 9px;
+    font-size: 11.5px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--phx-surface);
+    color: var(--phx-text);
+    cursor: pointer;
+  }
+  .gsbtn.del { color: var(--phx-danger); }
+  .ghint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--phx-text-3);
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    /* 与左栏「仓库格子」标题行（.ghead）等高下移，让第一张卡与格子卡片顶边对齐 */
+    margin-top: 40px;
+  }
+  .card.mini {
+    padding: 12px 13px;
+    border-radius: var(--phx-r-card);
+    background: var(--phx-surface);
+    border: 0.5px solid var(--phx-sep);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mini-h {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--phx-text);
+    margin-bottom: 2px;
+  }
+  .card.mini .between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .card.mini .muted { color: var(--phx-text-2); }
+  .card.mini .num { font-variant-numeric: tabular-nums; }
+  .qname {
+    font-size: 11.5px;
+    color: var(--phx-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .qiid {
+    font-size: 10px;
+    color: var(--phx-text-3);
+    font-family: var(--phx-mono, ui-monospace);
+  }
+  .qrow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 0;
+    border-top: 0.5px solid var(--phx-sep);
+  }
+  .qadd {
+    padding: 2px 8px;
+    font-size: 11px;
+    border: 0;
+    border-radius: 5px;
+    background: var(--phx-accent);
+    color: #fff;
+    cursor: pointer;
+  }
+  .qadd:disabled { opacity: 0.5; cursor: default; }
+  .qnone {
+    font-size: 11.5px;
+    color: var(--phx-text-3);
+    padding: 6px 0;
+  }</style>

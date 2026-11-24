@@ -1,6 +1,6 @@
 [package]
 name = "phoenix-drx-setup"
-version = "0.2.7"
+version = "0.2.8"
 description = "Phoenix-DRX 自研安装器（DRX-Setup，配置驱动可复用模板）"
 authors = ["Phoenix-DRX"]
 edition = "2021"

@@ -65,7 +65,7 @@
     border: 1px solid transparent;
     background:
       linear-gradient(var(--phx-surface-2), var(--phx-surface-2)) padding-box,
-      linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.06)) border-box;
+      linear-gradient(135deg, rgba(127, 127, 127, 0.30), rgba(127, 127, 127, 0.10)) border-box;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     animation: tip-in var(--phx-dur-fast) var(--phx-ease-out);
   }

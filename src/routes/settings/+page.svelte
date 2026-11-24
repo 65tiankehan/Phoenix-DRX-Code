@@ -6,6 +6,7 @@
   import { page } from '$app/state'
   import { resolve } from '$app/paths'
   import { t, i18n, setLocale, type Locale } from '$lib/i18n/i18n.svelte'
+  import { theme, setThemeMode, type ThemeMode } from '$lib/theme.svelte'
   import { isSoundEnabled, setSoundEnabled } from '$lib/sound'
   import { isReducedMotion, setReducedMotion } from '$lib/motion'
   import {
@@ -126,6 +127,17 @@
 
   function onLangChange(v: string): void {
     setLocale(v as Locale)
+    toast.success(t('settings.toast.saved'))
+  }
+
+  const themeOptions = $derived([
+    { value: 'dark', label: t('settings.theme.dark') },
+    { value: 'light', label: t('settings.theme.light') },
+    { value: 'system', label: t('settings.theme.system') }
+  ])
+
+  function onThemeChange(v: string): void {
+    setThemeMode(v as ThemeMode)
     toast.success(t('settings.toast.saved'))
   }
 
@@ -350,6 +362,13 @@
           <section class="sgroup" data-group="general">
             <div class="sgroup-h">{t('settings.group.general')}</div>
             <div class="sgroup-sub">{t('settings.group.general.sub')}</div>
+            <div class="srow">
+              <div class="stext">
+                <div class="slabel">{t('settings.theme')}</div>
+                <div class="sdesc">{t('settings.theme.desc')}</div>
+              </div>
+              <PhxDropdown value={theme.mode} options={themeOptions} onchange={onThemeChange} />
+            </div>
             <div class="srow">
               <div class="stext">
                 <div class="slabel">{t('settings.language')}</div>

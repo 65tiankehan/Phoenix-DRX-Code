@@ -53,6 +53,16 @@ pub struct QuestRow {
     /// 完成联动提示（已解锁配方产物名；仅 Success 且配方已解锁时给出）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unlock_hint: Option<String>,
+    /// 完成条件总数（templates 的 conditions.AvailableForFinish；三桶形态已合并）
+    pub cond_total: i64,
+    /// 条件里已勾掉的条数（档案 completedConditions ∩ 条件 id 集）
+    pub cond_done: i64,
+  /// 逐条条件是否完成（与 templates 条件顺序一致；条件超过 40 条时为空 = 只给汇总）
+  pub cond_flags: Vec<bool>,
+    /// 奖励摘要：经验 / 商人好感 / 卢布（其余奖励类型不进摘要，不拼凑）
+    pub reward_exp: i64,
+    pub reward_standing: f64,
+    pub reward_money: i64,
 }
 
 /// 任务页全量数据
@@ -193,6 +203,112 @@ struct QuestCtx {
     craft_end_product: HashMap<String, String>,
     /// 档案 RepeatableQuests：组名 → [(条目_id, 条目traderId, 条目type)]
     repeatable: Vec<(String, Vec<(String, String, String)>)>,
+    /// qid → 完成条件 id 集（templates conditions，三桶形态已合并）
+    quest_conds: HashMap<String, Vec<String>>,
+    /// qid → 奖励摘要（经验, 好感, 卢布）
+    quest_rewards: HashMap<String, (i64, f64, i64)>,
+}
+
+/// 把一桶条件数组里的 id 收进 out（数组或对象形态都吃）
+fn push_cond_ids(arr: &Value, out: &mut Vec<String>) {
+    if let Some(a) = arr.as_array() {
+        for c in a {
+            if let Some(id) = c.get("id").and_then(|x| x.as_str()) {
+                out.push(id.to_string());
+            }
+        }
+    }
+}
+
+/// 任务完成条件 id 集：4.1 是 `{AvailableForStart,AvailableForFinish,Fail}` 三桶，旧版是数组
+fn cond_ids_of(quest: &Value) -> Vec<String> {
+    let mut out = Vec::new();
+    match quest.pointer("/conditions") {
+        Some(Value::Array(_)) => push_cond_ids(&quest.pointer("/conditions").unwrap(), &mut out),
+        Some(Value::Object(m)) => {
+            for key in ["AvailableForStart", "AvailableForFinish", "Fail"] {
+                if let Some(bucket) = m.get(key) {
+                    push_cond_ids(bucket, &mut out);
+                }
+            }
+        }
+        _ => {}
+    }
+    out
+}
+
+/// 奖励摘要：只取经验 / 商人好感 / 卢布三种可确定数值的，别的类型不臆测
+fn reward_summary(quest: &Value) -> (i64, f64, i64) {
+    let mut exp = 0i64;
+    let mut standing = 0.0f64;
+    let mut money = 0i64;
+    // 4.1 的 rewards 是三桶对象 { Fail, Started, Success }，只取 Success；
+    // 旧版是裸数组，两种都认。
+    let success = match quest.get("rewards") {
+        Some(Value::Array(_)) => quest.get("rewards"),
+        Some(Value::Object(m)) => m.get("Success"),
+        _ => None,
+    };
+    if let Some(arr) = success.and_then(|v| v.as_array()) {
+        for r in arr {
+            match r.get("type").and_then(|v| v.as_str()).unwrap_or("") {
+                "Experience" => exp += r.get("value").and_then(|v| v.as_i64()).unwrap_or(0),
+                "TraderStanding" => {
+                    standing += r.get("value").and_then(|v| v.as_f64()).unwrap_or(0.0)
+                }
+                "Item" => {
+                    if let Some(items) = r.get("items").and_then(|v| v.as_array()) {
+                        for it in items {
+                            // 只统计卢布现金；其他物品奖励没有统一「数量」口径，不累加
+                            if it.get("_tpl").and_then(|v| v.as_str()) == Some("5449016a4bdc2d6f028b456f")
+                            {
+                                money += it
+                                    .pointer("/upd/StackObjectsCount")
+                                    .and_then(|v| v.as_i64())
+                                    .unwrap_or(1);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    (exp, standing, money)
+}
+
+/// 条件进度：(总数, 已完成数, 逐条完成标记)。archive 为空表示缺失任务（没进档，按 0 完成）
+/// flags 与 templates 里的条件顺序一一对应，前端用它画逐条打勾
+fn cond_progress(qid: &str, archive: Option<&Value>, ctx: &QuestCtx) -> (i64, i64, Vec<bool>) {
+    let Some(ids) = ctx.quest_conds.get(qid) else {
+        return (0, 0, Vec::new());
+    };
+    let total = ids.len() as i64;
+    let Some(entry) = archive else {
+        return (total, 0, vec![false; ids.len()]);
+    };
+    // 档案 completedConditions 是字符串数组；老档偶见 {id} 对象，两种都认
+    let mut done = 0i64;
+    let mut finished: Vec<&str> = Vec::new();
+    if let Some(arr) = entry.get("completedConditions").and_then(|v| v.as_array()) {
+        for c in arr {
+            let cid = c
+                .as_str()
+                .or_else(|| c.get("id").and_then(|v| v.as_str()))
+                .unwrap_or("");
+            if ids.iter().any(|x| x == cid) {
+                done += 1;
+                finished.push(cid);
+            }
+        }
+    }
+    let flags = if ids.len() > 40 {
+        // 条件特别多的任务只给汇总，避免一行圆点刷屏
+        Vec::new()
+    } else {
+        ids.iter().map(|id| finished.contains(&id.as_str())).collect()
+    };
+    (total, done, flags)
 }
 
 /// 从服务器数据目录读齐任务页上下文；locale 按 language 回退 en.json
@@ -207,39 +323,36 @@ fn load_ctx(app: &AppHandle, language: &str) -> QuestCtx {
     // 更早版本为数组；两种形态都收
     if let Ok(txt) = fs::read_to_string(db.join("templates").join("quests.json")) {
         if let Ok(parsed) = serde_json::from_str::<Value>(&txt) {
-            let pairs: Vec<(String, String)> = match &parsed {
+            // 保留整条模板：除了 traderId，还要拿 conditions 与 rewards 供右栏详情用
+            let entries: Vec<(String, Value)> = match &parsed {
                 Value::Object(map) => map
                     .iter()
                     .map(|(key, t)| {
                         let qid = t
                             .get("_id")
                             .and_then(|v| v.as_str())
-                            .unwrap_or(key.as_str());
-                        (
-                            qid.to_string(),
-                            t.get("traderId")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string(),
-                        )
+                            .unwrap_or(key.as_str())
+                            .to_string();
+                        (qid, t.clone())
                     })
                     .collect(),
                 Value::Array(arr) => arr
                     .iter()
                     .filter_map(|t| {
-                        let qid = t.get("_id").and_then(|v| v.as_str())?;
-                        Some((
-                            qid.to_string(),
-                            t.get("traderId")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string(),
-                        ))
+                        let qid = t.get("_id").and_then(|v| v.as_str())?.to_string();
+                        Some((qid, t.clone()))
                     })
                     .collect(),
                 _ => Vec::new(),
             };
-            for (qid, trader) in pairs {
+            for (qid, t) in entries {
+                let trader = t
+                    .get("traderId")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                ctx.quest_conds.insert(qid.clone(), cond_ids_of(&t));
+                ctx.quest_rewards.insert(qid.clone(), reward_summary(&t));
                 ctx.template_traders.insert(qid.clone(), trader);
                 ctx.template_ids.push(qid);
             }
@@ -443,6 +556,12 @@ pub fn load_quests(app: &AppHandle, id: &str) -> Option<QuestsData> {
             };
             let status = status_of(entry);
             let (qtype, trader, quest_name) = resolve_row_info(qid, &ctx);
+            let (cond_total, cond_done, cond_flags) = cond_progress(qid, Some(entry), &ctx);
+            let (reward_exp, reward_standing, reward_money) = ctx
+                .quest_rewards
+                .get(qid)
+                .copied()
+                .unwrap_or((0, 0.0, 0));
             rows.push(QuestRow {
                 qid: qid.to_string(),
                 qtype,
@@ -455,6 +574,12 @@ pub fn load_quests(app: &AppHandle, id: &str) -> Option<QuestsData> {
                     .unwrap_or_else(|| Value::Object(Map::new())),
                 quest_name,
                 unlock_hint: unlock_hint(qid, &status, &ctx, &unlocked),
+                cond_total,
+                cond_done,
+                cond_flags,
+                reward_exp,
+                reward_standing,
+                reward_money,
             });
         }
     }
@@ -473,6 +598,12 @@ pub fn load_quests(app: &AppHandle, id: &str) -> Option<QuestsData> {
         .iter()
         .map(|qid| {
             let (qtype, trader, quest_name) = resolve_row_info(qid, &ctx);
+            let (cond_total, cond_done, cond_flags) = cond_progress(qid, None, &ctx);
+            let (reward_exp, reward_standing, reward_money) = ctx
+                .quest_rewards
+                .get(qid)
+                .copied()
+                .unwrap_or((0, 0.0, 0));
             QuestRow {
                 qid: qid.clone(),
                 qtype,
@@ -482,6 +613,12 @@ pub fn load_quests(app: &AppHandle, id: &str) -> Option<QuestsData> {
                 status_timers: Value::Object(Map::new()),
                 quest_name,
                 unlock_hint: None,
+                cond_total,
+                cond_done,
+                cond_flags,
+                reward_exp,
+                reward_standing,
+                reward_money,
             }
         })
         .collect();
@@ -682,6 +819,35 @@ mod tests {
 
     /// 旧档可能存枚举名字符串，读取路径仍要认
     #[test]
+    /// 本机真实库自检（默认忽略）：模板里的条件 id 集与奖励摘要必须能取到 ——
+    /// 任务页右栏的「完成条件 3 项 · 已完成 3 项」「+7,200 经验 / +0.06 好感」全靠这两条。
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_quest_templates_expose_conditions_and_rewards() {
+        let txt = std::fs::read_to_string(
+            r"E:\EFT\SPT_Runtime\SPT_Data\database\templates\quests.json",
+        )
+        .expect("读 templates/quests.json 失败");
+        let v: Value = serde_json::from_str(&txt).unwrap();
+        let map = v.as_object().expect("4.1 起应为字典");
+        let mut with_cond = 0;
+        let mut with_exp = 0;
+        for (_qid, quest) in map.iter().take(60) {
+            let conds = cond_ids_of(quest);
+            if !conds.is_empty() {
+                with_cond += 1;
+                // 条件 id 必须像 MongoId（24 位十六进制）
+                assert_eq!(conds[0].len(), 24, "条件 id 不像 MongoId: {}", conds[0]);
+            }
+            let (exp, _stand, _money) = reward_summary(quest);
+            if exp > 0 {
+                with_exp += 1;
+            }
+        }
+        assert!(with_cond > 10, "前 60 个任务只有 {} 个带条件", with_cond);
+        assert!(with_exp > 10, "前 60 个任务只有 {} 个带经验奖励", with_exp);
+    }
+
     fn legacy_string_status_still_reads() {
         assert_eq!(status_of(&json!({ "status": "Started" })), "Started");
     }

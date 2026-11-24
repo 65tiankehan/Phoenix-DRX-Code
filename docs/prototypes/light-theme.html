@@ -1,0 +1,2021 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Phoenix-DRX 浅色主题稿图 · 2026-11-24</title>
+<style>
+/* ===========================================================================
+   浅色主题（Light）候选 token
+   命名沿用项目现有 --phx-* 单一来源；此处只给值，接入时整段替换即可。
+   参考：E:\ios26-design-system-main\packages\svelte\{tokens,materials}.css
+   =========================================================================== */
+:root{
+  /* 表面三级：底 / 面 / 次级面。浅色靠「白底 + 发丝边」分层，不靠提亮 */
+  --phx-bg:#f4f5f7;
+  --phx-surface:#ffffff;
+  --phx-surface-2:#fafafc;
+  --phx-surface-3:#f0f0f4;
+
+  /* 分隔与描边：暗色是 rgba(255,255,255,.08)，浅色必须翻成黑 */
+  --phx-sep:rgba(60,60,67,.12);
+  --phx-sep-strong:rgba(60,60,67,.22);
+
+  /* 文本四级 */
+  --phx-text:#1c1c1e;
+  --phx-text-2:rgba(60,60,67,.62);
+  --phx-text-3:rgba(60,60,67,.38);
+
+  /* 强调与语义：白底上必须比暗色深一档，否则对比度不足 */
+  --phx-accent:#0088ff;
+  --phx-accent-soft:rgba(0,136,255,.10);
+  --phx-green:#1a7f37;
+  --phx-warn:#9a6700;
+  --phx-danger:#d70015;
+  --phx-purple:#7c5cd6;
+
+  /* 玻璃：浅色下必须补 1px 深色发丝边，否则白糊白等于没糊 */
+  --phx-glass:rgba(246,247,249,.82);
+  --phx-glass-strong:rgba(250,251,252,.92);
+  --phx-glass-border:rgba(0,0,0,.07);
+
+  --phx-shadow:0 1px 2px rgba(0,0,0,.05), 0 0 0 .5px rgba(0,0,0,.05);
+  --phx-shadow-win:0 10px 40px rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.09);
+
+  --phx-r-card:14px;
+  --phx-r-btn:8px;
+  --phx-font:-apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#e8e8ee;
+  font-family:var(--phx-font);
+  color:var(--phx-text);
+  -webkit-font-smoothing:antialiased;
+  padding:40px 24px 80px;
+}
+
+/* ---------- 稿图外壳（不属于产品界面） ---------- */
+.doc-head{max-width:1520px;margin:0 auto 32px}
+.doc-head h1{font-size:26px;letter-spacing:-.4px}
+.doc-head p{color:#5a5a68;font-size:14px;line-height:1.7;margin-top:8px;max-width:900px}
+.toc{
+  max-width:1520px;margin:0 auto 40px;display:flex;flex-wrap:wrap;gap:8px;
+  background:#fff;border-radius:14px;padding:16px;box-shadow:var(--phx-shadow)
+}
+.toc a{
+  font-size:12.5px;color:#333;text-decoration:none;background:#f0f0f4;
+  padding:6px 10px;border-radius:7px;transition:background .15s
+}
+.toc a:hover{background:#e2e2ea}
+.toc a b{color:var(--phx-accent);margin-right:6px;font-weight:600}
+
+.wrap{max-width:1520px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+.label{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+.label .no{font-size:12px;font-weight:600;color:#fff;background:#1c1c1e;
+  padding:3px 8px;border-radius:6px;letter-spacing:.4px}
+.label .name{font-size:17px;font-weight:600;letter-spacing:-.2px}
+.label .note{font-size:12.5px;color:#6a6a78}
+
+/* ---------- 屏幕容器：1440×900 等比缩放 ---------- */
+.screen{
+  width:1440px;height:900px;background:var(--phx-bg);border-radius:16px;
+  box-shadow:var(--phx-shadow-win);overflow:hidden;position:relative;
+  transform-origin:top left;flex:none
+}
+.scale{width:100%;overflow:hidden}
+
+/* ---------- 顶栏（玻璃） ---------- */
+.titlebar{
+  height:44px;display:flex;align-items:center;gap:14px;padding:0 16px;
+  background:var(--phx-glass);backdrop-filter:blur(30px) saturate(160%);
+  border-bottom:.5px solid rgba(0,0,0,.06);position:relative;z-index:5
+}
+.brand{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.3px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--phx-accent)}
+.brand .sub{color:var(--phx-text-3);font-weight:400;letter-spacing:0}
+.tabs{display:flex;gap:2px;margin-left:auto;margin-right:auto}
+.tab{
+  font-size:12.5px;color:var(--phx-text-2);padding:5px 11px;border-radius:7px;
+  display:flex;align-items:center;gap:6px
+}
+.tab.on{background:var(--phx-accent-soft);color:var(--phx-accent);font-weight:500}
+.winbtns{display:flex;gap:15px;margin-left:auto;align-items:center;
+  color:var(--phx-text-3);font-size:12px;line-height:1}
+.winbtns span{display:block}
+
+/* ---------- 内容区 ---------- */
+.body{padding:26px 34px;height:calc(900px - 44px - 64px);overflow:hidden}
+.page-title{font-size:30px;font-weight:700;letter-spacing:-.8px;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--phx-text-2);margin-bottom:20px}
+.page-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px}
+.page-head .grow{flex:1}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--phx-surface);border-radius:var(--phx-r-card);
+  box-shadow:var(--phx-shadow);padding:16px 18px
+}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-t{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.card-t .ico{width:15px;height:15px;color:var(--phx-text-3)}
+.card-note{font-size:11.5px;color:var(--phx-text-3)}
+
+/* ---------- 网格 ---------- */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g12{grid-template-columns:1.15fr 1fr}
+.g21{grid-template-columns:1fr 1.6fr}
+
+/* ---------- 列表行 ---------- */
+.row{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--phx-sep);font-size:12.5px
+}
+.row:last-child{border-bottom:0}
+.row .k{color:var(--phx-text-2);flex:none}
+.row .v{margin-left:auto;font-weight:500;font-variant-numeric:tabular-nums}
+.row .v.mono{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--phx-text-3);font-weight:400}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:30px;padding:0 13px;border-radius:var(--phx-r-btn);font-size:12.5px;
+  font-weight:500;border:1px solid transparent;white-space:nowrap
+}
+.btn.primary{background:var(--phx-accent);color:#fff}
+.btn.ghost{background:var(--phx-surface-3);color:var(--phx-text)}
+.btn.line{background:transparent;border-color:var(--phx-sep-strong);color:var(--phx-text)}
+.btn.danger{background:rgba(215,0,21,.08);color:var(--phx-danger)}
+.btn.sm{height:26px;padding:0 10px;font-size:11.5px}
+
+/* ---------- 进度条 ---------- */
+.bar{height:5px;border-radius:3px;background:var(--phx-surface-3);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--phx-accent)}
+.bar i.g{background:var(--phx-green)}
+
+/* ---------- 徽章 ---------- */
+.badge{
+  font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:600;letter-spacing:.2px
+}
+.badge.b{background:var(--phx-accent-soft);color:var(--phx-accent)}
+.badge.g{background:rgba(26,127,55,.10);color:var(--phx-green)}
+.badge.y{background:rgba(154,103,0,.10);color:var(--phx-warn)}
+.badge.r{background:rgba(215,0,21,.09);color:var(--phx-danger)}
+.badge.n{background:var(--phx-surface-3);color:var(--phx-text-2)}
+
+/* ---------- 底部 dock（玻璃） ---------- */
+.dock{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:10px;height:56px;
+  display:flex;align-items:center;gap:2px;padding:0 8px;border-radius:18px;
+  background:var(--phx-glass-strong);backdrop-filter:blur(28px) saturate(180%);
+  border:1px solid var(--phx-glass-border);box-shadow:0 6px 24px rgba(0,0,0,.10)
+}
+.dock .d{
+  width:58px;height:46px;border-radius:12px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;font-size:10px;color:var(--phx-text-2)
+}
+.dock .d.on{background:var(--phx-accent-soft);color:var(--phx-accent);font-weight:600}
+.dock .d svg{width:18px;height:18px}
+
+/* ---------- 小工具 ---------- */
+.muted{color:var(--phx-text-2)}
+.dim{color:var(--phx-text-3)}
+.num{font-variant-numeric:tabular-nums}
+.flex{display:flex;align-items:center;gap:8px}
+.between{display:flex;align-items:center;justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:8px}
+.nowrap{white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="doc-head">
+  <h1>Phoenix-DRX · 浅色主题稿图</h1>
+  <p>
+    这是「macOS 浅色」方向的完整稿图：全部 <b>18 个页面 + 2 个浮层</b>，按真实布局与真实数据画出，
+    可以像看商品一样逐屏往下翻。视觉语言取自 <code>E:\ios26-design-system-main</code>（Apple iOS 26 设计系统的
+    浅色 token 与液态玻璃材质），布局、信息密度、交互元素仍是本项目自己的。
+  </p>
+  <p>
+    每屏左上角有编号与页面名；顶栏与底部 dock 用玻璃材质（浅色下带 1px 深色发丝边）。
+    如果某一屏哪里不对，直接说编号，比如「08 藏身处那个滑块太细」。
+  </p>
+</div>
+
+<nav class="toc">
+  <a href="#p01"><b>01</b>服务器选择</a>
+  <a href="#p02"><b>02</b>首页</a>
+  <a href="#p03"><b>03</b>角色</a>
+  <a href="#p04"><b>04</b>技能</a>
+  <a href="#p05"><b>05</b>健康</a>
+  <a href="#p06"><b>06</b>任务</a>
+  <a href="#p07"><b>07</b>商人</a>
+  <a href="#p08"><b>08</b>藏身处</a>
+  <a href="#p09"><b>09</b>仓库</a>
+  <a href="#p10"><b>10</b>检视</a>
+  <a href="#p11"><b>11</b>Scav</a>
+  <a href="#p12"><b>12</b>预设</a>
+  <a href="#p13"><b>13</b>物品图鉴</a>
+  <a href="#p14"><b>14</b>备份</a>
+  <a href="#p15"><b>15</b>账号</a>
+  <a href="#p16"><b>16</b>设置</a>
+  <a href="#p17"><b>17</b>关于</a>
+  <a href="#p18"><b>18</b>问题诊断</a>
+  <a href="#p19"><b>19</b>命令面板</a>
+  <a href="#p20"><b>20</b>弹窗与提示</a>
+</nav>
+
+<div class="wrap">
+
+<!-- ===================== 01 服务器选择 ===================== -->
+<section id="p01">
+  <div class="label"><span class="no">01</span><span class="name">服务器选择</span>
+    <span class="note">首次启动 / 切换服务器。浅色下这张卡用白面 + 发丝边，不靠阴影撑立体。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(900px - 44px)">
+      <div style="text-align:center;margin-bottom:44px">
+        <div style="font-size:44px;font-weight:700;letter-spacing:-1.6px;display:flex;align-items:baseline;gap:12px;justify-content:center">
+          <span style="color:var(--phx-accent)">Phoenix</span>
+          <span style="font-size:16px;font-weight:400;color:var(--phx-text-2);letter-spacing:0">SPT 存档编辑器</span>
+        </div>
+        <div style="font-size:30px;font-weight:700;letter-spacing:-.6px;margin-top:26px">服务器选择</div>
+        <div style="font-size:13.5px;color:var(--phx-text-2);margin-top:10px">选择你的 SPT 服务器目录，开始编辑玩家存档</div>
+      </div>
+
+      <div style="width:640px">
+        <div class="card" style="display:flex;align-items:center;gap:14px;padding:18px 20px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="font-size:15px;font-weight:600">EFT</span>
+              <span class="badge g">可用</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--phx-text-2);margin-top:6px">E:\EFT</div>
+            <div style="font-size:12px;color:var(--phx-green);margin-top:5px">✓ 3 个存档</div>
+          </div>
+          <div class="btn primary">进入编辑</div>
+          <div class="btn ghost">移除</div>
+        </div>
+
+        <div style="margin-top:14px;border:1px dashed var(--phx-sep-strong);border-radius:var(--phx-r-card);
+                    padding:22px;text-align:center;font-size:13px;color:var(--phx-text-2)">
+          ＋ 添加服务器目录
+        </div>
+      </div>
+
+      <div style="position:absolute;bottom:22px;font-size:11.5px;color:var(--phx-text-3)">
+        Phoenix-DRX ｜ 永久免费 ｜ v0.2.7
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ===================== 02 首页 ===================== -->
+<section id="p02">
+  <div class="label"><span class="no">02</span><span class="name">首页</span>
+    <span class="note">信息密度最高的一屏。浅色下靠「白卡 + 12% 黑分隔线」分层，卡片之间用 14px 间隙呼吸。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs">
+        <div class="tab">🕘 常去</div>
+        <div class="tab on">首页</div>
+        <div class="tab">角色</div>
+        <div class="tab">任务</div>
+      </div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">首页</div>
+          <div class="page-sub">SPT 4.1.6 (40743) · 档案已加载</div>
+        </div>
+        <div class="btn ghost">返回服务器选择</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <!-- 档案概览条 -->
+      <div class="card" style="display:flex;align-items:center;gap:0;padding:14px 18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:11px;flex:1.2">
+          <div style="width:34px;height:34px;border-radius:10px;background:var(--phx-accent-soft);
+                      display:flex;align-items:center;justify-content:center;color:var(--phx-accent);font-size:15px">👤</div>
+          <div>
+            <div style="font-size:11px;color:var(--phx-text-3)">当前档案</div>
+            <div style="font-size:13px;font-weight:600;font-family:ui-monospace,monospace">6af696c66f81eb33086665b1</div>
+          </div>
+          <div style="font-size:12.5px;color:var(--phx-text-2);margin-left:6px">42 级 · BEAR</div>
+        </div>
+        <div style="text-align:right;flex:1;border-left:1px solid var(--phx-sep);padding-left:18px">
+          <div style="font-size:11px;color:var(--phx-text-3)">卢布 ₽</div>
+          <div style="font-size:15px;font-weight:600" class="num">464,460,344</div>
+        </div>
+        <div style="text-align:right;flex:1;border-left:1px solid var(--phx-sep);padding-left:18px">
+          <div style="font-size:11px;color:var(--phx-text-3)">美元 $</div>
+          <div style="font-size:15px;font-weight:600" class="num">1,573,641</div>
+        </div>
+        <div style="text-align:right;flex:1;border-left:1px solid var(--phx-sep);padding-left:18px">
+          <div style="font-size:11px;color:var(--phx-text-3)">欧元 €</div>
+          <div style="font-size:15px;font-weight:600" class="num">8,351,000</div>
+        </div>
+        <div class="badge g" style="margin-left:20px">● 没有问题</div>
+      </div>
+
+      <!-- 公告条 -->
+      <div class="card" style="display:flex;align-items:center;gap:10px;padding:9px 16px;margin-bottom:14px">
+        <span class="badge b">公告</span>
+        <span style="font-size:12.5px"><b>Phoenix DRX 0.2.7 发布：</b>转生能改了，存档也不会再悄悄变形</span>
+        <span style="margin-left:auto;color:var(--phx-text-3);font-size:11.5px">进游戏「重置角色」才会真正生效 ›</span>
+      </div>
+
+      <!-- 卡片网格 -->
+      <div class="grid g3" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-h"><div class="card-t">任务</div><span class="dim">›</span></div>
+          <div style="font-size:26px;font-weight:700;letter-spacing:-1px">0
+            <span style="font-size:13px;font-weight:400;color:var(--phx-text-3)">/ 15 已完成</span></div>
+          <div class="bar" style="margin:10px 0 9px"><i style="width:0%"></i></div>
+          <div style="display:flex;gap:12px;font-size:11.5px;color:var(--phx-text-2)">
+            <span>● 已完成 0</span><span>● 可交 1</span><span>● 进行中 7</span><span>● 可用 7</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">藏身处</div><span class="dim">›</span></div>
+          <div class="stack" style="gap:7px;font-size:12px">
+            <div class="between"><span>通风</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+            <div class="between"><span>安保</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+            <div class="between"><span>卫生间</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+            <div class="between"><span>仓库</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+            <div class="between"><span>发电机</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+            <div class="between"><span>供暖</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-green);margin-top:10px">已满级 27 / 28</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">仓库</div><span class="dim">›</span></div>
+          <div style="font-size:26px;font-weight:700;letter-spacing:-1px">32
+            <span style="font-size:13px;font-weight:400;color:var(--phx-text-3)">件物品</span></div>
+          <div class="stack" style="gap:7px;font-size:12px;margin-top:12px">
+            <div class="between"><span class="muted">加成格位</span><span class="num" style="color:var(--phx-accent)">+2</span></div>
+            <div class="between"><span class="muted">武器</span><span class="num">0</span></div>
+            <div class="between"><span class="muted">改装件</span><span class="num">0</span></div>
+            <div class="between"><span class="muted">已装备</span><span class="num">7 / 13</span></div>
+            <div class="between"><span class="muted">口袋</span><span class="num">7 件</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g3">
+        <div class="card">
+          <div class="card-h"><div class="card-t">商人</div><span class="dim">›</span></div>
+          <div class="stack" style="gap:7px;font-size:12px">
+            <div class="between"><span>Prapor</span><span class="flex"><i class="bar g" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+            <div class="between"><span>Therapist</span><span class="flex"><i class="bar g" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+            <div class="between"><span>Fence</span><span class="flex"><i class="bar g" style="width:44px"><i style="width:50%"></i></i><em class="dim" style="font-style:normal">2/2</em></span></div>
+            <div class="between"><span>Skier</span><span class="flex"><i class="bar g" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+            <div class="between"><span>Peacekee…</span><span class="flex"><i class="bar g" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-green);margin-top:10px">已满级 10 / 12</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">技能</div><span class="dim">›</span></div>
+          <div class="stack" style="gap:9px;font-size:12px">
+            <div><div class="between" style="margin-bottom:4px"><span>耐力</span><span class="num dim">100%</span></div><i class="bar"><i style="width:100%"></i></i></div>
+            <div><div class="between" style="margin-bottom:4px"><span>力量</span><span class="num dim">100%</span></div><i class="bar"><i style="width:100%"></i></i></div>
+            <div><div class="between" style="margin-bottom:4px"><span>健康</span><span class="num dim">100%</span></div><i class="bar"><i style="width:100%"></i></i></div>
+            <div><div class="between" style="margin-bottom:4px"><span>代谢</span><span class="num dim">100%</span></div><i class="bar"><i style="width:100%"></i></i></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:10px">PMC 平均 99%</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">健康</div><span class="dim">›</span></div>
+          <div class="grid g3" style="gap:7px 12px;font-size:11.5px">
+            <div class="between"><span class="muted">头部</span><span class="num">35/35</span></div>
+            <div class="between"><span class="muted">胸腔</span><span class="num">85/85</span></div>
+            <div class="between"><span class="muted">胃部</span><span class="num">70/70</span></div>
+            <div class="between"><span class="muted">水分</span><span class="num">100/100</span></div>
+            <div class="between"><span class="muted">能量</span><span class="num">110/110</span></div>
+            <div class="between"><span class="muted">右手</span><span class="num">60/60</span></div>
+          </div>
+          <div class="bar g" style="margin-top:12px"><i style="width:100%"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dock" data-on="0"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 03 角色 ===================== -->
+<section id="p03">
+  <div class="label"><span class="no">03</span><span class="name">角色</span>
+    <span class="note">转生行放在等级下方，只改存档里的数字；经验条与等级双向联动。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs">
+        <div class="tab">🕘 常去</div><div class="tab">首页</div>
+        <div class="tab on">角色</div><div class="tab">任务</div>
+      </div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">角色</div>
+          <div class="page-sub">4.1.6 (40743) · 档案已加载</div>
+        </div>
+        <div class="btn ghost">概览</div>
+        <div class="btn ghost">形象服装</div>
+        <div class="btn ghost">PMC</div>
+        <div class="btn ghost">Scav</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <div class="grid g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-h"><div class="card-t">基本信息</div><span class="card-note">只读项不可编辑</span></div>
+          <div class="row"><span class="k">昵称</span>
+            <span style="flex:1;margin-left:16px;background:var(--phx-surface-3);border-radius:8px;padding:7px 11px;
+                         font-size:12.5px;border:1px solid var(--phx-sep)">tomie</span></div>
+          <div class="row"><span class="k">阵营</span>
+            <span style="margin-left:auto;display:flex;background:var(--phx-surface-3);border-radius:8px;padding:3px;gap:2px">
+              <span style="background:var(--phx-surface);padding:5px 16px;border-radius:6px;font-size:11.5px;font-weight:600">BEAR</span>
+              <span style="padding:5px 16px;font-size:11.5px;color:var(--phx-text-2)">USEC</span>
+            </span></div>
+          <div class="row"><span class="k">角色 ID</span><span class="v num">1275995</span></div>
+          <div class="row"><span class="k">游戏版本</span><span class="v num">4.1.6 (40743)</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">成长</div><span class="card-note">等级 ↔ 经验联动</span></div>
+          <div class="row"><span class="k">等级</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <b style="font-size:15px" class="num">42</b>
+              <span class="btn sm ghost">−</span><span class="btn sm ghost">＋</span>
+              <em class="dim" style="font-style:normal;font-size:11px">1 – 78</em>
+            </span></div>
+          <div class="row"><span class="k">转生等级</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <b style="font-size:15px" class="num">0</b>
+              <span class="btn sm ghost">−</span><span class="btn sm ghost">＋</span>
+              <em class="dim" style="font-style:normal;font-size:11px">0 – 4</em>
+            </span></div>
+          <div style="font-size:10.5px;color:var(--phx-text-3);line-height:1.6;margin:2px 0 12px">
+            只改存档里的转生等级。转生奖励与成就在真正转生时由服务器发放，这里不补发。已完成记录 0 次。
+          </div>
+          <div class="between" style="margin-bottom:6px">
+            <span style="font-size:11.5px;color:var(--phx-text-2)">经验</span>
+            <span style="font-size:12px;font-weight:600" class="num">2,901,143</span>
+          </div>
+          <div style="position:relative">
+            <div class="bar" style="height:6px"><i style="width:99%"></i></div>
+            <div style="position:absolute;right:-1px;top:-4px;width:14px;height:14px;border-radius:50%;
+                        background:#fff;border:2px solid var(--phx-accent);box-shadow:0 1px 3px rgba(0,0,0,.15)"></div>
+          </div>
+          <div class="between" style="font-size:11px;color:var(--phx-text-3);margin-top:8px">
+            <span>本级 2,901,143 – 3,132,824</span><span>231,681 经验到下一级</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-h"><div class="card-t">外观与装备</div><span class="card-note">选项来自服务器数据</span></div>
+          <div class="row"><span class="k">语音</span>
+            <span style="margin-left:auto;width:190px;display:flex;justify-content:space-between;align-items:center;
+                         background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:8px;padding:6px 10px;font-size:12.5px">
+              Sergei (English)<em class="dim" style="font-style:normal">⌄</em></span></div>
+          <div class="row"><span class="k">头型</span>
+            <span style="margin-left:auto;width:190px;display:flex;justify-content:space-between;align-items:center;
+                         background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:8px;padding:6px 10px;font-size:12.5px">
+              Vasilyev<em class="dim" style="font-style:normal">⌄</em></span></div>
+          <div class="row"><span class="k">口袋</span>
+            <span style="margin-left:auto;width:190px;display:flex;justify-content:space-between;align-items:center;
+                         background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:8px;padding:6px 10px;font-size:12.5px">
+              (4) + Special slots (3)<em class="dim" style="font-style:normal">⌄</em></span></div>
+          <div class="row" style="border-top:1px solid var(--phx-sep);margin-top:6px;padding-top:11px">
+            <span class="k" style="font-size:11.5px">装备速览</span>
+            <span style="margin-left:auto;font-size:11.5px;color:var(--phx-accent)">前往仓库 ›</span></div>
+          <div class="row"><span class="k">主武器一</span><span class="v" style="font-weight:400;color:var(--phx-text-3)">未装备</span></div>
+          <div class="row"><span class="k">防弹背心</span><span class="v" style="font-weight:400;color:var(--phx-text-3)">未装备</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">健康状态</div><span class="card-note">当前 / 最大</span></div>
+          <div class="grid g3" style="gap:10px 14px;font-size:12px">
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">头部</div><div class="num">35 <em class="dim" style="font-style:normal">/ 35</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">胸腔</div><div class="num">85 <em class="dim" style="font-style:normal">/ 85</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">胃部</div><div class="num">70 <em class="dim" style="font-style:normal">/ 70</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">右手</div><div class="num">60 <em class="dim" style="font-style:normal">/ 60</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">左手</div><div class="num">60 <em class="dim" style="font-style:normal">/ 60</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">右腿</div><div class="num">65 <em class="dim" style="font-style:normal">/ 65</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">左腿</div><div class="num">65 <em class="dim" style="font-style:normal">/ 65</em></div><div class="bar g" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">水分</div><div class="num">100 <em class="dim" style="font-style:normal">/ 100</em></div><div class="bar" style="margin-top:5px"><i style="width:100%"></i></div></div>
+            <div><div class="muted" style="font-size:11px;margin-bottom:4px">能量</div><div class="num">110 <em class="dim" style="font-style:normal">/ 110</em></div><div class="bar" style="margin-top:5px"><i style="width:100%"></i></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dock" data-on="1"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 04 技能 ===================== -->
+<section id="p04">
+  <div class="label"><span class="no">04</span><span class="name">技能</span>
+    <span class="note">45 级技能分四组；熟练度单列一卡，上限读自服务器 master 表。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab on">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">技能</div>
+          <div class="page-sub">SPT 4.1.6 (40743) · 共 45 项，当前 100% 的有 41 项</div>
+        </div>
+        <div class="btn ghost">PMC</div><div class="btn ghost">Scav</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <div class="grid g21">
+        <div class="stack" style="gap:14px">
+          <div class="card">
+            <div class="card-h"><div class="card-t">体力</div><span class="card-note">4 项</span></div>
+            <div class="row"><span class="k" style="width:64px">耐力</span><div style="flex:1;margin:0 14px"><div class="bar g"><i style="width:100%"></i></div></div><span class="v num">100%</span></div>
+            <div class="row"><span class="k" style="width:64px">力量</span><div style="flex:1;margin:0 14px"><div class="bar g"><i style="width:100%"></i></div></div><span class="v num">100%</span></div>
+            <div class="row"><span class="k" style="width:64px">生命</span><div style="flex:1;margin:0 14px"><div class="bar g"><i style="width:100%"></i></div></div><span class="v num">100%</span></div>
+            <div class="row"><span class="k" style="width:64px">代谢</span><div style="flex:1;margin:0 14px"><div class="bar g"><i style="width:100%"></i></div></div><span class="v num">100%</span></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div class="card-t">精神</div><span class="card-note">5 项</span></div>
+            <div class="row"><span class="k" style="width:64px">专注</span><div style="flex:1;margin:0 14px"><div class="bar"><i style="width:62%"></i></div></div><span class="v num">62%</span></div>
+            <div class="row"><span class="k" style="width:64px">魅力</span><div style="flex:1;margin:0 14px"><div class="bar"><i style="width:88%"></i></div></div><span class="v num">88%</span></div>
+            <div class="row"><span class="k" style="width:64px">记忆</span><div style="flex:1;margin:0 14px"><div class="bar"><i style="width:41%"></i></div></div><span class="v num">41%</span></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div class="card-t">战斗</div><span class="card-note">12 项</span></div>
+            <div class="row"><span class="k" style="width:64px">突击步枪</span><div style="flex:1;margin:0 14px"><div class="bar g"><i style="width:100%"></i></div></div><span class="v num">100%</span></div>
+            <div class="row"><span class="k" style="width:64px">狙击步枪</span><div style="flex:1;margin:0 14px"><div class="bar"><i style="width:34%"></i></div></div><span class="v num">34%</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">熟练度</div><span class="card-note">上限来自服务器，每把枪独立</span></div>
+          <div class="row"><span class="k">AK-74</span><span class="v num" style="font-weight:400">847</span></div>
+          <div class="row" style="padding-top:0"><span class="k" style="font-size:11px">上限</span>
+            <div style="flex:1;margin:0 14px"><div class="bar"><i style="width:20%"></i></div></div>
+            <span class="v num dim" style="font-weight:400">4,200</span></div>
+          <div class="row"><span class="k">M4A1</span><span class="v num" style="font-weight:400">1,203</span></div>
+          <div class="row" style="padding-top:0"><span class="k" style="font-size:11px">上限</span>
+            <div style="flex:1;margin:0 14px"><div class="bar"><i style="width:33%"></i></div></div>
+            <span class="v num dim" style="font-weight:400">3,600</span></div>
+          <div class="row"><span class="k">AKM</span><span class="v num" style="font-weight:400">266</span></div>
+          <div class="row" style="padding-top:0"><span class="k" style="font-size:11px">上限</span>
+            <div style="flex:1;margin:0 14px"><div class="bar"><i style="width:24%"></i></div></div>
+            <span class="v num dim" style="font-weight:400">1,100</span></div>
+          <div style="font-size:11px;color:var(--phx-text-3);margin-top:12px;line-height:1.6">
+            熟练度只影响该枪械的拆装与后坐，满级后不再增长。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="1"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 05 健康 ===================== -->
+<section id="p05">
+  <div class="label"><span class="no">05</span><span class="name">健康</span>
+    <span class="note">当前 / 最大支持小数（34.649 这种），写回时整数仍是整数，不会被写成 35.0。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab on">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">健康</div>
+          <div class="page-sub">4.1.6 (40743) · PMC 全部部位正常</div>
+        </div>
+        <div class="btn ghost">全部回满</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <div class="grid g12">
+        <div class="card">
+          <div class="card-h"><div class="card-t">身体部位</div><span class="card-note">当前 / 最大</span></div>
+          <div class="grid g2" style="gap:16px 20px">
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">头部</span><span class="num">35 / 35</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">胸腔</span><span class="num">85 / 85</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">胃部</span><span class="num">70 / 70</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">右手</span><span class="num">60 / 60</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">左手</span><span class="num">60 / 60</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">右腿</span><span class="num">65 / 65</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">左腿</span><span class="num">65 / 65</span></div><div class="bar g"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">头部护甲</span><span class="num dim">—</span></div><div class="bar"><i style="width:0%"></i></div></div>
+          </div>
+          <div style="height:1px;background:var(--phx-sep);margin:16px 0"></div>
+          <div class="grid g2" style="gap:16px 20px">
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">水分</span><span class="num">100 / 100</span></div><div class="bar"><i style="width:100%"></i></div></div>
+            <div><div class="between" style="font-size:12px;margin-bottom:5px"><span class="muted">能量</span><span class="num">110 / 110</span></div><div class="bar"><i style="width:100%"></i></div></div>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:14px">
+          <div class="card">
+            <div class="card-h"><div class="card-t">当前状态</div><span class="badge g">无异常</span></div>
+            <div class="stack" style="gap:9px;font-size:12px">
+              <div class="between"><span class="muted">出血</span><span class="num">0</span></div>
+              <div class="between"><span class="muted">骨折</span><span class="num">0</span></div>
+              <div class="between"><span class="muted">脱水</span><span class="num">0</span></div>
+              <div class="between"><span class="muted">疲劳</span><span class="num">0</span></div>
+              <div class="between"><span class="muted">止痛</span><span class="num">0</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><div class="card-t">快捷操作</div></div>
+            <div class="stack" style="gap:8px">
+              <div class="btn ghost" style="justify-content:flex-start;width:100%">把全部部位回满</div>
+              <div class="btn ghost" style="justify-content:flex-start;width:100%">只回满水分与能量</div>
+              <div class="btn ghost" style="justify-content:flex-start;width:100%">按比例保留（回满 ≤ 80%）</div>
+            </div>
+            <div style="font-size:11px;color:var(--phx-text-3);margin-top:12px;line-height:1.6">
+              写入前会自动备份；回满只改当前值，最大值的设定不动。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="1"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 06 任务 ===================== -->
+<section id="p06">
+  <div class="label"><span class="no">06</span><span class="name">任务</span>
+    <span class="note">顶部保留进度条 / 搜索 / 全部·未完成·已完成 三态 / 补齐缺失；左列按商人分组，中列行尾可删单条，右侧详情列出条件与奖励。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab on">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head" style="margin-bottom:12px">
+        <div class="grow">
+          <div class="page-title">任务</div>
+          <div class="page-sub" style="margin-bottom:0">共 567 条记录 · 已完成 415 · 进行中 7 · 可交 1</div>
+        </div>
+        <div class="btn ghost">全部标记完成</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <!-- 进度 + 搜索 + 三态过滤 + 补齐缺失（旧版这几件都在，不能丢） -->
+      <div class="flex" style="gap:14px;margin-bottom:14px;align-items:center">
+        <div style="flex:1;min-width:0">
+          <div class="flex" style="gap:8px;align-items:baseline;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--phx-text-2)">已完成 <b style="color:var(--phx-text)">415</b> / 567</span>
+            <span style="font-size:11.5px;color:var(--phx-text-3)">· 73%</span>
+          </div>
+          <div class="bar" style="height:5px"><i style="width:73%"></i></div>
+        </div>
+        <div style="width:220px;background:var(--phx-surface);border:1px solid var(--phx-sep);border-radius:8px;
+                    padding:7px 11px;font-size:12px;color:var(--phx-text-3);display:flex;gap:7px;align-items:center">
+          <span style="font-size:11.5px">🔍</span>搜索任务名
+        </div>
+        <div class="flex" style="gap:2px;background:var(--phx-surface);border:1px solid var(--phx-sep);border-radius:8px;padding:2px">
+          <div style="padding:5px 11px;border-radius:6px;font-size:12px;background:var(--phx-accent-soft);color:var(--phx-accent);font-weight:600">全部</div>
+          <div style="padding:5px 11px;border-radius:6px;font-size:12px;color:var(--phx-text-2)">未完成</div>
+          <div style="padding:5px 11px;border-radius:6px;font-size:12px;color:var(--phx-text-2)">已完成</div>
+        </div>
+        <div class="btn ghost">补齐缺失</div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:200px 1fr 340px;gap:14px">
+        <div class="card" style="padding:12px">
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-bottom:8px">按商人</div>
+          <div class="stack" style="gap:2px;font-size:12.5px">
+            <div class="between" style="padding:6px 8px;border-radius:7px;background:var(--phx-accent-soft);color:var(--phx-accent);font-weight:600"><span>全部</span><span class="num" style="font-size:11px">567</span></div>
+            <div class="between" style="padding:6px 8px"><span>Prapor</span><span class="num dim" style="font-size:11px">62</span></div>
+            <div class="between" style="padding:6px 8px"><span>Therapist</span><span class="num dim" style="font-size:11px">58</span></div>
+            <div class="between" style="padding:6px 8px"><span>Fence</span><span class="num dim" style="font-size:11px">21</span></div>
+            <div class="between" style="padding:6px 8px"><span>Skier</span><span class="num dim" style="font-size:11px">54</span></div>
+            <div class="between" style="padding:6px 8px"><span>Peacekeeper</span><span class="num dim" style="font-size:11px">49</span></div>
+            <div class="between" style="padding:6px 8px"><span>Mechanic</span><span class="num dim" style="font-size:11px">57</span></div>
+            <div class="between" style="padding:6px 8px"><span>Ragman</span><span class="num dim" style="font-size:11px">44</span></div>
+          </div>
+          <div style="height:1px;background:var(--phx-sep);margin:10px 0"></div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-bottom:8px">按状态</div>
+          <div class="stack" style="gap:2px;font-size:12.5px">
+            <div class="between" style="padding:6px 8px"><span>● 进行中</span><span class="num dim" style="font-size:11px">7</span></div>
+            <div class="between" style="padding:6px 8px"><span style="color:var(--phx-accent)">● 可交</span><span class="num dim" style="font-size:11px">1</span></div>
+            <div class="between" style="padding:6px 8px"><span>● 可用</span><span class="num dim" style="font-size:11px">7</span></div>
+            <div class="between" style="padding:6px 8px"><span class="dim">● 已完成</span><span class="num dim" style="font-size:11px">415</span></div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px 14px">
+          <div class="between" style="margin-bottom:8px">
+            <div style="font-size:12px;color:var(--phx-text-3)">7 条进行中</div>
+            <div style="font-size:11.5px;color:var(--phx-text-3)">按名称排序 ⌄</div>
+          </div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-accent)">●</span><span>生存至上</span><span class="v"><span class="badge b">可交</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-warn)">●</span><span>检查</span><span class="v"><span class="badge y">进行中</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-warn)">●</span><span>补给</span><span class="v"><span class="badge y">进行中</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-warn)">●</span><span>枪匠 · 第 12 部分</span><span class="v"><span class="badge y">进行中</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-warn)">●</span><span>收藏家</span><span class="v"><span class="badge y">进行中</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-warn)">●</span><span>大客户</span><span class="v"><span class="badge y">进行中</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+          <div class="row" style="padding:10px 0"><span style="color:var(--phx-warn)">●</span><span>赌徒</span><span class="v"><span class="badge y">进行中</span></span><span style="color:var(--phx-text-3);font-size:11px;margin-left:10px">🗑</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">生存至上</div><span class="badge b">可交</span></div>
+          <div style="font-size:12px;color:var(--phx-text-2);line-height:1.7;margin-bottom:14px">
+            在森林存活并撤离。Prapor 想确认你是否还站得住。
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-bottom:7px">完成条件</div>
+          <div class="stack" style="gap:7px;font-size:12px">
+            <div class="between"><span class="muted">在森林撤离</span><span style="color:var(--phx-green)">✓</span></div>
+            <div class="between"><span class="muted">不使用医疗物品</span><span style="color:var(--phx-green)">✓</span></div>
+            <div class="between"><span class="muted">击杀 5 名 Scav</span><span style="color:var(--phx-green)">✓</span></div>
+          </div>
+          <div style="height:1px;background:var(--phx-sep);margin:14px 0"></div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-bottom:7px">奖励</div>
+          <div class="stack" style="gap:7px;font-size:12px">
+            <div class="between"><span class="muted">经验</span><span class="num">+7,200</span></div>
+            <div class="between"><span class="muted">卢布</span><span class="num">+45,000</span></div>
+            <div class="between"><span class="muted">Prapor 好感</span><span class="num">+0.06</span></div>
+          </div>
+          <div class="btn primary" style="width:100%;margin-top:16px">标记为已完成</div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="2"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 07 商人 ===================== -->
+<section id="p07">
+  <div class="label"><span class="no">07</span><span class="name">商人</span>
+    <span class="note">12 位商人卡片；等级上限来自服务器 loyaltyLevels 段数，不是写死的 4。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab on">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">商人</div>
+          <div class="page-sub">12 位 · 已满级 10 位 · 好感与销售额只在改等级时一起联动</div>
+        </div>
+        <div class="btn ghost">全部满级</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <div class="grid g3" style="gap:13px">
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Prapor</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">48,200,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Therapist</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">39,140,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Fence</span><span class="badge y">2 / 2</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">1.20</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">3,860,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Skier</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">28,700,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Peacekeeper</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">$ 412,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Mechanic</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">35,900,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Ragman</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">18,400,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Jaeger</span><span class="badge g">4 / 4</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num">6.00</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>销售额</span><span class="num">12,600,000</span></div>
+          <div class="bar g"><i style="width:100%"></i></div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div class="between" style="margin-bottom:10px">
+            <div class="flex"><span style="font-weight:600;font-size:13.5px">Lightkeeper</span><span class="badge n">未解锁</span></div>
+            <span class="dim">›</span>
+          </div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:4px"><span>好感</span><span class="num dim">—</span></div>
+          <div class="between" style="font-size:11.5px;color:var(--phx-text-2);margin-bottom:8px"><span>需要先完成指定任务</span><span></span></div>
+          <div class="bar"><i style="width:0%"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="3"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 08 藏身处 ===================== -->
+<section id="p08">
+  <div class="label"><span class="no">08</span><span class="name">藏身处</span>
+    <span class="note">28 个区域，滑块改等级；只改 level，active 与槽位一律不动（这是之前踩过的坑）。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">藏身处</div>
+          <div class="page-sub">SPT 4.1.x · 档案已加载 · 仅 PMC · 已满级 27 / 28</div>
+        </div>
+        <div class="btn ghost">区域</div><div class="btn ghost">生产配方</div><div class="btn ghost">进行中生产</div>
+        <div class="btn primary">全部拉满</div>
+      </div>
+
+      <div class="grid g2" style="gap:12px">
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">通风</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">安保</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">卫生间</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">仓库</span><span class="num dim" style="font-size:11.5px">4 / 4</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">4</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">发电机</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">供暖</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">集水器</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">医疗站</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">工作台</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+        <div class="card" style="padding:13px 16px">
+          <div class="between" style="margin-bottom:9px"><span style="font-size:13px;font-weight:600">情报中心</span><span class="num dim" style="font-size:11.5px">3 / 3</span></div>
+          <div class="flex" style="gap:10px"><span class="btn sm ghost">−</span><b class="num" style="width:22px;text-align:center;font-size:13px">3</b><span class="btn sm ghost">＋</span>
+            <div style="flex:1;margin-left:6px"><div class="bar"><i style="width:100%"></i></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="4"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 09 仓库 ===================== -->
+<section id="p09">
+  <div class="label"><span class="no">09</span><span class="name">仓库</span>
+    <span class="note">10×68 格子；顶部搜索与编号筛选是找「已有物品」，右侧「添加物品」是从库里加新的；货币带自定义金额，仓库信息里带附加行数。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head" style="margin-bottom:14px">
+        <div class="grow">
+          <div class="page-title">仓库</div>
+          <div class="page-sub" style="margin-bottom:0">10 × 68 格 · 32 件物品 · 加成格位 +2</div>
+        </div>
+        <div class="btn ghost">整理</div>
+        <div class="btn ghost">添加物品</div>
+        <div class="btn ghost">切换列表</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <!-- 仓库内检索：找「已经有的」物品，和右侧「从库里添加」是两件事 -->
+      <div class="flex" style="gap:9px;margin-bottom:14px">
+        <div style="flex:1;background:var(--phx-surface);border:1px solid var(--phx-sep);border-radius:8px;
+                    padding:8px 11px;font-size:12.5px;color:var(--phx-text-3);display:flex;gap:7px;align-items:center">
+          <span style="font-size:12px">🔍</span>搜索仓库里的物品
+        </div>
+        <div style="width:230px;background:var(--phx-surface);border:1px solid var(--phx-sep);border-radius:8px;
+                    padding:8px 11px;font-size:12.5px;color:var(--phx-text-3)">按模板编号筛选</div>
+        <div class="btn ghost">清除筛选</div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 320px;gap:14px">
+        <div class="card" style="padding:14px">
+          <div class="between" style="margin-bottom:10px">
+            <span style="font-size:12px;color:var(--phx-text-2)">格子视图 · 显示前 8 列</span>
+            <span style="font-size:11.5px;color:var(--phx-text-3)">点击物品可移动 / 拆分</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px">
+            <!-- 第 1 行：几件占位物品 -->
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--phx-text-2);border:1px solid var(--phx-sep)">AK</div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--phx-text-2);border:1px solid var(--phx-sep)">甲</div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--phx-text-2);border:1px solid var(--phx-sep)">弹</div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <!-- 第 2 行：两格宽的步枪 -->
+            <div style="grid-column:span 2;grid-row:span 1;aspect-ratio:2.06;background:var(--phx-accent-soft);border:1px solid rgba(0,136,255,.28);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--phx-accent);font-weight:600">AK-74M</div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--phx-text-2);border:1px solid var(--phx-sep)">药</div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <div style="aspect-ratio:1;background:var(--phx-surface-3);border-radius:5px;border:1px solid var(--phx-sep)"></div>
+            <!-- 后续若干行 -->
+            <script>
+              // 稿图占位：补 5 行空格子，避免手写 50 个 div
+              for (let i = 0; i < 50; i++) {
+                document.write('<div style="aspect-ratio:1;background:var(--phx-surface-2);border-radius:5px;border:1px solid var(--phx-sep)"></div>')
+              }
+            </script>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:11px">
+          <div class="card" style="padding:14px 16px">
+            <div class="card-h" style="margin-bottom:9px"><div class="card-t">货币</div><span class="card-note">含钱箱内现金</span></div>
+            <div class="stack" style="gap:10px;font-size:12.5px">
+              <div class="between"><span class="muted">卢布 ₽</span><span class="num" style="font-weight:600">464,460,344</span></div>
+              <div class="between"><span class="muted">美元 $</span><span class="num" style="font-weight:600">1,573,641</span></div>
+              <div class="between"><span class="muted">欧元 €</span><span class="num" style="font-weight:600">8,351,000</span></div>
+            </div>
+            <div class="flex" style="gap:7px;margin-top:13px">
+              <div class="btn ghost sm">+ 100 万</div>
+              <div class="btn ghost sm">+ 1000 万</div>
+              <div class="btn ghost sm">清零</div>
+            </div>
+            <div class="flex" style="gap:7px;margin-top:8px">
+              <div style="flex:1;background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:7px;
+                          padding:6px 9px;font-size:11.5px;color:var(--phx-text-3)">自定义金额</div>
+              <div class="btn ghost sm">设为</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><div class="card-t">仓库信息</div></div>
+            <div class="stack" style="gap:8px;font-size:12px">
+              <div class="between"><span class="muted">物品总数</span><span class="num">32</span></div>
+              <div class="between"><span class="muted">占用 / 空余格</span><span class="num">61 / 619</span></div>
+              <div class="between" style="padding-top:8px;border-top:1px solid var(--phx-sep)">
+                <span class="muted">附加行数</span>
+                <span class="flex" style="gap:6px">
+                  <span class="btn ghost sm" style="width:24px;height:24px;padding:0">−</span>
+                  <span class="num" style="min-width:14px;text-align:center">0</span>
+                  <span class="btn ghost sm" style="width:24px;height:24px;padding:0">+</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><div class="card-t">添加物品</div><span class="card-note">从物品库挑</span></div>
+            <div style="background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:8px;
+                        padding:7px 10px;font-size:12px;color:var(--phx-text-3);display:flex;gap:7px;align-items:center">
+              <span style="font-size:12px">🔍</span>名称 / 短名 / 编号
+            </div>
+            <div class="stack" style="gap:0;margin-top:6px">
+              <div class="row" style="padding:7px 0;font-size:12px">
+                <span>柯尔特 M4A1 5.56x45 卡宾枪</span>
+                <span class="v mono">5447a9cd…</span>
+                <span class="btn sm" style="margin-left:8px">加入</span>
+              </div>
+              <div class="row" style="padding:7px 0;font-size:12px">
+                <span>AK-74M 5.45x39 突击步枪</span>
+                <span class="v mono">5ac66d…</span>
+                <span class="btn sm" style="margin-left:8px">加入</span>
+              </div>
+            </div>
+            <div class="flex" style="gap:7px;margin-top:9px;align-items:center">
+              <span style="font-size:11.5px;color:var(--phx-text-3)">数量</span>
+              <span class="btn ghost sm" style="width:24px;height:24px;padding:0">−</span>
+              <span class="num" style="font-size:12px;min-width:20px;text-align:center">1</span>
+              <span class="btn ghost sm" style="width:24px;height:24px;padding:0">+</span>
+              <span style="font-size:11px;color:var(--phx-text-3);margin-left:auto">可堆叠会先补进已有那摞</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="5"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 10 检视 ===================== -->
+<section id="p10">
+  <div class="label"><span class="no">10</span><span class="name">检视 / 武器图鉴</span>
+    <span class="note">只读的官方改装预设；「加入仓库」会整套落进 stash，落位算法与游戏一致。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">武器图鉴</div>
+          <div class="page-sub">来自服务器数据库的官方改装预设 · 只读 · 399 条</div>
+        </div>
+        <div class="btn ghost">检视</div><div class="btn ghost">图鉴</div>
+        <div style="margin-left:8px;background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:8px;
+                    padding:7px 12px;font-size:12px;color:var(--phx-text-3);width:180px">按名称筛选</div>
+      </div>
+
+      <div class="stack" style="gap:11px">
+        <div class="card" style="padding:14px 16px">
+          <div class="between">
+            <div class="flex" style="gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--phx-accent-soft);
+                          display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--phx-accent)">2</div>
+              <div>
+                <div style="font-size:13.5px;font-weight:600">20x1mm toy gun</div>
+                <div style="font-size:11.5px;color:var(--phx-text-3)">官方预设 · 1 个零件</div>
+              </div>
+            </div>
+            <div class="flex"><div class="btn primary sm">＋ 加入仓库</div><div class="btn ghost sm">导出</div></div>
+          </div>
+          <div class="flex" style="gap:16px;margin-top:12px;font-size:11.5px;color:var(--phx-text-2)">
+            <span>人体工学 <b class="num" style="color:var(--phx-text)">100</b></span>
+            <span>垂直后坐力 <b class="num" style="color:var(--phx-text)">380</b></span>
+            <span>水平后坐力 <b class="num" style="color:var(--phx-text)">265</b></span>
+          </div>
+          <div class="flex" style="gap:6px;margin-top:10px;flex-wrap:wrap">
+            <span class="badge n">Toy gun 20x1mm 20-round magazine</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 16px">
+          <div class="between">
+            <div class="flex" style="gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--phx-accent-soft);
+                          display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--phx-accent)">5</div>
+              <div>
+                <div style="font-size:13.5px;font-weight:600">5.11 Tactical Hexgrid plate carrier</div>
+                <div style="font-size:11.5px;color:var(--phx-text-3)">官方预设 · 2 个零件</div>
+              </div>
+            </div>
+            <div class="flex"><div class="btn primary sm">＋ 加入仓库</div><div class="btn ghost sm">导出</div></div>
+          </div>
+          <div class="flex" style="gap:16px;margin-top:12px;font-size:11.5px;color:var(--phx-text-2)">
+            <span>人体工学 <b class="num" style="color:var(--phx-text)">0</b></span>
+            <span>垂直后坐力 <b class="num" style="color:var(--phx-text)">0</b></span>
+            <span>水平后坐力 <b class="num" style="color:var(--phx-text)">0</b></span>
+          </div>
+          <div class="flex" style="gap:6px;margin-top:10px;flex-wrap:wrap">
+            <span class="badge n">GAC 4sss2 ballistic plate</span>
+            <span class="badge n">GAC 4sss2 ballistic plate</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 16px">
+          <div class="between">
+            <div class="flex" style="gap:10px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--phx-accent-soft);
+                          display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--phx-accent)">5</div>
+              <div>
+                <div style="font-size:13.5px;font-weight:600">5.11 Tactical TacTec plate carrier (Ranger Green)</div>
+                <div style="font-size:11.5px;color:var(--phx-text-3)">官方预设 · 4 个零件</div>
+              </div>
+            </div>
+            <div class="flex"><div class="btn primary sm">＋ 加入仓库</div><div class="btn ghost sm">导出</div></div>
+          </div>
+          <div class="flex" style="gap:6px;margin-top:12px;flex-wrap:wrap">
+            <span class="badge n">Aramid insert</span>
+            <span class="badge n">Aramid insert</span>
+            <span class="badge n">GAC 3s15m ballistic plate</span>
+            <span class="badge n">GAC 3s15m ballistic plate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="5"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 11 Scav ===================== -->
+<section id="p11">
+  <div class="label"><span class="no">11</span><span class="name">Scav</span>
+    <span class="note">Scav 是独立档案，装备槽与口袋和 PMC 不同，页头会明确标出当前在改谁。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">Scav</div>
+          <div class="page-sub">4.1.6 (40743) · 当前编辑 <b>Scav</b> 档案（不是 PMC）· 昵称 Вася Конченный</div>
+        </div>
+        <div class="btn ghost">清空 Scav 装备</div>
+        <div class="btn primary">保存修改</div>
+      </div>
+
+      <div class="grid g2" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-h"><div class="card-t">装备槽</div><span class="card-note">点击槽位可更换</span></div>
+          <div class="grid g3" style="gap:9px">
+            <div style="border:1px solid var(--phx-sep);border-radius:9px;background:var(--phx-surface-2);padding:9px;text-align:center">
+              <div style="font-size:10.5px;color:var(--phx-text-3);margin-bottom:5px">耳机</div>
+              <div style="font-size:11.5px;color:var(--phx-text-3)">空</div></div>
+            <div style="border:1px solid var(--phx-sep);border-radius:9px;background:var(--phx-surface-2);padding:9px;text-align:center">
+              <div style="font-size:10.5px;color:var(--phx-text-3);margin-bottom:5px">头戴</div>
+              <div style="font-size:11.5px;color:var(--phx-text-3)">空</div></div>
+            <div style="border:1px solid var(--phx-sep);border-radius:9px;background:var(--phx-surface-2);padding:9px;text-align:center">
+              <div style="font-size:10.5px;color:var(--phx-text-3);margin-bottom:5px">面罩</div>
+              <div style="font-size:11.5px;color:var(--phx-text-3)">空</div></div>
+            <div style="border:1px solid var(--phx-sep);border-radius:9px;background:var(--phx-surface-2);padding:9px;text-align:center">
+              <div style="font-size:10.5px;color:var(--phx-text-3);margin-bottom:5px">战术胸挂</div>
+              <div style="font-size:11.5px;color:var(--phx-text-3)">空</div></div>
+            <div style="border:1px solid var(--phx-sep);border-radius:9px;background:var(--phx-surface-2);padding:9px;text-align:center">
+              <div style="font-size:10.5px;color:var(--phx-text-3);margin-bottom:5px">护甲</div>
+              <div style="font-size:11.5px;color:var(--phx-text-3)">空</div></div>
+            <div style="border:1px solid var(--phx-sep);border-radius:9px;background:var(--phx-surface-2);padding:9px;text-align:center">
+              <div style="font-size:10.5px;color:var(--phx-text-3);margin-bottom:5px">背包</div>
+              <div style="font-size:11.5px;color:var(--phx-text-3)">空</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">Scav 概览</div></div>
+          <div class="row"><span class="k">等级</span><span class="v num">1</span></div>
+          <div class="row"><span class="k">经验</span><span class="v num">0</span></div>
+          <div class="row"><span class="k">击杀数</span><span class="v num">0</span></div>
+          <div class="row"><span class="k">存活率</span><span class="v num">0%</span></div>
+          <div class="row"><span class="k">仓库物品</span><span class="v num">0</span></div>
+          <div style="font-size:11px;color:var(--phx-text-3);margin-top:11px;line-height:1.6">
+            Scav 的仓库与口袋是独立容器；这里的改动不影响 PMC。
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><div class="card-t">Scav 仓库</div><span class="card-note">10 × 68 · 0 件</span></div>
+        <div style="display:grid;grid-template-columns:repeat(20,1fr);gap:3px">
+          <script>
+            for (let i = 0; i < 60; i++) {
+              document.write('<div style="aspect-ratio:1;background:var(--phx-surface-2);border-radius:4px;border:1px solid var(--phx-sep)"></div>')
+            }
+          </script>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="5"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 12 预设 ===================== -->
+<section id="p12">
+  <div class="label"><span class="no">12</span><span class="name">预设</span>
+    <span class="note">两个来源：自己存的「我的预设」（客户端写的 PascalCase）与官方「套装军械库」12 套。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">预设</div>
+          <div class="page-sub">SPT 4.1.6 (40743) · 检视武器时点「加入预设」会存到这里</div>
+        </div>
+        <div class="btn ghost">我的预设</div><div class="btn primary">套装军械库</div>
+        <div class="btn ghost">导入</div>
+      </div>
+
+      <div class="grid g3" style="gap:13px">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="height:86px;background:linear-gradient(160deg,#e8f1ff,#f6f9ff);display:flex;align-items:center;justify-content:center;
+                      color:var(--phx-accent);font-size:26px;font-weight:800;letter-spacing:-1px">AK-74M</div>
+          <div style="padding:11px 14px">
+            <div class="between"><span style="font-size:12.5px;font-weight:600">新手起装包</span><span class="badge b">入门级</span></div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:5px">AK-74M · PACA · 6B47</div>
+            <div class="between" style="margin-top:9px"><span class="num" style="font-size:12px;font-weight:600">≈ 85,000 ₽</span>
+              <span style="font-size:11.5px;color:var(--phx-accent)">整套加入 ›</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="height:86px;background:linear-gradient(160deg,#e8f1ff,#f6f9ff);display:flex;align-items:center;justify-content:center;
+                      color:var(--phx-accent);font-size:26px;font-weight:800;letter-spacing:-1px">M4A1</div>
+          <div style="padding:11px 14px">
+            <div class="between"><span style="font-size:12.5px;font-weight:600">满配 M4 突击套装</span><span class="badge y">满配级</span></div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:5px">M4A1 · Slick · Alpha</div>
+            <div class="between" style="margin-top:9px"><span class="num" style="font-size:12px;font-weight:600">≈ 1,240,000 ₽</span>
+              <span style="font-size:11.5px;color:var(--phx-accent)">整套加入 ›</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="height:86px;background:linear-gradient(160deg,#e8f1ff,#f6f9ff);display:flex;align-items:center;justify-content:center;
+                      color:var(--phx-accent);font-size:26px;font-weight:800;letter-spacing:-1px">HK416</div>
+          <div style="padding:11px 14px">
+            <div class="between"><span style="font-size:12.5px;font-weight:600">Labs 战备包</span><span class="badge r">战备级</span></div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:5px">HK416 · Slick · Maska</div>
+            <div class="between" style="margin-top:9px"><span class="num" style="font-size:12px;font-weight:600">≈ 2,150,000 ₽</span>
+              <span style="font-size:11.5px;color:var(--phx-accent)">整套加入 ›</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="height:86px;background:linear-gradient(160deg,#e8f1ff,#f6f9ff);display:flex;align-items:center;justify-content:center;
+                      color:var(--phx-accent);font-size:26px;font-weight:800;letter-spacing:-1px">SV-98</div>
+          <div style="padding:11px 14px">
+            <div class="between"><span style="font-size:12.5px;font-weight:600">远程狙击套装</span><span class="badge y">狙击手</span></div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:5px">SV-98 · Gzhel-K · Altyn</div>
+            <div class="between" style="margin-top:9px"><span class="num" style="font-size:12px;font-weight:600">≈ 980,000 ₽</span>
+              <span style="font-size:11.5px;color:var(--phx-accent)">整套加入 ›</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="height:86px;background:linear-gradient(160deg,#e8f1ff,#f6f9ff);display:flex;align-items:center;justify-content:center;
+                      color:var(--phx-accent);font-size:26px;font-weight:800;letter-spacing:-1px">RPK16</div>
+          <div style="padding:11px 14px">
+            <div class="between"><span style="font-size:12.5px;font-weight:600">机枪火力手</span><span class="badge r">火力压制</span></div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:5px">RPK16 · 6B13 Killa · Blackjack</div>
+            <div class="between" style="margin-top:9px"><span class="num" style="font-size:12px;font-weight:600">≈ 1,500,000 ₽</span>
+              <span style="font-size:11.5px;color:var(--phx-accent)">整套加入 ›</span></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="height:86px;background:linear-gradient(160deg,#e8f1ff,#f6f9ff);display:flex;align-items:center;justify-content:center;
+                      color:var(--phx-accent);font-size:26px;font-weight:800;letter-spacing:-1px">MP-153</div>
+          <div style="padding:11px 14px">
+            <div class="between"><span style="font-size:12.5px;font-weight:600">Scav 娱乐装</span><span class="badge n">娱乐</span></div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:5px">MP-153 · WT 胸挂</div>
+            <div class="between" style="margin-top:9px"><span class="num" style="font-size:12px;font-weight:600">≈ 30,000 ₽</span>
+              <span style="font-size:11.5px;color:var(--phx-accent)">整套加入 ›</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="6"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 13 物品图鉴 ===================== -->
+<section id="p13">
+  <div class="label"><span class="no">13</span><span class="name">物品图鉴</span>
+    <span class="note">114 个分类、4553 件物品；左树完整可折叠（一级 ▾ 展开到三级），中列虚拟滚动，右侧带数量直接入仓。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">物品图鉴</div>
+          <div class="page-sub">4,553 件物品 · 114 个分类 · 数据来自你自己的服务器数据库</div>
+        </div>
+        <div style="background:var(--phx-surface-3);border:1px solid var(--phx-sep);border-radius:8px;
+                    padding:7px 12px;font-size:12px;color:var(--phx-text-3);width:220px">搜索名称 / 短名 / 编号</div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:200px 1fr 300px;gap:14px;height:calc(100% - 84px);align-items:stretch">
+        <div class="card" style="padding:10px 8px;font-size:12.5px;height:100%;overflow:hidden">
+          <div class="between" style="padding:6px 8px;border-radius:6px;background:var(--phx-accent-soft);color:var(--phx-accent);font-weight:600">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;opacity:.7">▾</span>全部物品</span>
+            <span class="num" style="font-size:11px">4553</span></div>
+
+          <div class="between" style="padding:6px 8px;padding-left:8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▾</span>组合物品</span>
+            <span class="num dim" style="font-size:11px">3279</span></div>
+          <div class="between" style="padding:5px 8px;padding-left:24px;color:var(--phx-text-2)">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▾</span>武器</span>
+            <span class="num dim" style="font-size:11px">164</span></div>
+          <div class="between" style="padding:4px 8px;padding-left:40px;color:var(--phx-text-3);font-size:12px"><span>手枪</span><span class="num dim" style="font-size:10.5px">26</span></div>
+          <div class="between" style="padding:4px 8px;padding-left:40px;color:var(--phx-text-3);font-size:12px"><span>冲锋枪</span><span class="num dim" style="font-size:10.5px">22</span></div>
+          <div class="between" style="padding:4px 8px;padding-left:40px;background:var(--phx-accent-soft);border-radius:5px;color:var(--phx-accent);font-size:12px"><span>突击步枪</span><span class="num" style="font-size:10.5px">46</span></div>
+          <div class="between" style="padding:4px 8px;padding-left:40px;color:var(--phx-text-3);font-size:12px"><span>霰弹枪</span><span class="num dim" style="font-size:10.5px">15</span></div>
+          <div class="between" style="padding:4px 8px;padding-left:40px;color:var(--phx-text-3);font-size:12px"><span>狙击步枪</span><span class="num dim" style="font-size:10.5px">9</span></div>
+          <div class="between" style="padding:4px 8px;padding-left:40px;color:var(--phx-text-3);font-size:12px"><span>机枪</span><span class="num dim" style="font-size:10.5px">11</span></div>
+          <div class="between" style="padding:5px 8px;padding-left:24px;color:var(--phx-text-2)">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>武器配件</span>
+            <span class="num dim" style="font-size:11px">2005</span></div>
+          <div class="between" style="padding:5px 8px;padding-left:24px;color:var(--phx-text-2)">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>装备</span>
+            <span class="num dim" style="font-size:11px">767</span></div>
+          <div class="between" style="padding:5px 8px;padding-left:24px;color:var(--phx-text-2)">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>功能性模块</span>
+            <span class="num dim" style="font-size:11px">655</span></div>
+
+          <div class="between" style="padding:6px 8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>可堆叠物品</span>
+            <span class="num dim" style="font-size:11px">425</span></div>
+          <div class="between" style="padding:6px 8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>钥匙</span>
+            <span class="num dim" style="font-size:11px">241</span></div>
+          <div class="between" style="padding:6px 8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>交换用物品</span>
+            <span class="num dim" style="font-size:11px">288</span></div>
+          <div class="between" style="padding:6px 8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>信息</span>
+            <span class="num dim" style="font-size:11px">136</span></div>
+          <div class="between" style="padding:6px 8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>药品</span>
+            <span class="num dim" style="font-size:11px">44</span></div>
+          <div class="between" style="padding:6px 8px">
+            <span class="flex" style="gap:6px"><span style="font-size:9px;color:var(--phx-text-3)">▸</span>投掷武器</span>
+            <span class="num dim" style="font-size:11px">13</span></div>
+
+          <div style="padding:7px 8px 2px;border-top:1px solid var(--phx-sep);margin-top:4px;
+                      font-size:10.5px;color:var(--phx-text-3);line-height:1.5">
+            共 114 个分类 · 点三角展开<br>双击分类只看这一类
+          </div>
+        </div>
+
+        <div class="card" style="padding:8px 0">
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-accent)">▣</span><span>柯尔特 M4A1 5.56x45 卡宾枪</span><span class="v mono">5447a9cd…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>AK-74M 5.45x39 突击步枪</span><span class="v mono">5ac66d9b…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>HK 416A5 5.56x45 突击步枪</span><span class="v mono">5bb2475e…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>SV-98 7.62x54R 狙击步枪</span><span class="v mono">55801eed…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>MP5 9x19 冲锋枪</span><span class="v mono">59411aa7…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>RPK-16 5.45x39 机枪</span><span class="v mono">5c012ffc…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>M700 7.62x51 狙击步枪</span><span class="v mono">5bfea6e5…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>DVL-10 7.62x51 狙击步枪</span><span class="v mono">58889209…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>M870 12 号泵动霰弹枪</span><span class="v mono">5a38e6b4…</span></div>
+          <div class="row" style="padding:9px 14px"><span style="color:var(--phx-text-3)">▣</span><span>MP-153 12 号霰弹枪</span><span class="v mono">58414907…</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">柯尔特 M4A1</div><span class="badge b">武器</span></div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-bottom:12px">组合物品 › 武器 › 突击步枪</div>
+          <div class="stack" style="gap:7px;font-size:12px">
+            <div class="between"><span class="muted">占用格</span><span class="num">4 × 2</span></div>
+            <div class="between"><span class="muted">单叠上限</span><span class="num">1</span></div>
+            <div class="between"><span class="muted">参考价</span><span class="num">42,000 ₽</span></div>
+            <div class="between"><span class="muted">稀有度</span><span class="num">Rare</span></div>
+            <div class="between"><span class="muted">模板编号</span><span class="num mono" style="font-weight:400">5447a9cd4bdc2dbd208b4567</span></div>
+          </div>
+          <div style="height:1px;background:var(--phx-sep);margin:14px 0"></div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-bottom:7px">加入数量</div>
+          <div class="flex" style="gap:8px">
+            <span class="btn ghost sm">−</span>
+            <b class="num" style="width:34px;text-align:center;font-size:13px">1</b>
+            <span class="btn ghost sm">＋</span>
+            <em class="dim" style="font-style:normal;font-size:11px;margin-left:4px">1 – 100</em>
+          </div>
+          <div class="btn primary" style="width:100%;margin-top:14px">＋ 加入仓库</div>
+          <div style="font-size:11px;color:var(--phx-text-3);margin-top:9px;line-height:1.6">
+            可堆叠物品会先补进仓库里已有的那一摞。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="5"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 14 备份 ===================== -->
+<section id="p14">
+  <div class="label"><span class="no">14</span><span class="name">备份</span>
+    <span class="note">每次写档前自动落一份，最多留 10 份；这一屏是数据安全的最后一道门。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">备份</div>
+          <div class="page-sub">当前档案 6 份备份 · 最早 2026-11-24 10:04 · 每份都是完整存档</div>
+        </div>
+        <div class="btn ghost">打开备份文件夹</div>
+        <div class="btn primary">立即备份一次</div>
+      </div>
+
+      <div class="card" style="padding:6px 0">
+        <div class="row" style="padding:13px 18px">
+          <span class="badge b">最新</span>
+          <div style="margin-left:4px">
+            <div style="font-size:12.5px;font-weight:500">2026-11-24 16:03:31</div>
+            <div style="font-size:11px;color:var(--phx-text-3)">写「准备转生」标记前 · 503 KB</div>
+          </div>
+          <span class="v"><div class="flex"><div class="btn ghost sm">回滚</div><div class="btn ghost sm">对比</div></div></span>
+        </div>
+        <div class="row" style="padding:13px 18px">
+          <span class="badge n">2</span>
+          <div style="margin-left:4px">
+            <div style="font-size:12.5px;font-weight:500">2026-11-24 16:02:10</div>
+            <div style="font-size:11px;color:var(--phx-text-3)">改角色等级 42 → 55 前 · 492 KB</div>
+          </div>
+          <span class="v"><div class="flex"><div class="btn ghost sm">回滚</div><div class="btn ghost sm">对比</div></div></span>
+        </div>
+        <div class="row" style="padding:13px 18px">
+          <span class="badge n">3</span>
+          <div style="margin-left:4px">
+            <div style="font-size:12.5px;font-weight:500">2026-11-24 15:41:02</div>
+            <div style="font-size:11px;color:var(--phx-text-3)">改转生等级 1 → 0 前 · 492 KB</div>
+          </div>
+          <span class="v"><div class="flex"><div class="btn ghost sm">回滚</div><div class="btn ghost sm">对比</div></div></span>
+        </div>
+        <div class="row" style="padding:13px 18px">
+          <span class="badge n">4</span>
+          <div style="margin-left:4px">
+            <div style="font-size:12.5px;font-weight:500">2026-11-24 10:05:59</div>
+            <div style="font-size:11px;color:var(--phx-text-3)">保存藏身处前 · 547 KB</div>
+          </div>
+          <span class="v"><div class="flex"><div class="btn ghost sm">回滚</div><div class="btn ghost sm">对比</div></div></span>
+        </div>
+      </div>
+
+      <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:14px;line-height:1.7">
+        回滚不是覆盖：当前档会再存一份「回滚前」的备份，随时能退回。
+      </div>
+    </div>
+    <div class="dock" data-on="7"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 15 账号 ===================== -->
+<section id="p15">
+  <div class="label"><span class="no">15</span><span class="name">账号</span>
+    <span class="note">登录只是可选的云同步，不登录也能用全部功能——这句话要写在页面上，不是藏在文档里。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">账号</div>
+          <div class="page-sub">可选。不登录也能正常编辑与备份，登录只为了跨设备同步设置</div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-h"><div class="card-t">GitHub 登录</div><span class="badge n">未登录</span></div>
+          <div style="font-size:12.5px;color:var(--phx-text-2);line-height:1.8;margin-bottom:16px">
+            用 GitHub 账号登录后，界面偏好、快捷键、服务器路径可以跟着账号走。
+            存档本身<b>永远只留在本机</b>，不会上传。
+          </div>
+          <div class="btn primary" style="width:100%">使用 GitHub 登录</div>
+          <div style="font-size:11px;color:var(--phx-text-3);margin-top:12px;line-height:1.7">
+            只申请最小权限；随时可以在 GitHub 设置里撤销。
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">同步内容</div><span class="card-note">逐项可关</span></div>
+          <div class="row"><span class="k">界面语言</span>
+            <span class="v"><span style="display:inline-block;width:34px;height:20px;border-radius:10px;
+              background:var(--phx-accent);position:relative"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;
+              border-radius:50%;background:#fff;display:block"></i></span></span></div>
+          <div class="row"><span class="k">主题（深 / 浅 / 跟随系统）</span>
+            <span class="v"><span style="display:inline-block;width:34px;height:20px;border-radius:10px;
+              background:var(--phx-accent);position:relative"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;
+              border-radius:50%;background:#fff;display:block"></i></span></span></div>
+          <div class="row"><span class="k">服务器目录路径</span>
+            <span class="v"><span style="display:inline-block;width:34px;height:20px;border-radius:10px;
+              background:var(--phx-surface-3);position:relative;border:1px solid var(--phx-sep)"><i style="position:absolute;left:2px;top:2px;width:15px;height:15px;
+              border-radius:50%;background:#fff;display:block;box-shadow:0 1px 2px rgba(0,0,0,.2)"></i></span></span></div>
+          <div class="row"><span class="k">面板顺序与折叠状态</span>
+            <span class="v"><span style="display:inline-block;width:34px;height:20px;border-radius:10px;
+              background:var(--phx-accent);position:relative"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;
+              border-radius:50%;background:#fff;display:block"></i></span></span></div>
+          <div style="font-size:11px;color:var(--phx-text-3);margin-top:12px;line-height:1.7">
+            未登录时这些偏好存在本机，登录后以账号里的一份为准。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="8"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 16 设置 ===================== -->
+<section id="p16">
+  <div class="label"><span class="no">16</span><span class="name">设置</span>
+    <span class="note">主题三态（跟随系统 / 深色 / 浅色）会落在这里；这是本次浅色主题的入口。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">设置</div>
+          <div class="page-sub">改动即时生效，只有路径类设置需要重启窗口</div>
+        </div>
+        <div class="btn ghost">恢复默认</div>
+      </div>
+
+      <div class="grid g2" style="gap:14px">
+        <div class="card">
+          <div class="card-h"><div class="card-t">外观</div></div>
+          <div class="row" style="align-items:flex-start"><div class="k" style="flex:1">
+            <div style="color:var(--phx-text);font-weight:500">主题</div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:3px">跟随系统时会随 Windows 的浅色 / 深色切换</div>
+          </div>
+            <div style="margin-left:auto;display:flex;background:var(--phx-surface-3);border-radius:8px;padding:3px;gap:2px">
+              <span style="padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;background:var(--phx-surface);box-shadow:0 1px 2px rgba(0,0,0,.08)">跟随系统</span>
+              <span style="padding:5px 11px;font-size:11.5px;color:var(--phx-text-2)">深色</span>
+              <span style="padding:5px 11px;font-size:11.5px;color:var(--phx-text-2)">浅色</span>
+            </div>
+          </div>
+          <div class="row" style="align-items:flex-start"><div class="k" style="flex:1">
+            <div style="color:var(--phx-text);font-weight:500">界面语言</div>
+            <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:3px">首次启动会跟随系统语言</div>
+          </div>
+            <span class="v"><span style="border:1px solid var(--phx-sep);border-radius:7px;padding:5px 10px;font-size:12px;
+              background:var(--phx-surface-3)">简体中文 ⌄</span></span>
+          </div>
+          <div class="row"><span class="k">动效</span><span class="v"><span class="badge b">标准</span></span></div>
+          <div class="row"><span class="k">音效</span><span class="v"><span class="badge n">关闭</span></span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">数据与安全</div></div>
+          <div class="row"><span class="k">写档前自动备份</span>
+            <span class="v"><span style="display:inline-block;width:34px;height:20px;border-radius:10px;
+              background:var(--phx-accent);position:relative"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;
+              border-radius:50%;background:#fff;display:block"></i></span></span></div>
+          <div class="row"><span class="k">保留备份份数</span><span class="v num">10</span></div>
+          <div class="row"><span class="k">备份目录</span>
+            <span class="v mono" style="font-size:10.5px">%APPDATA%\com.phoenix.drx\backups</span></div>
+          <div class="row"><span class="k">修改前二次确认</span>
+            <span class="v"><span class="badge b">危险操作才问</span></span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">服务器</div></div>
+          <div class="row"><span class="k">当前服务器</span><span class="v mono" style="font-size:11px">E:\EFT</span></div>
+          <div class="row"><span class="k">服务器目录</span><span class="v mono" style="font-size:11px">E:\EFT\SPT_Runtime</span></div>
+          <div class="row"><span class="k">识别到的存档</span><span class="v num">3 个</span></div>
+          <div class="row"><span class="k">数据语言</span><span class="v">跟随游戏设置（中文）</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><div class="card-t">更新</div></div>
+          <div class="row"><span class="k">当前版本</span><span class="v num">0.2.7</span></div>
+          <div class="row"><span class="k">自动检查更新</span>
+            <span class="v"><span style="display:inline-block;width:34px;height:20px;border-radius:10px;
+              background:var(--phx-accent);position:relative"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;
+              border-radius:50%;background:#fff;display:block"></i></span></span></div>
+          <div class="row"><span class="k">更新线路</span><span class="v">官方 / 加速镜像</span></div>
+          <div class="row"><span class="k">上次检查</span><span class="v dim">2 分钟前 · 已是最新</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="9"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 17 关于 ===================== -->
+<section id="p17">
+  <div class="label"><span class="no">17</span><span class="name">关于</span>
+    <span class="note">永久免费这四个字要在这里再确认一次，不是营销，是承诺。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body" style="text-align:center">
+      <div style="height:14px"></div>
+      <div style="font-size:40px;font-weight:700;letter-spacing:-1.6px;color:var(--phx-accent)">Phoenix</div>
+      <div style="font-size:13.5px;color:var(--phx-text-2);margin-top:8px">SPT 存档编辑器 · 0.2.7</div>
+      <div class="flex" style="justify-content:center;gap:8px;margin-top:16px">
+        <span class="badge g">永久免费</span>
+        <span class="badge b">开源 MIT</span>
+        <span class="badge n">无激活码</span>
+      </div>
+
+      <div class="grid g3" style="margin-top:34px;text-align:left">
+        <div class="card">
+          <div class="card-h"><div class="card-t">这个软件是什么</div></div>
+          <div style="font-size:12px;color:var(--phx-text-2);line-height:1.8">
+            一个本地工具，用来查看和修改单人逃离塔科夫（SPT）的玩家存档。
+            它只读写你本机的文件，不联网、不进游戏内存。
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">数据安全</div></div>
+          <div style="font-size:12px;color:var(--phx-text-2);line-height:1.8">
+            每次写入前自动备份，最多保留 10 份。
+            改坏了可以在「备份」页一键回滚。
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div class="card-t">链接</div></div>
+          <div class="stack" style="gap:7px;font-size:12px">
+            <div class="between"><span class="muted">源码仓库</span><span style="color:var(--phx-accent)">GitHub ›</span></div>
+            <div class="between"><span class="muted">SPT Forge</span><span style="color:var(--phx-accent)">查看 ›</span></div>
+            <div class="between"><span class="muted">问题反馈</span><span style="color:var(--phx-accent)">Issues ›</span></div>
+            <div class="between"><span class="muted">开源协议</span><span class="mono dim" style="font-size:10.5px">MIT</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:22px;text-align:left">
+        <div class="card-h"><div class="card-t">更新记录</div><span class="card-note">近三版</span></div>
+        <div class="row"><span class="badge b">0.2.7</span>
+          <div style="margin-left:8px;font-size:12px">转生可改可准备；修好存档体积翻倍与两处静默改档</div>
+          <span class="v dim" style="font-weight:400;font-size:11px">11-24</span></div>
+        <div class="row"><span class="badge n">0.2.6</span>
+          <div style="margin-left:8px;font-size:12px">物品图鉴上线；修好图鉴与 AI 页的写入报错</div>
+          <span class="v dim" style="font-weight:400;font-size:11px">11-24</span></div>
+        <div class="row"><span class="badge n">0.2.5</span>
+          <div style="margin-left:8px;font-size:12px">安装器与首次启动跟随系统语言</div>
+          <span class="v dim" style="font-weight:400;font-size:11px">11-20</span></div>
+      </div>
+
+      <div style="font-size:11px;color:var(--phx-text-3);margin-top:26px;line-height:1.8;max-width:620px;margin-left:auto;margin-right:auto">
+        与 Battlestate Games 或 SPT 团队无隶属关系。仅供单人模式使用，请勿用于线上对战。
+      </div>
+    </div>
+    <div class="dock" data-on="10"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 18 问题诊断 ===================== -->
+<section id="p18">
+  <div class="label"><span class="no">18</span><span class="name">问题诊断</span>
+    <span class="note">只提示、不自动改；每条都给出「哪里不对 / 建议怎么改」，由你决定。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body">
+      <div class="page-head">
+        <div class="grow">
+          <div class="page-title">问题诊断</div>
+          <div class="page-sub">扫描 6 类可疑状态 · 发现 3 处 · 只提示，不会自动改动存档</div>
+        </div>
+        <div class="btn primary">重新扫描</div>
+      </div>
+
+      <div class="stack" style="gap:11px">
+        <div class="card" style="padding:14px 16px;border-left:3px solid var(--phx-warn)">
+          <div class="between">
+            <div class="flex" style="gap:9px"><span class="badge y">等级与经验不符</span>
+              <span style="font-size:12.5px;font-weight:600">42 级，但经验值落在 41 级区间</span></div>
+            <div class="btn ghost sm">一键修正</div>
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:7px;line-height:1.7">
+            按服务器的经验表，这个经验值落在 41 级区间；42 级需要 2,901,143。存档里写的是 2,880,000。
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 16px;border-left:3px solid var(--phx-accent)">
+          <div class="between">
+            <div class="flex" style="gap:9px"><span class="badge b">任务状态异常</span>
+              <span style="font-size:12.5px;font-weight:600">3 条任务标记完成但条件未满足</span></div>
+            <div class="btn ghost sm">查看</div>
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:7px;line-height:1.7">
+            枪匠 · 第 12 部分 / 收藏家 / 大客户 —— 完成条件里有未打勾的项，游戏内可能无法交付。
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 16px;border-left:3px solid var(--phx-danger)">
+          <div class="between">
+            <div class="flex" style="gap:9px"><span class="badge r">物品越界</span>
+              <span style="font-size:12.5px;font-weight:600">1 件物品的坐标超出仓库范围</span></div>
+            <div class="btn ghost sm">移到空位</div>
+          </div>
+          <div style="font-size:11.5px;color:var(--phx-text-3);margin-top:7px;line-height:1.7">
+            slotId=hideout 的「GAC 4sss2 ballistic plate」在 x=11，仓库只有 10 列。
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 16px;border-left:3px solid var(--phx-green);opacity:.85">
+          <div class="flex" style="gap:9px"><span class="badge g">正常</span>
+            <span style="font-size:12.5px;color:var(--phx-text-2)">健康值、商人好感、藏身处区域 三项未发现异常</span></div>
+        </div>
+
+        <div class="card" style="padding:14px 16px;background:var(--phx-surface-2);box-shadow:none;border:1px solid var(--phx-sep)">
+          <div class="between">
+            <div style="font-size:11.5px;color:var(--phx-text-3)">
+              上次扫描 2026-11-24 16:20 · 扫描了 567 条任务、28 个藏身处区域、1,228 件物品
+            </div>
+            <div style="font-size:11.5px;color:var(--phx-text-3)">诊断只读，不会自动改存档</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="0"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 19 命令面板 ===================== -->
+<section id="p19">
+  <div class="label"><span class="no">19</span><span class="name">命令面板（Ctrl+K）</span>
+    <span class="note">浅色下必须用实心白面和深色发丝边——透明窗里 backdrop-filter 糊不到窗外内容，会变成一层灰。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab on">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body" style="position:relative;z-index:6">
+      <div class="page-head"><div class="grow">
+        <div class="page-title">首页</div>
+        <div class="page-sub">SPT 4.1.6 (40743) · 档案已加载</div>
+      </div></div>
+      <div class="grid g3">
+      <div class="card">
+        <div class="card-h"><div class="card-t">任务</div><span class="dim">›</span></div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-1px">0
+          <span style="font-size:13px;font-weight:400;color:var(--phx-text-3)">/ 15 已完成</span></div>
+        <div class="bar" style="margin-top:12px"><i style="width:0%"></i></div>
+        <div style="display:flex;gap:12px;font-size:11.5px;color:var(--phx-text-2);margin-top:9px">
+          <span>● 已完成 0</span><span>● 可交 1</span><span>● 进行中 7</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t">藏身处</div><span class="dim">›</span></div>
+        <div class="stack" style="gap:7px;font-size:12px">
+          <div class="between"><span>通风</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+          <div class="between"><span>安保</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+          <div class="between"><span>仓库</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t">仓库</div><span class="dim">›</span></div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-1px">32
+          <span style="font-size:13px;font-weight:400;color:var(--phx-text-3)">件物品</span></div>
+        <div class="stack" style="gap:7px;font-size:12px;margin-top:12px">
+          <div class="between"><span class="muted">加成格位</span><span class="num" style="color:var(--phx-accent)">+2</span></div>
+          <div class="between"><span class="muted">已装备</span><span class="num">7 / 13</span></div>
+        </div>
+      </div>    </div>
+
+      <!-- 遮罩 -->
+      <div style="position:absolute;inset:0;background:rgba(28,28,30,.28);z-index:8"></div>
+
+      <!-- 面板 -->
+      <div style="position:absolute;left:50%;top:70px;transform:translateX(-50%);width:600px;z-index:9;
+                  background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,.10);
+                  box-shadow:0 24px 70px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.06);overflow:hidden">
+        <div class="flex" style="padding:14px 16px;gap:10px;border-bottom:1px solid var(--phx-sep)">
+          <span style="color:var(--phx-text-3);font-size:14px">⌕</span>
+          <span style="font-size:13.5px;color:var(--phx-text-3);flex:1">搜索页面、设置和操作…</span>
+          <span class="badge n" style="font-weight:500">esc</span>
+        </div>
+        <div style="padding:8px">
+          <div style="font-size:10.5px;color:var(--phx-text-3);padding:6px 10px">页面</div>
+          <div class="flex" style="padding:9px 10px;border-radius:9px;background:var(--phx-accent-soft);gap:9px">
+            <span style="color:var(--phx-accent)">▤</span>
+            <span style="font-size:13px;font-weight:600;color:var(--phx-accent)">首页</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--phx-accent);opacity:.8">↩</span>
+          </div>
+          <div class="flex" style="padding:9px 10px;gap:9px;color:var(--phx-text)">
+            <span class="dim">▤</span><span style="font-size:13px">角色</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--phx-text-3)">等级 · 技能 · 健康</span>
+          </div>
+          <div class="flex" style="padding:9px 10px;gap:9px">
+            <span class="dim">▤</span><span style="font-size:13px">任务</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--phx-text-3)">完成状态与目标</span>
+          </div>
+          <div class="flex" style="padding:9px 10px;gap:9px">
+            <span class="dim">▤</span><span style="font-size:13px">藏身处</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--phx-text-3)">区域等级</span>
+          </div>
+          <div class="flex" style="padding:9px 10px;gap:9px">
+            <span class="dim">▤</span><span style="font-size:13px">仓库</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--phx-text-3)">物品与装备</span>
+          </div>
+        </div>
+        <div class="flex" style="padding:9px 14px;border-top:1px solid var(--phx-sep);gap:14px;
+                    font-size:11px;color:var(--phx-text-3);background:var(--phx-surface-2)">
+          <span><b style="color:var(--phx-text-2)">↑↓</b> 选择</span>
+          <span><b style="color:var(--phx-text-2)">↵</b> 前往</span>
+          <span><b style="color:var(--phx-text-2)">esc</b> 关闭</span>
+          <span style="margin-left:auto">Ctrl+K 打开</span>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="0"></div>
+  </div></div>
+</section>
+
+<!-- ===================== 20 弹窗与提示 ===================== -->
+<section id="p20">
+  <div class="label"><span class="no">20</span><span class="name">弹窗与提示</span>
+    <span class="note">危险操作用红字标题 + 明确后果；toast 从右上进，成功用绿点、失败用红点。</span></div>
+  <div class="scale"><div class="screen">
+    <div class="titlebar">
+      <div class="brand"><span class="dot"></span>PHOENIX<span class="sub">· SPT 存档编辑器</span></div>
+      <div class="tabs"><div class="tab">🕘 常去</div><div class="tab on">首页</div><div class="tab">角色</div><div class="tab">任务</div></div>
+      <div class="winbtns"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <div class="body" style="position:relative;z-index:6">
+      <div class="page-head"><div class="grow">
+        <div class="page-title">首页</div>
+        <div class="page-sub">SPT 4.1.6 (40743) · 档案已加载</div>
+      </div></div>
+      <div class="grid g3">
+      <div class="card">
+        <div class="card-h"><div class="card-t">任务</div><span class="dim">›</span></div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-1px">0
+          <span style="font-size:13px;font-weight:400;color:var(--phx-text-3)">/ 15 已完成</span></div>
+        <div class="bar" style="margin-top:12px"><i style="width:0%"></i></div>
+        <div style="display:flex;gap:12px;font-size:11.5px;color:var(--phx-text-2);margin-top:9px">
+          <span>● 已完成 0</span><span>● 可交 1</span><span>● 进行中 7</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t">藏身处</div><span class="dim">›</span></div>
+        <div class="stack" style="gap:7px;font-size:12px">
+          <div class="between"><span>通风</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+          <div class="between"><span>安保</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">3/3</em></span></div>
+          <div class="between"><span>仓库</span><span class="flex"><i class="bar" style="width:44px"><i style="width:100%"></i></i><em class="dim" style="font-style:normal">4/4</em></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t">仓库</div><span class="dim">›</span></div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-1px">32
+          <span style="font-size:13px;font-weight:400;color:var(--phx-text-3)">件物品</span></div>
+        <div class="stack" style="gap:7px;font-size:12px;margin-top:12px">
+          <div class="between"><span class="muted">加成格位</span><span class="num" style="color:var(--phx-accent)">+2</span></div>
+          <div class="between"><span class="muted">已装备</span><span class="num">7 / 13</span></div>
+        </div>
+      </div>    </div>
+
+      <div style="position:absolute;inset:0;background:rgba(28,28,30,.28);z-index:8"></div>
+
+      <!-- 确认弹窗 -->
+      <div style="position:absolute;left:50%;top:110px;transform:translateX(-50%);width:440px;z-index:9;
+                  background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,.10);
+                  box-shadow:0 24px 70px rgba(0,0,0,.22)">
+        <div style="padding:20px 20px 8px">
+          <div style="font-size:15px;font-weight:700;color:var(--phx-danger);letter-spacing:-.2px">准备转生到第 1 级？</div>
+          <div style="font-size:12.5px;color:var(--phx-text-2);line-height:1.8;margin-top:9px">
+            这里只写一个标记，真正的转生由服务器在你进游戏「重置角色」时执行。
+            到时会<b style="color:var(--phx-text)">清掉</b>等级、任务进度、仓库物品、藏身处进度、商人好感；
+            <b style="color:var(--phx-text)">会保留并带走</b>成就、转生记录、在线时长。
+            写标记前会自动备份存档。
+          </div>
+        </div>
+        <div class="flex" style="justify-content:flex-end;gap:9px;padding:16px 20px 18px">
+          <div class="btn ghost">取消</div>
+          <div class="btn" style="background:var(--phx-danger);color:#fff">写入标记</div>
+        </div>
+      </div>
+
+      <!-- toast -->
+      <div style="position:absolute;right:18px;top:14px;z-index:10;width:300px;
+                  background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,.10);
+                  box-shadow:0 12px 34px rgba(0,0,0,.16);padding:11px 13px">
+        <div class="flex" style="gap:8px">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--phx-green);flex:none"></span>
+          <div style="font-size:12.5px">角色数据已保存（已自动备份）</div>
+        </div>
+      </div>
+      <div style="position:absolute;right:18px;top:66px;z-index:10;width:300px;
+                  background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,.10);
+                  box-shadow:0 12px 34px rgba(0,0,0,.16);padding:11px 13px">
+        <div class="flex" style="gap:8px">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--phx-warn);flex:none"></span>
+          <div style="font-size:12.5px">这件物品不在服务器的物品库里，已跳过</div>
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-on="0"></div>
+  </div></div>
+</section>
+
+</div>
+
+<script>
+/* 底部 dock：11 项导航由数据生成，避免每屏重复 60 行标记 */
+const NAV = [
+  ['首页',   'M4 11.5 12 4l8 7.5M6.5 10.5V20h11v-9.5'],
+  ['角色',   'M12 4.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 1 0 0-7.2zM5 20c1.4-3.6 4-5 7-5s5.6 1.4 7 5'],
+  ['任务',   'M4 6l1.4 1.4L8 4.8M4 12l1.4 1.4L8 10.8M4 18l1.4 1.4L8 16.8M11.5 6H20M11.5 12H20M11.5 18H20'],
+  ['商人',   'M6 8h12l-1 12H7L6 8ZM9 8V6.5a3 3 0 0 1 6 0V8'],
+  ['藏身处', 'M3 11 12 4l9 7M6 10v9h12v-9'],
+  ['仓库',   'M4 7h16v10H4zM4 11h16'],
+  ['预设',   'M12 3l2.6 6.2 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.4 1.4-6.3L3 9.8l6.4-.6Z'],
+  ['备份',   'M4 12a8 8 0 1 0 8-8v8z'],
+  ['账号',   'M4 5h16v14H4zM9 8.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 1 0 0-3.2'],
+  ['设置',   'M12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6M12 4v2M12 18v2M4 12h2M18 12h2'],
+  ['关于',   'M12 4a8 8 0 1 0 0 16 8 8 0 1 0 0-16M12 11v5M12 8h.01']
+]
+document.querySelectorAll('.dock').forEach(d => {
+  const on = Number(d.dataset.on ?? -1)
+  d.innerHTML = NAV.map(([label, path], i) =>
+    `<div class="d${i === on ? ' on' : ''}">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>${label}
+     </div>`).join('')
+})
+
+/* 屏幕按 1440 宽设计；容器宽度自适应后等比缩放，避免出现横向滚动条 */
+function fit(){
+  document.querySelectorAll('.screen').forEach(s=>{
+    const box = s.parentElement;
+    const k = Math.min(1, box.clientWidth / 1440);
+    s.style.transform = 'scale(' + k + ')';
+    box.style.height = (900 * k) + 'px';
+  })
+}
+window.addEventListener('resize', fit)
+window.addEventListener('load', fit)
+fit()
+</script>
+</body>
+</html>

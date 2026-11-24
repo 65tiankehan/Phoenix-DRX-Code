@@ -111,12 +111,14 @@
       transform var(--phx-dur-norm) var(--phx-ease-emphasized),
       width var(--phx-dur-norm) var(--phx-ease-emphasized);
   }
-  /* 稿图原值：sm 档 rgba(255,255,255,.16) / md 档 rgba(255,255,255,.27)，无对应 token 沿用先例 */
+  /* 指示块：暗色是「白叠加提亮」，浅色必须换成「黑叠加压暗」，否则白上白看不见。
+     sm/md 两档对应 fill-secondary / fill-quaternary 的加强版，值写死但走同一色向。 */
   .seg.sm .ind {
-    background: rgba(255, 255, 255, 0.16);
+    background: var(--phx-fill-secondary);
   }
   .seg.md .ind {
-    background: rgba(255, 255, 255, 0.27);
+    background: var(--phx-fill-quaternary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
   }
 
   .seg button {
@@ -160,7 +162,7 @@
     border-radius: inherit;
     background: radial-gradient(
       160px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 255, 255, 0.08),
+      rgba(127, 127, 127, 0.10),
       transparent 60%
     );
     opacity: 0;

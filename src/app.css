@@ -1,4 +1,12 @@
-/**
+
+/* 全局盒模型：本项目一直没有声明 box-sizing，导致所有 "定宽 + 内边距" 的元素
+   实际宽度 = width + padding（任务页搜索框溢出、仓库格子里的物品块压到邻格都是这个）。
+   统一成 border-box，宽度就是所见宽度。 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}/**
  * Phoenix-DRX 视觉 Token 单一来源
  * 依据：docs/design/视觉基线.md（§三 token 清单、§四 组件行为基线）+ docs/design/感官层基线.md（§二 motion tokens）
  * 规则：全站 UI 一律引用这里的 --phx-* token，禁止硬编码色值/尺寸；
@@ -66,7 +74,43 @@
   --phx-z-toast: 300;
 }
 
-/* ---- 全局基座（仅暗色主题，见视觉基线 §三；字号 13px 跟随稿图定稿值，不立 token） ----
+/* ---- 浅色主题（2026-11-24 稿图获批，依据视觉基线 §三「明暗主题」） ----
+   CSS 只认 data-theme；「跟随系统」由 src/lib/theme.svelte.ts 解析后写属性，
+   不在这里用 prefers-color-scheme 双通道（否则手动选暗色会被系统覆盖）。
+   四条纪律：玻璃与底色同族 / 层级靠白卡浮灰底 / 语义色深一档 / 白填充反转为黑。 */
+:root[data-theme='light'] {
+  --phx-win-bg: #eef0f3;
+  --phx-surface: #ffffff;
+  --phx-surface-2: #f6f7f9;
+  --phx-fill-tertiary: rgba(0, 0, 0, 0.035);
+  --phx-fill-quaternary: rgba(0, 0, 0, 0.055);
+  --phx-fill-secondary: rgba(0, 0, 0, 0.09);
+  --phx-glass: rgba(246, 247, 249, 0.82);
+  --phx-glass-float: #ffffff;
+  --phx-sep: rgba(60, 60, 67, 0.12);
+  --phx-sep-strong: rgba(60, 60, 67, 0.22);
+  --phx-text: #1c1c1e;
+  --phx-text-2: rgba(60, 60, 67, 0.62);
+  --phx-text-3: rgba(60, 60, 67, 0.38);
+  --phx-accent: #0088ff;
+  --phx-accent-dim: rgba(0, 136, 255, 0.1);
+  --phx-accent-mid: rgba(0, 136, 255, 0.38);
+  --phx-warn: #9a6700;
+  --phx-warn-bg: rgba(154, 103, 0, 0.1);
+  --phx-warn-bd: rgba(154, 103, 0, 0.28);
+  --phx-danger: #d70015;
+  --phx-danger-bg: rgba(215, 0, 21, 0.09);
+  --phx-green: #1a7f37;
+  --phx-green-dim: rgba(26, 127, 55, 0.14);
+  --phx-red: #d70015;
+  --phx-red-dim: rgba(215, 0, 21, 0.1);
+  --phx-orange: #7c5cd6;
+  --phx-orange-dim: rgba(124, 92, 214, 0.12);
+  --phx-yellow: #9370db;
+  --phx-shadow-win: 0 10px 34px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+}
+
+/* ---- 全局基座（暗色为默认，浅色由 data-theme 覆盖；字号 13px 跟随稿图定稿值，不立 token） ----
    body 背景必须透明：透明窗口下圆角外的四个角由系统透出，铺色会填死圆角 */
 html,
 body {
@@ -79,10 +123,10 @@ body {
   font-size: 13px;
 }
 
-/* 文本选区：强调色半透明（视觉基线 §一 文本选区行） */
+/* 文本选区：强调色半透明（视觉基线 §一 文本选区行）；浅色下白字要反成底色 */
 ::selection {
-  background: rgba(0, 145, 255, 0.45);
-  color: #ffffff;
+  background: var(--phx-accent-mid);
+  color: var(--phx-text);
 }
 
 /* 焦点环：强调色 2px，替代系统默认蓝框（视觉基线 §四 键盘可达） */
@@ -169,8 +213,8 @@ button:active {
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 48px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 48px);
+    repeating-linear-gradient(0deg, rgba(127, 127, 127, 0.05) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, rgba(127, 127, 127, 0.05) 0 1px, transparent 1px 48px);
   animation: sp-breathe 7s ease-in-out infinite;
 }
 
@@ -643,7 +687,7 @@ button:active {
   font-size: 40px;
   font-weight: 800;
   letter-spacing: 0.01em;
-  background: linear-gradient(180deg, #fff 30%, rgba(255, 255, 255, 0.55));
+  background: linear-gradient(180deg, var(--phx-text) 30%, color-mix(in srgb, var(--phx-text) 55%, transparent));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;

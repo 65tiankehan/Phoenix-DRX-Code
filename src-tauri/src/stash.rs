@@ -97,6 +97,14 @@ pub struct StashItemRow {
     pub modded: bool,
     pub is_weapon: bool,
     pub is_container: bool,
+    /// 模板占格（items.json `_props.Width/Height`，缺失按 1×1）
+    pub w: i64,
+    pub h: i64,
+    /// 格位坐标；容器内子件没有 location，统一 -1（前端据此不画格子）
+    pub x: i64,
+    pub y: i64,
+    /// location.r == "Vertical"（旋转 90°）
+    pub rot: bool,
 }
 
 /// 装备槽行（item 为 None 即空槽）
@@ -136,6 +144,9 @@ pub struct StashData {
     pub dollars: i64,
     pub euros: i64,
     pub bonus_rows: i64,
+    /// 仓库网格：列数（cellsH）/ 行数（cellsV），取不到时为 0
+    pub grid_cols: i64,
+    pub grid_rows: i64,
     pub has_modded: bool,
     pub items: Vec<StashItemRow>,
     pub equipment: Vec<EquipSlotRow>,
@@ -168,6 +179,15 @@ pub enum StashOp {
     /// 全部物品 id 重映射避免与档案冲突；图鉴「加入仓库」）
     AddBuild {
         preset_id: String,
+    },
+    /// 仓库顶层物品拖动到指定格位。只改 location.x / y / r，
+    /// 其他字段一字不动；容器内（钱箱、背包里）的物品不允许直接移动。
+    MoveItem {
+        id: String,
+        x: i64,
+        y: i64,
+        #[serde(default)]
+        rot: bool,
     },
 }
 
@@ -296,6 +316,19 @@ pub(crate) fn item_row(id: &str, tpl: &str, it: Option<&Value>, db: &ItemsDb) ->
         .unwrap_or(1.0) as i64;
     let props = db.entries.get(tpl);
     let modded = props.is_none();
+    // 格位：只有仓库/容器的直接子项带 location；装备槽与内嵌零件没有
+    let loc = it.and_then(|x| x.get("location"));
+    let coord = |k: &str| -> i64 {
+        loc.and_then(|l| l.get(k))
+            .and_then(|v| v.as_f64())
+            .map(|v| v as i64)
+            .unwrap_or(-1)
+    };
+    let rot = loc
+        .and_then(|l| l.get("r"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.eq_ignore_ascii_case("Vertical"))
+        .unwrap_or(false);
     StashItemRow {
         id: id.to_string(),
         name: db.name(tpl),
@@ -304,6 +337,11 @@ pub(crate) fn item_row(id: &str, tpl: &str, it: Option<&Value>, db: &ItemsDb) ->
         modded,
         is_weapon: props.map(|p| p.recoil_force_up != 0.0).unwrap_or(false),
         is_container: props.map(|p| p.grids > 0).unwrap_or(false),
+        w: props.map(|p| p.width).unwrap_or(1).max(1),
+        h: props.map(|p| p.height).unwrap_or(1).max(1),
+        x: coord("x"),
+        y: coord("y"),
+        rot,
     }
 }
 
@@ -408,11 +446,25 @@ pub fn load_stash(app: &AppHandle, id: &str) -> Option<StashData> {
     // 分类树 + 可添加物品：handbook.json（缺文件时空集，不阻塞页面）
     let (categories, addable) = load_addable(app, &db);
 
+    // 仓库网格：stash 容器的模板格径（cellsV 行 / cellsH 列）；取不到时留 0，前端退回列表视图
+    let stash_tpl = items
+        .iter()
+        .find(|it| it.get("_id").and_then(|v| v.as_str()) == Some(stash_id))
+        .and_then(|it| it.get("_tpl"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let (grid_rows, grid_cols) = match database_dir(app) {
+        Some(dir) => stash_grid_size(&dir, stash_tpl).unwrap_or((0, 0)),
+        None => (0, 0),
+    };
+
     Some(StashData {
         rubles: money_sum(RUBLE_TPL),
         dollars: money_sum(DOLLAR_TPL),
         euros: money_sum(EURO_TPL),
         bonus_rows: stash_rows_bonus(pmc),
+        grid_cols,
+        grid_rows,
         has_modded: items_out.iter().any(|r| r.modded),
         items: items_out,
         equipment,
@@ -667,6 +719,10 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
                 let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
                 add_build_to_stash(&mut raw, &stash_id, preset_id, &db_dir, &db, seq as u32)?;
             }
+            StashOp::MoveItem { id, x, y, rot } => {
+                let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
+                move_item_in_stash(&mut raw, &stash_id, id, *x, *y, *rot, &db_dir, &db)?;
+            }
         }
     }
 
@@ -769,6 +825,132 @@ pub(crate) fn add_item_to_stash(
 /// 放置引擎（模块头注释有口径说明）：仓库网格 = stash 模板 Grids[0] 的 CellsV 行 ×
 /// CellsH 列 + 附加行数；已有物品按 location 占位（r=1 横竖互换）；行优先扫描找空位，
 /// 先横放 (W×H)，放不下再竖放 (H×W, r=1)；无空位报错（不静默丢弃）
+/// 把仓库顶层某件物品挪到 (x, y)，rot 为 true 时宽高互换。
+/// 只改 `location.x/y/r`，其余字段（isSearched 等）原样保留；
+/// 越界、撞其它物品、或物品不在仓库顶层（在容器里）都直接报错，不做半截写入。
+pub(crate) fn move_item_in_stash(
+    raw: &mut Value,
+    stash_id: &str,
+    id: &str,
+    x: i64,
+    y: i64,
+    rot: bool,
+    db_dir: &str,
+    db: &ItemsDb,
+) -> Result<(), String> {
+    if x < 0 || y < 0 {
+        return Err("落点超出仓库范围".into());
+    }
+    // 第一步只读：确认目标在仓库顶层，并收集其他顶层物品的占位矩形
+    let (stash_tpl, w, h, others) = {
+        let items = raw
+            .pointer("/characters/pmc/Inventory/items")
+            .and_then(|v| v.as_array())
+            .ok_or("Inventory.items 缺失")?;
+        let stash_tpl = items
+            .iter()
+            .find(|it| it.get("_id").and_then(|v| v.as_str()) == Some(stash_id))
+            .and_then(|it| it.get("_tpl"))
+            .and_then(|v| v.as_str())
+            .ok_or("仓库容器缺失")?
+            .to_string();
+        let target = items
+            .iter()
+            .find(|it| it.get("_id").and_then(|v| v.as_str()) == Some(id))
+            .ok_or("找不到要移动的物品")?;
+        if target.get("parentId").and_then(|v| v.as_str()) != Some(stash_id) {
+            return Err("只能移动仓库里直接摆放的物品，容器内的东西请先在游戏里取出".into());
+        }
+        let tpl = target
+            .get("_tpl")
+            .and_then(|v| v.as_str())
+            .ok_or("物品缺模板")?;
+        let props = db
+            .entries
+            .get(tpl)
+            .ok_or_else(|| format!("未知物品模板: {}", tpl))?;
+        let (bw, bh) = (props.width.max(1), props.height.max(1));
+        let mut occ: Vec<(i64, i64, i64, i64)> = Vec::new();
+        for it in items.iter() {
+            if it.get("_id").and_then(|v| v.as_str()) == Some(id) {
+                continue;
+            }
+            if it.get("parentId").and_then(|v| v.as_str()) != Some(stash_id) {
+                continue;
+            }
+            let (Some(loc), Some(t)) = (
+                it.get("location"),
+                it.get("_tpl").and_then(|v| v.as_str()),
+            ) else {
+                continue;
+            };
+            let (Some(ox), Some(oy)) = (
+                loc.get("x").and_then(|v| v.as_i64()),
+                loc.get("y").and_then(|v| v.as_i64()),
+            ) else {
+                continue;
+            };
+            let (ow, oh) = db
+                .entries
+                .get(t)
+                .map(|p| (p.width.max(1), p.height.max(1)))
+                .unwrap_or((1, 1));
+            let r = loc.get("r").and_then(|v| v.as_bool()).unwrap_or(false);
+            occ.push(if r { (ox, oy, oh, ow) } else { (ox, oy, ow, oh) });
+        }
+        (stash_tpl, bw, bh, occ)
+    };
+
+    // 第二步：网格尺寸（读不到就拒绝，不猜）
+    let (rows, cols) = {
+        let (r, c) = stash_grid_size(db_dir, &stash_tpl)?;
+        let bonus = raw
+            .pointer("/characters/pmc")
+            .map(stash_rows_bonus)
+            .unwrap_or(0);
+        (r + bonus, c)
+    };
+
+    let (w, h) = if rot { (h, w) } else { (w, h) };
+    if x + w > cols || y + h > rows {
+        return Err("落点超出仓库范围".into());
+    }
+    if others
+        .iter()
+        .any(|&(ox, oy, ow, oh)| x < ox + ow && ox < x + w && y < oy + oh && oy < y + h)
+    {
+        return Err("这里已经有东西了".into());
+    }
+
+    let items = raw
+        .pointer_mut("/characters/pmc/Inventory/items")
+        .and_then(|v| v.as_array_mut())
+        .ok_or("Inventory.items 缺失")?;
+    let target = items
+        .iter_mut()
+        .find(|it| it.get("_id").and_then(|v| v.as_str()) == Some(id))
+        .ok_or("找不到要移动的物品")?;
+    let obj = target.as_object_mut().ok_or("物品结构异常")?;
+    let loc = obj
+        .entry("location")
+        .or_insert_with(|| json!({ "x": 0, "y": 0, "r": false }));
+    if let Some(l) = loc.as_object_mut() {
+        // 只写真正变化的值：真实档里很多物品的 location 只有 x/y（没有 r），
+        // 无条件 insert 会凭空多出 `"r": false`，存档就被改脏了
+        if l.get("x").and_then(|v| v.as_i64()) != Some(x) {
+            l.insert("x".into(), json!(x));
+        }
+        if l.get("y").and_then(|v| v.as_i64()) != Some(y) {
+            l.insert("y".into(), json!(y));
+        }
+        let old_r = l.get("r").and_then(|v| v.as_bool());
+        if old_r != Some(rot) && (old_r.is_some() || rot) {
+            l.insert("r".into(), json!(rot));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn find_free_slot(
     raw: &Value,
     stash_id: &str,
@@ -1197,7 +1379,202 @@ mod tests {
         assert!(rubles > 1_000_000, "{} 只算出 {} 卢布", path, rubles);
     }
 
-    /// 图鉴「加入」的数量字段：camelCase 的 count 能解出，省略时为 None（按 1 件处理）
+    /// 本机真实档自检（默认忽略）：仓库顶层物品必须带格位与模板尺寸 ——
+    /// 「格子视图」靠这两个字段画，缺一个就会全挤在 (0,0)。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_stash_rows_carry_location_and_size() {
+        let db_dir = r"E:\EFT\SPT_Runtime\SPT_Data\database";
+        let db = ItemsDb::load_from(Path::new(db_dir), None);
+        let dir = r"E:\EFT\SPT_Runtime\user\profiles";
+        let mut checked = 0usize;
+        for e in std::fs::read_dir(dir).expect("读 profiles 失败").flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("json") {
+                continue;
+            }
+            let txt = std::fs::read_to_string(&p).unwrap();
+            let v: Value = serde_json::from_str(&txt).unwrap();
+            let Some(items) = v
+                .pointer("/characters/pmc/Inventory/items")
+                .and_then(|x| x.as_array())
+            else {
+                continue;
+            };
+            let stash_id = v
+                .pointer("/characters/pmc/Inventory/stash")
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
+            for it in items {
+                if it.get("parentId").and_then(|x| x.as_str()) != Some(stash_id) {
+                    continue;
+                }
+                let row = item_row(
+                    it.get("_id").and_then(|x| x.as_str()).unwrap_or(""),
+                    it.get("_tpl").and_then(|x| x.as_str()).unwrap_or(""),
+                    Some(it),
+                    &db,
+                );
+                assert!(row.x >= 0 && row.y >= 0, "{} 缺格位: x={} y={}", row.name, row.x, row.y);
+                assert!(row.w >= 1 && row.h >= 1, "{} 尺寸异常: {}×{}", row.name, row.w, row.h);
+                // 旋转时占格要交换，否则画出来会压到相邻格
+                let (cw, ch) = if row.rot { (row.h, row.w) } else { (row.w, row.h) };
+                assert!(cw <= 10, "{} 横向占 {} 格，超过仓库 10 列", row.name, cw);
+                assert!(ch <= 68, "{} 纵向占 {} 格，超过仓库 68 行", row.name, ch);
+                checked += 1;
+            }
+            if checked > 0 {
+                break;
+            }
+        }
+        assert!(checked > 0, "没有任何存档的仓库能取到格位");
+    }
+
+    /// 图鉴「加入」的数量字段：camelCase 的 count 能解出，省略时为 None（按 1 件处理）    // ———————— MoveItem 拖动落位 ————————
+
+    fn db_with(sizes: &[(&str, i64, i64)]) -> ItemsDb {
+        let mut entries = HashMap::new();
+        for (tpl, w, h) in sizes {
+            entries.insert(
+                (*tpl).to_string(),
+                ItemProps {
+                    width: *w,
+                    height: *h,
+                    stack_max: 1,
+                    grids: 0,
+                    recoil_force_up: 0.0,
+                    short_name: String::new(),
+                },
+            );
+        }
+        ItemsDb { entries, names: None }
+    }
+
+    fn stash_fixture() -> Value {
+        json!({
+            "characters": { "pmc": { "Inventory": { "items": [
+                { "_id": "STASH", "_tpl": "5811ce772459770e9e5f9532" },
+                { "_id": "A", "_tpl": "T_W2H2", "parentId": "STASH",
+                  "location": { "x": 0, "y": 0, "r": false, "isSearched": true } },
+                { "_id": "B", "_tpl": "T_W1H1", "parentId": "STASH",
+                  "location": { "x": 5, "y": 5, "r": false } },
+                { "_id": "BOX", "_tpl": "T_W1H1", "parentId": "STASH",
+                  "location": { "x": 8, "y": 8, "r": false } },
+                { "_id": "INBOX", "_tpl": "T_W1H1", "parentId": "BOX" }
+            ] } } }
+        })
+    }
+
+    #[test]
+    fn move_rejects_container_child() {
+        let mut raw = stash_fixture();
+        let db = db_with(&[("T_W1H1", 1, 1), ("T_W2H2", 2, 2)]);
+        let err = move_item_in_stash(&mut raw, "STASH", "INBOX", 1, 1, false, "", &db).unwrap_err();
+        assert!(err.contains("容器"), "应提示容器内物品不能直接移动，实际：{}", err);
+    }
+
+    #[test]
+    fn move_refuses_when_grid_unknown() {
+        // 读不到仓库网格尺寸时必须拒绝，而不是当成 0×0 硬写
+        let db = db_with(&[("T_W1H1", 1, 1), ("T_W2H2", 2, 2)]);
+        let mut raw = stash_fixture();
+        let err = move_item_in_stash(&mut raw, "STASH", "B", 3, 3, false, "", &db);
+        assert!(err.is_err(), "缺少网格信息时应拒绝落位");
+    }
+
+    #[test]
+    fn move_keeps_other_fields_untouched() {
+        let mut raw = stash_fixture();
+        let db = db_with(&[("T_W1H1", 1, 1), ("T_W2H2", 2, 2)]);
+        // 用一个孤立物品验证 location 之外的字段不被改写
+        let before = raw["characters"]["pmc"]["Inventory"]["items"][1].clone();
+        let _ = move_item_in_stash(&mut raw, "STASH", "A", 0, 0, false, "", &db);
+        let after = &raw["characters"]["pmc"]["Inventory"]["items"][1];
+        assert_eq!(before["_tpl"], after["_tpl"]);
+        assert_eq!(before["parentId"], after["parentId"]);
+        assert_eq!(before["location"]["isSearched"], after["location"]["isSearched"]);
+    }
+
+    /// 测试用：递归收集两份 JSON 的差异路径（只读比对）
+    fn diff_paths_local(a: &Value, b: &Value, base: &str, out: &mut Vec<String>) {
+        match (a, b) {
+            (Value::Object(ma), Value::Object(mb)) => {
+                let mut keys: Vec<&String> = ma.keys().chain(mb.keys()).collect();
+                keys.sort();
+                keys.dedup();
+                for k in keys {
+                    let p = format!("{}/{}", base, k);
+                    match (ma.get(k), mb.get(k)) {
+                        (Some(va), Some(vb)) => diff_paths_local(va, vb, &p, out),
+                        _ => out.push(p),
+                    }
+                }
+            }
+            (Value::Array(va), Value::Array(vb)) if va.len() == vb.len() => {
+                for (i, (x, y)) in va.iter().zip(vb.iter()).enumerate() {
+                    diff_paths_local(x, y, &format!("{}/{}", base, i), out);
+                }
+            }
+            _ => {
+                if a != b {
+                    out.push(base.to_string());
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_move_item_in_place_is_byte_stable() {
+        let dir = std::path::Path::new(r"E:\EFT\SPT_Runtime\user\profiles");
+        let mut files: Vec<_> = std::fs::read_dir(dir)
+            .expect("读不到存档目录")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map(|x| x == "json").unwrap_or(false))
+            .collect();
+        files.sort();
+        let db_dir = r"E:\EFT\SPT_Runtime\SPT_Data\database";
+        let db = ItemsDb::load_from(std::path::Path::new(db_dir), None);
+        for path in files {
+            let txt = std::fs::read_to_string(&path).expect("读档失败");
+            let mut raw: Value = serde_json::from_str(&txt).expect("解析失败");
+            let stash_id = raw
+                .pointer("/characters/pmc/Inventory/stash")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if stash_id.is_empty() {
+                continue;
+            }
+            // 找一件直接挂在仓库下、带 location 的物品
+            let pick = raw
+                .pointer("/characters/pmc/Inventory/items")
+                .and_then(|v| v.as_array())
+                .and_then(|arr| {
+                    arr.iter().find(|it| {
+                        it.get("parentId").and_then(|v| v.as_str()) == Some(stash_id.as_str())
+                            && it.get("location").is_some()
+                    })
+                })
+                .cloned();
+            let Some(item) = pick else { continue };
+            let id = item.get("_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let lx = item.pointer("/location/x").and_then(|v| v.as_i64()).unwrap_or(0);
+            let ly = item.pointer("/location/y").and_then(|v| v.as_i64()).unwrap_or(0);
+            let lr = item.pointer("/location/r").and_then(|v| v.as_bool()).unwrap_or(false);
+            let before = raw.clone();
+            // 原地移动：坐标不变，应当成功且不产生任何字节差异
+            let got = move_item_in_stash(&mut raw, &stash_id, &id, lx, ly, lr, db_dir, &db);
+            assert!(got.is_ok(), "原地移动被拒：{:?}", got.err());
+            let mut diffs = Vec::new();
+            diff_paths_local(&before, &raw, "", &mut diffs);
+            assert!(diffs.is_empty(), "原地移动改动了别的字段：{:?}", diffs);
+            return;
+        }
+        panic!("没找到可测试的仓库物品");
+    }
+
     #[test]
     fn add_item_accepts_optional_count() {
         let with: StashSaveData = serde_json::from_str(

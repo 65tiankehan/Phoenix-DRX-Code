@@ -1360,8 +1360,8 @@
   }
   .cloth-card.owned .cloth-thumb .art-body { fill: rgba(0, 145, 255, 0.18); stroke: rgba(0, 145, 255, 0.62); }
   .cloth-card.owned .cloth-thumb .art-line { stroke: rgba(0, 145, 255, 0.45); }
-  .cloth-card:not(.owned) .cloth-thumb .art-body { fill: rgba(255, 255, 255, 0.04); stroke: rgba(255, 255, 255, 0.18); }
-  .cloth-card:not(.owned) .cloth-thumb .art-line { stroke: rgba(255, 255, 255, 0.15); }
+  .cloth-card:not(.owned) .cloth-thumb .art-body { fill: var(--phx-fill-tertiary); stroke: var(--phx-sep-strong); }
+  .cloth-card:not(.owned) .cloth-thumb .art-line { stroke: var(--phx-sep); }
   .cloth-thumb { height: 96px; display: flex; align-items: center; justify-content: center; position: relative; background: var(--phx-surface-2); }
   .cloth-thumb svg { width: 64px; height: 64px; display: block; }
   .cloth-thumb .art-body { stroke-width: 2; }

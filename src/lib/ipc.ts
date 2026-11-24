@@ -317,6 +317,12 @@ export interface PhxQuestRow {
   statusTimers: Record<string, number>
   questName: string
   unlockHint?: string
+  condTotal: number // 完成条件总数（templates conditions，三桶已合并）
+  condDone: number // 已达成的条件条数（档案 completedConditions ∩ 条件 id）
+  condFlags: boolean[] // 逐条条件是否完成（与模板条件顺序一致；超过 40 条时为空）
+  rewardExp: number // 奖励摘要：经验
+  rewardStanding: number // 奖励摘要：商人好感
+  rewardMoney: number // 奖励摘要：卢布现金
 }
 
 export interface PhxQuestsData {
@@ -479,6 +485,11 @@ export interface PhxStashItemRow {
   modded: boolean // tpl 不在服务器物品库
   isWeapon: boolean
   isContainer: boolean
+  w: number // 模板占格宽（items.json _props.Width）
+  h: number // 模板占格高
+  x: number // 格位 X；容器内子件无 location 时为 -1
+  y: number // 格位 Y；同上
+  rot: boolean // location.r === 'Vertical'
 }
 
 export interface PhxEquipSlotRow {
@@ -505,6 +516,8 @@ export interface PhxStashData {
   dollars: number
   euros: number
   bonusRows: number
+  gridCols: number // 仓库列数（取不到为 0，前端退回列表）
+  gridRows: number
   hasModded: boolean
   items: PhxStashItemRow[]
   equipment: PhxEquipSlotRow[]
@@ -519,6 +532,8 @@ export type PhxStashOp =
   | { op: 'removeItems'; ids: string[] }
   | { op: 'addItem'; tpl: string; count?: number }
   | { op: 'addBuild'; presetId: string }
+  /** 仓库顶层物品拖动摆放：只改存档里的 location.x / y / r */
+  | { op: 'moveItem'; id: string; x: number; y: number; rot: boolean }
 
 export interface PhxStashSaveData {
   ops: PhxStashOp[]

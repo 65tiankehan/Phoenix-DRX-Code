@@ -34,7 +34,10 @@
     { id: '5a7c2eca46aef81a7ca2145d', key: 'traders.name.mechanic', en: 'Mechanic', av: 'M' },
     { id: '5ac3b934156ae10c4430e83c', key: 'traders.name.ragman', en: 'Ragman', av: 'R' },
     { id: '5c0647fdd443bc2504c2d371', key: 'traders.name.jaeger', en: 'Jaeger', av: 'J' },
-    { id: '579dc571d53a0658a154fbec', key: 'traders.name.fence', en: 'Fence', av: 'F' }
+    { id: '579dc571d53a0658a154fbec', key: 'traders.name.fence', en: 'Fence', av: 'F' },
+    { id: '638f541a29ffd1183d187f57', key: 'traders.name.lightkeeper', en: 'Lightkeeper', av: 'L' },
+    { id: '656f0f98d80a697f855d34b1', key: 'traders.name.btrdriver', en: 'BTR Driver', av: 'B' },
+    { id: '6617beeaa9cfa777ca915b7c', key: 'traders.name.ref', en: 'Ref', av: 'R' }
   ]
 
   /** QuestStatus 10 枚举值（菜单序 = 稿图文案序）；重复组无 Locked */
@@ -83,6 +86,10 @@
   let search = $state('')
   let seg = $state<'all' | 'undone' | 'done'>('all')
   let folded = $state<Record<string, boolean>>({})
+  /** 左栏商人筛选（'' = 全部） */
+  let curTrader = $state('')
+  /** 右栏详情选中的任务 qid（'' = 未选） */
+  let selQid = $state('')
   let menuRow = $state<PhxQuestRow | null>(null)
   let menuX = $state(0)
   let menuY = $state(0)
@@ -100,21 +107,55 @@
   const doneCount = $derived(rows.filter((r) => r.status === 'Success').length)
   const pct = $derived(total ? Math.round((doneCount / total) * 100) : 0)
 
-  /** 过滤 + 分组（组内 0 行不显示组） */
-  const visGroups = $derived.by(() => {
+  /** 已应用的筛选（不含分组）：左栏计数与中栏列表共用同一口径 */
+  const filtered = $derived.by(() => {
     const q = search.trim().toLowerCase()
-    return GROUPS.map((g) => ({
+    return rows.filter((r) => {
+      if (seg === 'undone' && r.status === 'Success') return false
+      if (seg === 'done' && r.status !== 'Success') return false
+      if (curTrader && r.trader !== curTrader) return false
+      if (q && !`${r.questName} ${traderDisplay(r.trader)}`.toLowerCase().includes(q)) return false
+      return true
+    })
+  })
+
+  /** 过滤 + 分组（组内 0 行不显示组） */
+  const visGroups = $derived.by(() =>
+    GROUPS.map((g) => ({
       key: g.key,
       title: t(g.title),
-      rows: rows.filter((r) => {
-        if ((r.type || 'Standart') !== g.key) return false
-        if (seg === 'undone' && r.status === 'Success') return false
-        if (seg === 'done' && r.status !== 'Success') return false
-        if (q && !`${r.questName} ${traderDisplay(r.trader)}`.toLowerCase().includes(q)) return false
-        return true
-      })
+      rows: filtered.filter((r) => (r.type || 'Standart') === g.key)
     })).filter((g) => g.rows.length > 0)
+  )
+
+  /** 左栏商人分组：只列真的有任务的商人（含未知），按计数降序 */
+  const traderGroups = $derived.by(() => {
+    // 这里只是派生计算用的局部累加器，不参与响应式，用普通对象即可
+    const counts: Record<string, number> = {}
+    for (const r of filtered) counts[r.trader] = (counts[r.trader] ?? 0) + 1
+    const known = KNOWN.filter((k) => counts[k.id]).map((k) => ({
+      id: k.id,
+      label: t(k.key),
+      av: k.av,
+      n: counts[k.id] ?? 0
+    }))
+    const unknown = counts['unknown'] ?? 0
+    const out = unknown ? [...known, { id: 'unknown', label: t('traders.name.unknown'), av: '？', n: unknown }] : known
+    return out.sort((a, b) => b.n - a.n)
   })
+
+  /** 选中的任务（右栏详情） */
+  const selQuest = $derived(rows.find((r) => r.qid === selQid) ?? null)
+
+  function pickTrader(id: string): void {
+    playSound('ui')
+    curTrader = curTrader === id ? '' : id
+  }
+
+  function pickQuest(row: PhxQuestRow): void {
+    playSound('ui')
+    selQid = selQid === row.qid ? '' : row.qid
+  }
 
   const knownOf = (tid: string) => KNOWN.find((k) => k.id === tid)
 
@@ -280,7 +321,9 @@
         <i class="phx-sk trk-sk"></i>
         <i class="phx-sk slim" style="width:170px"></i>
       </div>
+      <!-- 骨架按三栏布局镜像：左商人筛选 / 中分组列表 / 右详情卡 -->
       <div class="toolbar">
+        <span class="fspacer"></span>
         <i class="phx-sk search-sk"></i>
         <i class="phx-sk seg-sk"></i>
         <i class="phx-sk seg-sk"></i>
@@ -288,28 +331,58 @@
         <i class="phx-sk ghost-sk"></i>
       </div>
       <div class="scroll">
-        <section class="qgroup">
-          <div class="ghead">
-            <i class="phx-sk slim" style="width:64px"></i>
-            <i class="phx-sk gc-sk"></i>
-            <i class="phx-sk chev-sk"></i>
-          </div>
-          <div class="qcard">
-            <div class="qfold">
-              {#each skRows(4) as r (r)}
-                <div class="qrow">
-                  <i class="phx-sk tav-sk"></i>
-                  <div class="qinfo">
-                    <i class="phx-sk" style="width:158px"></i>
-                    <i class="phx-sk slim" style="width:104px"></i>
-                  </div>
-                  <i class="phx-sk pill-sk"></i>
-                  <i class="phx-sk del-sk"></i>
-                </div>
-              {/each}
+        <div class="q3">
+          <aside class="tside">
+            {#each skRows(6) as r (r)}
+              <div class="titem">
+                <i class="phx-sk tav-sk"></i>
+                <i class="phx-sk slim" style="width:58px"></i>
+                <i class="phx-sk slim" style="width:22px;margin-left:auto"></i>
+              </div>
+            {/each}
+          </aside>
+          <section class="qgroup qmid">
+            <div class="ghead">
+              <i class="phx-sk slim" style="width:64px"></i>
+              <i class="phx-sk gc-sk"></i>
+              <i class="phx-sk chev-sk"></i>
             </div>
-          </div>
-        </section>
+            <div class="qcard">
+              <div class="qfold">
+                {#each skRows(5) as r (r)}
+                  <div class="qrow">
+                    <i class="phx-sk tav-sk"></i>
+                    <div class="qinfo">
+                      <i class="phx-sk" style="width:158px"></i>
+                      <i class="phx-sk slim" style="width:104px"></i>
+                    </div>
+                    <i class="phx-sk pill-sk"></i>
+                    <i class="phx-sk del-sk"></i>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </section>
+          <aside class="qdetail">
+            <div class="card mini">
+              <i class="phx-sk slim" style="width:120px"></i>
+              <i class="phx-sk slim" style="width:72px"></i>
+              <div class="dblk">
+                <i class="phx-sk slim" style="width:64px"></i>
+                <i class="phx-sk" style="width:100%;height:8px"></i>
+              </div>
+              <div class="dblk">
+                <i class="phx-sk slim" style="width:40px"></i>
+                {#each skRows(3) as r (r)}
+                  <div class="between">
+                    <i class="phx-sk slim" style="width:52px"></i>
+                    <i class="phx-sk slim" style="width:60px"></i>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
 
@@ -339,45 +412,111 @@
           { value: 'done', label: t('quests.seg.done') }
         ]}
       />
-      <button class="btn ghost" type="button" style="margin-left:auto" onclick={fillMissing} disabled={!missing.length || saving}>
+      <button class="btn ghost" type="button" onclick={fillMissing} disabled={!missing.length || saving}>
         {t('quests.act.fill')}
       </button>
     </div>
 
     <div class="scroll phx-fade-in">
-      {#each visGroups as g (g.key)}
-        <section class="qgroup" class:folded={folded[g.key]}>
-          <button class="ghead" type="button" onclick={() => toggleFold(g.key)}>
-            <span class="gtitle">{g.title}</span>
-            <span class="gcount">{g.rows.length}</span>
-            <span class="gchev"><PhxIcon markup={ICON.chev} /></span>
+      <div class="q3">
+        <aside class="tside">
+          <button class="titem" type="button" class:on={curTrader === ''} onclick={() => pickTrader('')}>
+            <span class="tav sm">Σ</span>
+            <span class="tlbl">{t('quests.seg.all')}</span>
+            <span class="tn">{filtered.length}</span>
           </button>
-          <div class="qcard">
-            <div class="qfold">
-            {#each g.rows as row (row.qid)}
-              <div class="qrow">
-                <span class="tav">{avOf(row)}</span>
-                <div class="qinfo">
-                  <div class="qname">{row.questName || row.qid.slice(0, 8)}</div>
-                  <div class="qmeta">
-                    {traderDisplay(row.trader)}{#if row.unlockHint}<span class="unlock"> · {t('quests.hint.unlocked', { name: row.unlockHint })}</span>{/if}
+          {#each traderGroups as tr (tr.id)}
+            <button class="titem" type="button" class:on={curTrader === tr.id} onclick={() => pickTrader(tr.id)}>
+              <span class="tav sm">{tr.av}</span>
+              <span class="tlbl">{tr.label}</span>
+              <span class="tn">{tr.n}</span>
+            </button>
+          {/each}
+        </aside>
+
+        <div class="qmid">
+          {#each visGroups as g (g.key)}
+            <section class="qgroup" class:folded={folded[g.key]}>
+              <button class="ghead" type="button" onclick={() => toggleFold(g.key)}>
+                <span class="gtitle">{g.title}</span>
+                <span class="gcount">{g.rows.length}</span>
+                <span class="gchev"><PhxIcon markup={ICON.chev} /></span>
+              </button>
+              <div class="qcard">
+                <div class="qfold">
+                {#each g.rows as row (row.qid)}
+                  <div class="qrow" class:on={selQid === row.qid}>
+                    <button class="qpick" type="button" onclick={() => pickQuest(row)}>
+                      <span class="tav">{avOf(row)}</span>
+                      <div class="qinfo">
+                        <div class="qname">{row.questName || row.qid.slice(0, 8)}</div>
+                        <div class="qmeta">
+                          {traderDisplay(row.trader)}{#if row.unlockHint}<span class="unlock"> · {t('quests.hint.unlocked', { name: row.unlockHint })}</span>{/if}
+                        </div>
+                      </div>
+                    </button>
+                    <button class="pill {pillOf(row.status)}" type="button" onclick={(e) => openMenu(e, row)}>
+                      {statusLabel(row.status)}
+                    </button>
+                    <PhxTooltip label={t('quests.aria.del')}>
+                      <button class="qdel" type="button" aria-label={t('quests.aria.del')} onclick={() => askRemove(row)}>
+                        <PhxIcon markup={ICON.trash} />
+                      </button>
+                    </PhxTooltip>
                   </div>
+                {/each}
                 </div>
-                <button class="pill {pillOf(row.status)}" type="button" onclick={(e) => openMenu(e, row)}>
-                  {statusLabel(row.status)}
-                </button>
-                <PhxTooltip label={t('quests.aria.del')}>
-                  <button class="qdel" type="button" aria-label={t('quests.aria.del')} onclick={() => askRemove(row)}>
-                    <PhxIcon markup={ICON.trash} />
-                  </button>
-                </PhxTooltip>
               </div>
-            {/each}
+            </section>
+          {/each}
+          {#if !visGroups.length}<div class="empty">{t('quests.empty.none')}</div>{/if}
+        </div>
+
+        <aside class="qdetail">
+          {#if selQuest}
+            <div class="card mini">
+              <div class="mini-h">
+                <span class="dname">{selQuest.questName || selQuest.qid.slice(0, 8)}</span>
+                <span class="pill {pillOf(selQuest.status)}">{statusLabel(selQuest.status)}</span>
+              </div>
+              <div class="dmeta">{traderDisplay(selQuest.trader)}</div>
+              {#if selQuest.condTotal > 0}
+                <div class="dblk">
+                  <div class="dcond-h">
+                    <span class="dh">{t('quests.detail.conds')}</span>
+                    <span class="dnum">{selQuest.condDone} / {selQuest.condTotal}</span>
+                  </div>
+                  {#if selQuest.condFlags.length}
+                    <div class="dots">
+                      {#each selQuest.condFlags as ok, i (i)}
+                        <span class="dot" class:ok></span>
+                      {/each}
+                    </div>
+                  {:else}
+                    <div class="dcond">
+                      <div class="dbar"><i style={`width:${Math.round((selQuest.condDone / selQuest.condTotal) * 100)}%`}></i></div>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+              {#if selQuest.rewardExp || selQuest.rewardStanding || selQuest.rewardMoney}
+                <div class="dblk">
+                  <div class="dh">{t('quests.detail.rewards')}</div>
+                  {#if selQuest.rewardExp}<div class="drow"><span>{t('quests.detail.exp')}</span><span class="dnum">+{selQuest.rewardExp.toLocaleString('en-US')}</span></div>{/if}
+                  {#if selQuest.rewardStanding}<div class="drow"><span>{t('quests.detail.standing')}</span><span class="dnum">+{selQuest.rewardStanding}</span></div>{/if}
+                  {#if selQuest.rewardMoney}<div class="drow"><span>{t('quests.detail.money')}</span><span class="dnum">+{selQuest.rewardMoney.toLocaleString('en-US')}</span></div>{/if}
+                </div>
+              {/if}
+              <div class="dacts">
+                <button class="btn ghost sm" type="button" onclick={(e) => openMenu(e, selQuest!)}>{t('quests.detail.setStatus')}</button>
+                <button class="btn danger-ghost sm" type="button" onclick={() => askRemove(selQuest!)}>{t('quests.aria.del')}</button>
+              </div>
             </div>
-          </div>
-        </section>
-      {/each}
-      {#if !visGroups.length}<div class="empty">{t('quests.empty.none')}</div>{/if}
+          {:else}
+            <div class="card mini empty-detail">{t('quests.detail.hint')}</div>
+          {/if}
+        </aside>
+      </div>
     </div>
   {:else}
     <div class="empty">{t('quests.empty.noprofile')}</div>
@@ -594,11 +733,13 @@
     margin: 12px 24px 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: flex-end;
+    gap: 8px;
   }
   .search-wrap {
     position: relative;
     flex: none;
+    width: 260px;
   }
   .search-ico {
     position: absolute;
@@ -707,8 +848,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
-    min-height: 54px;
+    padding: 8px 14px;
+    min-height: 48px;
   }
   .qrow + .qrow {
     border-top: 0.5px solid var(--phx-sep);
@@ -852,4 +993,117 @@
     color: var(--phx-accent);
     font-weight: 600;
   }
-</style>
+
+  /* ———————— 三栏：商人分组 / 任务列表 / 详情（稿图 06 屏） ———————— */
+  .q3 {
+    display: grid;
+    grid-template-columns: 168px minmax(0, 1fr) 276px;
+    gap: 14px;
+    align-items: start;
+    /* 工具行靠右后与右栏同 x 区间，拉开一点距离免得看着挤在一起 */
+    margin-top: 16px;
+  }
+  .tside {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    border-radius: var(--phx-r-card);
+    background: var(--phx-surface);
+    border: 0.5px solid var(--phx-sep);
+  }
+  .titem {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--phx-text);
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .titem:hover { background: var(--phx-fill-quaternary); }
+  .titem.on { background: var(--phx-accent-soft); color: var(--phx-accent); }
+  .tav.sm {
+    width: 22px;
+    height: 22px;
+    font-size: 10.5px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--phx-surface-3);
+    color: var(--phx-text-2);
+  }
+  .titem.on .tav.sm { background: var(--phx-accent); color: #fff; }
+  .tlbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tn { font-size: 11px; color: var(--phx-text-3); font-variant-numeric: tabular-nums; }
+  .qmid { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .qpick {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .qrow.on { background: var(--phx-accent-soft); }
+  .qrow .qpick { flex: 1; min-width: 0; }
+  .qpick { grid-template-columns: 28px minmax(0, 1fr); }
+  .qdetail { position: sticky; top: 0; }
+  .card.mini {
+    padding: 12px 13px;
+    border-radius: var(--phx-r-card);
+    background: var(--phx-surface);
+    border: 0.5px solid var(--phx-sep);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mini-h {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .dname { font-size: 13px; font-weight: 600; color: var(--phx-text); }
+  .dmeta { font-size: 11.5px; color: var(--phx-text-3); }
+  .dblk { border-top: 0.5px solid var(--phx-sep); padding-top: 8px; }
+  .dh { font-size: 11px; color: var(--phx-text-3); margin-bottom: 5px; }
+  .dcond { display: flex; align-items: center; gap: 8px; }
+  .dcond-h { display: flex; align-items: baseline; justify-content: space-between; }
+  .dcond-h .dh { margin-bottom: 6px; }
+  .dots { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--phx-surface-3);
+    box-shadow: inset 0 0 0 0.5px var(--phx-sep);
+  }
+  .dot.ok { background: var(--phx-green); box-shadow: none; }
+  .dbar {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--phx-surface-3);
+    overflow: hidden;
+  }
+  .dbar i { display: block; height: 100%; background: var(--phx-green); }
+  .drow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--phx-text-2);
+    padding: 2px 0;
+  }
+  .dnum { font-variant-numeric: tabular-nums; color: var(--phx-text); }
+  .dacts { display: flex; gap: 8px; margin-top: 4px; }
+  .empty-detail { font-size: 12px; color: var(--phx-text-3); line-height: 1.6; }</style>

@@ -114,7 +114,7 @@
   .dock-sep {
     width: 0.5px;
     height: 22px;
-    background: rgba(255, 255, 255, 0.16);
+    background: var(--phx-fill-secondary);
     margin: 0 3px;
   }
 
@@ -170,7 +170,7 @@
     border-radius: inherit;
     background: radial-gradient(
       160px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 255, 255, 0.08),
+      rgba(127, 127, 127, 0.10),
       transparent 60%
     );
     opacity: 0;
