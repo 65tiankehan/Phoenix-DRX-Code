@@ -657,7 +657,7 @@ pub fn save_quests(app: &AppHandle, id: &str, data: &QuestsSaveData) -> Result<S
         }
     }
 
-    let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, out).map_err(|e| e.to_string())?;
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),

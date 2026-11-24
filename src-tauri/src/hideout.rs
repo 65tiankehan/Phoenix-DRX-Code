@@ -427,7 +427,7 @@ pub fn save_hideout(app: &AppHandle, id: &str, data: &HideoutSaveData) -> Result
         }
     }
 
-    let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, out).map_err(|e| e.to_string())?;
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
@@ -455,11 +455,9 @@ pub(crate) fn merge_areas(original: &[Value], levels: &HashMap<i64, i64>) -> Vec
             .filter(|row| row.is_object())
             .cloned()
             .map(|mut row| {
+                // 只改等级。`active` 是「该区域当前是否通电运行」的状态位（发电机没燃料就是 false），
+                // 由游戏自己管；编辑器擅自补 true 会把玩家关掉的区域偷偷打开。
                 row["level"] = json!(lv);
-                // 有等级必然已建造激活：原值为 false 时补正，避免「已升级但未激活」的非法组合
-                if *lv > 0 && row.get("active").and_then(|v| v.as_bool()) != Some(true) {
-                    row["active"] = json!(true);
-                }
                 row
             })
             .unwrap_or_else(|| {

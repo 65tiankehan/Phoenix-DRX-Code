@@ -17,7 +17,7 @@
   --phx-fill-quaternary: rgba(255, 255, 255, 0.08);
   --phx-fill-secondary: rgba(255, 255, 255, 0.14);
   --phx-glass: rgba(22, 22, 26, 0.72);
-  --phx-glass-float: rgba(22, 22, 26, 0.55);
+  --phx-glass-float: #191920;
   --phx-sep: rgba(255, 255, 255, 0.08);
   --phx-sep-strong: rgba(255, 255, 255, 0.14);
   --phx-text: rgba(255, 255, 255, 0.92);

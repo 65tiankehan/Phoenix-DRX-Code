@@ -189,16 +189,32 @@ export interface PhxCharSide {
   nickname: string
   level: number
   experience: number
+  /** 转生等级（`Info.PrestigeLevel`），仅 PMC 有意义；上限见 `PhxCharData.prestigeMax` */
+  prestige: number
   head: string
   voice: string
   health: PhxCharHealth
   pocketsTpl: string
 }
 
+/** 「准备转生」结果（`prestige_prepare` 返回值） */
+export interface PhxPrestigePrep {
+  /** 写入的待执行档位 */
+  level: number
+  /** 写入前的备份路径 */
+  backupPath: string | null
+}
+
 export interface PhxCharData {
   side: string
   aid: string
   gameVersion: string
+  /** 转生上限（`templates/prestige.json` 的 elements 数，4.1.6 = 4）；0 表示读不到，前端禁用编辑 */
+  prestigeMax: number
+  /** PMC 已完成的转生记录条数（`pmc.Prestige` 字典长度，只读） */
+  prestigeRecords: number
+  /** 已准备但尚未执行的转生档位（`spt.pendingPrestige.prestigeLevel`）；null 表示没有待执行的转生 */
+  prestigePending: number | null
   pmc: PhxCharSide
   scav: PhxCharSide
 }
@@ -232,7 +248,15 @@ export const phxChar = {
   load: (id: string): Promise<PhxCharData | null> => invoke('char_load', { id }),
   options: (): Promise<PhxCharOptions> => invoke('char_options'),
   save: (id: string, data: PhxCharSaveData): Promise<PhxSaveResult> =>
-    invoke('char_save', { id, data })
+    invoke('char_save', { id, data }),
+  /**
+   * 准备转生：只写 `spt.pendingPrestige`，真正的清档与转移由服务器在玩家进游戏「重置角色」时执行。
+   * `level` 必须是当前转生等级的下一档（服务器按 `clamp(PrestigeLevel - 1, 0, max - 1)` 取档）。
+   */
+  prestigePrepare: (id: string, level: number): Promise<PhxPrestigePrep> =>
+    invoke('prestige_prepare', { id, level }),
+  /** 取消已准备的转生（删掉 `spt.pendingPrestige`），返回备份路径 */
+  prestigeCancel: (id: string): Promise<string | null> => invoke('prestige_cancel', { id })
 }
 
 // —— 商人页（04-traders）——

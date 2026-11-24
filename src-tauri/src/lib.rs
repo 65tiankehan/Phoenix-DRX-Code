@@ -145,6 +145,22 @@ async fn char_save(app: AppHandle, id: String, data: CharSaveData) -> Result<Sav
     character::save_char(&app, &id, &data)
 }
 
+/// 准备转生：写 `spt.pendingPrestige`，由玩家进游戏「重置角色」时由服务器执行（编辑器不做清档）
+#[tauri::command]
+async fn prestige_prepare(
+    app: AppHandle,
+    id: String,
+    level: i64,
+) -> Result<character::PrestigePrep, String> {
+    character::prestige_prepare(&app, &id, level)
+}
+
+/// 取消已准备的转生：删掉 `spt.pendingPrestige`
+#[tauri::command]
+async fn prestige_cancel(app: AppHandle, id: String) -> Result<Option<String>, String> {
+    character::prestige_cancel(&app, &id)
+}
+
 // —— 商人页（04-traders）——
 
 /// 商人页全量数据（PMC 商人四字段 + 等级上限 + 跳蚤评分）；档案缺失或不可读时为 None
@@ -636,7 +652,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             server_pick, server_add, server_list, server_remove, server_use, server_current,
             profile_list, profile_load, profile_save, profile_current, profile_use,
-            char_load, char_options, char_save,
+            char_load, char_options, char_save, prestige_prepare, prestige_cancel,
             traders_load, traders_save,
             quests_load, quests_save,
             skills_load, skills_save,

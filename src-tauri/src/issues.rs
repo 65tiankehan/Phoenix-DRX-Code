@@ -880,7 +880,7 @@ pub fn issues_fix(app: &AppHandle, id: &str, issue_ids: &[String]) -> Result<Iss
     let remaining = if changed {
         // 写回铁律：先备份，后写盘（单次落盘，对齐 quests.rs 先例）
         backup_path = backup_before_write(app, &path)?;
-        let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+        let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
         fs::write(&path, out).map_err(|e| e.to_string())?;
         scan_issues(&raw, &ctx)
     } else {

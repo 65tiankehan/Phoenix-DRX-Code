@@ -28,7 +28,7 @@
   /** 选中的分类（空 = 全部） */
   let picked = $state('')
   /** 折叠的分类 id 集合 */
-  let collapsed = new SvelteSet<string>()
+  let collapsed = $state.raw(new SvelteSet<string>())
   /** 选中物品（详情面板） */
   let active = $state<PhxCatalogItem | null>(null)
   let amount = $state(1)

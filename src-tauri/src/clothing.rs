@@ -77,7 +77,7 @@ fn read_profile(app: &AppHandle) -> Result<Value, String> {
 fn write_profile(app: &AppHandle, root: &Value) -> Result<Option<String>, String> {
     let path = profile_path(app)?;
     let backup = backup_before_write(app, &path)?;
-    let text = serde_json::to_string_pretty(root).map_err(|e| e.to_string())?;
+    let text = serde_json::to_string(root).map_err(|e| e.to_string())?;
     fs::write(&path, text).map_err(|e| e.to_string())?;
     Ok(backup.map(|p| p.to_string_lossy().to_string()))
 }

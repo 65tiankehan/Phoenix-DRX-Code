@@ -334,7 +334,7 @@ pub async fn arsenal_apply(
             }
         }
 
-        let text = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+        let text = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
         fs::write(&path, text).map_err(|e| e.to_string())?;
         Ok(backup.map(|p| p.to_string_lossy().to_string()))
     })

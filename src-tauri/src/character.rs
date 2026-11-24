@@ -31,11 +31,13 @@ const POCKET_SLOT_ID: &str = "Pockets";
 // ———————— 类型 ————————
 
 /// 单项生命体征（当前值 / 上限值）
+/// 用 f64 而不是整数：EFT 的 Health.Current 是真小数（如 34.649），
+/// 早前按 i64 读会让每次保存都把小数截断，回写后玩家血量被悄悄改小。
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CharVital {
-    pub current: i64,
-    pub maximum: i64,
+    pub current: f64,
+    pub maximum: f64,
 }
 
 /// 九项体征：七部位 + 水分 + 能量
@@ -62,6 +64,9 @@ pub struct CharSideData {
     pub nickname: String,
     pub level: i64,
     pub experience: i64,
+    /// 转生等级（`Info.PrestigeLevel`）；仅 PMC 有意义，上限见 `CharData.prestige_max`
+    #[serde(default)]
+    pub prestige: i64,
     pub head: String,
     pub voice: String,
     pub health: CharHealth,
@@ -75,6 +80,12 @@ pub struct CharData {
     pub side: String,
     pub aid: String,
     pub game_version: String,
+    /// 转生上限：`templates/prestige.json` 的 elements 数（4.1.6 = 4）；读不到按 0，前端据此禁用编辑
+    pub prestige_max: i64,
+    /// PMC 已完成的转生记录条数（`pmc.Prestige` 字典长度，只读展示）
+    pub prestige_records: i64,
+    /// 已准备但尚未执行的转生档位（`spt.pendingPrestige.prestigeLevel`）；None 表示没有待执行的转生
+    pub prestige_pending: Option<i64>,
     pub pmc: CharSideData,
     pub scav: CharSideData,
 }
@@ -134,6 +145,31 @@ pub(crate) fn database_dir(app: &AppHandle) -> Option<String> {
     )
 }
 
+/// 转生上限：`templates/prestige.json` 的 `elements` 条数（4.1.6 实测为 4）。
+/// 4.1.6 `Server.Core.dll` 的 `PrestigeHelper.ProcessPendingPrestige` 用
+/// `Math.Clamp(prestigeLevel - 1, 0, elements.Count - 1)` 取档位，所以上限就是 elements 数。
+/// 纯函数便于单测；结构缺失或非法返回 0（前端据此禁用编辑，不猜一个上限出来）。
+pub(crate) fn parse_prestige_max(txt: &str) -> i64 {
+    serde_json::from_str::<Value>(txt)
+        .ok()
+        .and_then(|v| {
+            v.get("elements")
+                .and_then(|e| e.as_array())
+                .map(|a| a.len())
+        })
+        .unwrap_or(0) as i64
+}
+
+/// 读当前服务器 `templates/prestige.json` 求转生上限；读不到返回 0
+pub(crate) fn prestige_max(app: &AppHandle) -> i64 {
+    database_dir(app)
+        .and_then(|d| {
+            fs::read_to_string(Path::new(&d).join("templates").join("prestige.json")).ok()
+        })
+        .map(|t| parse_prestige_max(&t))
+        .unwrap_or(0)
+}
+
 /// 部位体征：{part}.Health.{Current,Maximum}
 fn vital_in(part: Option<&Value>) -> CharVital {
     let hp = part.and_then(|p| p.get("Health"));
@@ -141,11 +177,11 @@ fn vital_in(part: Option<&Value>) -> CharVital {
         current: hp
             .and_then(|h| h.get("Current"))
             .and_then(|v| v.as_f64())
-            .unwrap_or(0.0) as i64,
+            .unwrap_or(0.0),
         maximum: hp
             .and_then(|h| h.get("Maximum"))
             .and_then(|v| v.as_f64())
-            .unwrap_or(0.0) as i64,
+            .unwrap_or(0.0),
     }
 }
 
@@ -155,11 +191,11 @@ fn vital_direct(stat: Option<&Value>) -> CharVital {
         current: stat
             .and_then(|s| s.get("Current"))
             .and_then(|v| v.as_f64())
-            .unwrap_or(0.0) as i64,
+            .unwrap_or(0.0),
         maximum: stat
             .and_then(|s| s.get("Maximum"))
             .and_then(|v| v.as_f64())
-            .unwrap_or(0.0) as i64,
+            .unwrap_or(0.0),
     }
 }
 
@@ -219,6 +255,10 @@ fn read_side(ch: Option<&Value>) -> CharSideData {
             .and_then(|i| i.get("Experience"))
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0) as i64,
+        prestige: info
+            .and_then(|i| i.get("PrestigeLevel"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0) as i64,
         head: cust
             .and_then(|c| c.get("Head"))
             .and_then(|v| v.as_str())
@@ -272,6 +312,17 @@ pub fn load_char(app: &AppHandle, id: &str) -> Option<CharData> {
             .or_else(|| info.and_then(|i| i.get("GameVersion")).and_then(|v| v.as_str()))
             .unwrap_or("")
             .to_string(),
+        prestige_max: prestige_max(app),
+        // 已完成的转生记录：`pmc.Prestige` 是 `{ "<转生元素 id>": <时间戳> }` 字典，只读展示条数
+        prestige_records: pmc
+            .and_then(|p| p.get("Prestige"))
+            .and_then(|v| v.as_object())
+            .map(|m| m.len())
+            .unwrap_or(0) as i64,
+        // 已准备但尚未执行的转生（`spt.pendingPrestige.prestigeLevel`）：玩家进游戏「重置角色」时由服务器执行
+        prestige_pending: raw
+            .pointer("/spt/pendingPrestige/prestigeLevel")
+            .and_then(|v| v.as_i64()),
         pmc: read_side(pmc),
         scav: read_side(raw.pointer("/characters/scav")),
     })
@@ -502,6 +553,18 @@ pub fn load_options(app: &AppHandle) -> CharOptions {
 
 // ———————— 写回 ————————
 
+/// 按原值形态写回数字：原存档是整数且新值无小数就写整数，否则写小数。
+/// EFT 的体征既可能是 `35` 也可能是 `34.649`；统一写 f64 会把 `35` 变成 `35.0`，
+/// 语义没变但存档被无谓改写，所以这里跟着原形态走。
+fn num_like(original: Option<&Value>, v: f64) -> Value {
+    let was_int = original.map(|o| o.is_i64() || o.is_u64()).unwrap_or(false);
+    if was_int && v.fract() == 0.0 {
+        json!(v as i64)
+    } else {
+        json!(v)
+    }
+}
+
 /// 单侧定点替换（ProfileSaver.cs 写回段基准）：
 /// 昵称（含小写副本）/ 等级 / 经验 / 阵营（仅 PMC）/ 外观 / 体征 / 口袋；
 /// 数值一律强转整数。
@@ -518,6 +581,10 @@ fn write_side(side: Option<&mut Value>, data: &CharSideData, is_pmc: bool) {
     // 写 0 会让客户端读档时按经验反推出 0 级并卡住）
     info["Level"] = json!(data.level.max(1));
     info["Experience"] = json!(data.experience.max(0));
+    // 转生等级只对 PMC 有意义；Scav 侧不触碰 Info.PrestigeLevel（Scav 没有转生）
+    if is_pmc {
+        info["PrestigeLevel"] = json!(data.prestige.max(0));
+    }
 
     // 外观：Customization 缺失则建；空值不写，避免塞空串覆盖
     if !data.head.is_empty() || !data.voice.is_empty() {
@@ -546,8 +613,10 @@ fn write_side(side: Option<&mut Value>, data: &CharSideData, is_pmc: bool) {
         ("RightLeg", data.health.right_leg),
     ] {
         if let Some(hp) = body.get_mut(key).and_then(|p| p.get_mut("Health")) {
-            hp["Current"] = json!(vital.current.max(0));
-            hp["Maximum"] = json!(vital.maximum.max(0));
+            let cur_old = hp.get("Current").cloned();
+            let max_old = hp.get("Maximum").cloned();
+            hp["Current"] = num_like(cur_old.as_ref(), vital.current.max(0.0));
+            hp["Maximum"] = num_like(max_old.as_ref(), vital.maximum.max(0.0));
         }
     }
     // Energy / Hydration 直挂 Health 下（无内层 Health）
@@ -556,8 +625,10 @@ fn write_side(side: Option<&mut Value>, data: &CharSideData, is_pmc: bool) {
         ("Energy", data.health.energy),
     ] {
         if let Some(stat) = health.get_mut(key) {
-            stat["Current"] = json!(vital.current.max(0));
-            stat["Maximum"] = json!(vital.maximum.max(0));
+            let cur_old = stat.get("Current").cloned();
+            let max_old = stat.get("Maximum").cloned();
+            stat["Current"] = num_like(cur_old.as_ref(), vital.current.max(0.0));
+            stat["Maximum"] = num_like(max_old.as_ref(), vital.maximum.max(0.0));
         }
     }
 
@@ -586,6 +657,16 @@ pub(crate) fn item_presets(g: &Value) -> Option<&serde_json::Map<String, Value>>
         .and_then(|p| p.as_object())
 }
 
+/// 转生等级卡范围：上限已知就卡上限，读不到上限只挡负数。
+/// 明确不把「读不到上限」当成 0 —— 那会把玩家的转生等级静默清零。
+pub(crate) fn clamp_prestige(value: i64, max: i64) -> i64 {
+    if max > 0 {
+        value.clamp(0, max)
+    } else {
+        value.max(0)
+    }
+}
+
 /// 角色页写回：先强制备份（领域铁律），再定点替换后整体序列化写回
 pub fn save_char(app: &AppHandle, id: &str, data: &CharSaveData) -> Result<SaveResult, String> {
     if !is_safe_id(id) {
@@ -598,14 +679,115 @@ pub fn save_char(app: &AppHandle, id: &str, data: &CharSaveData) -> Result<SaveR
     let backup_path = backup_before_write(app, &path)?;
 
     // 阵营仅 PMC 写 Info.Side；Scav 侧传 is_pmc=false，write_side 不触碰 Info.Side
-    write_side(raw.pointer_mut("/characters/pmc"), &data.pmc, true);
+    // 转生等级按 `templates/prestige.json` 的档位数卡上限；读不到上限时只挡负数，绝不静默压 0
+    let mut pmc = data.pmc.clone();
+    pmc.prestige = clamp_prestige(pmc.prestige, prestige_max(app));
+    write_side(raw.pointer_mut("/characters/pmc"), &pmc, true);
     write_side(raw.pointer_mut("/characters/scav"), &data.scav, false);
 
-    let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+    // 存档写回一律用**紧凑** JSON：游戏自己写出的 profile 是单行，
+    // 用 pretty 会把体积近乎翻倍（实测 452KB → 980KB）且与游戏格式不一致。
+    // 导出给用户看的文件（inspect/presets 的导出）与编辑器自己的配置仍用 pretty。
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, out).map_err(|e| e.to_string())?;
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
     })
+}
+
+/// 「准备转生」的结果
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrestigePrep {
+    /// 写入的待执行档位（`spt.pendingPrestige.prestigeLevel`）
+    pub level: i64,
+    /// 写入前的备份路径
+    pub backup_path: Option<String>,
+}
+
+/// 读 PMC 当前转生等级（`Info.PrestigeLevel`）
+fn current_prestige(raw: &Value) -> i64 {
+    raw.pointer("/characters/pmc/Info/PrestigeLevel")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0)
+}
+
+/// 纯逻辑：把「准备转生」写进内存里的存档对象。抽出来是为了不依赖 AppHandle 也能测。
+pub(crate) fn apply_pending(raw: &mut Value, level: i64, max: i64) -> Result<i64, String> {
+    if max <= 0 {
+        return Err("读不到转生档位表（templates/prestige.json），已停止，未改动存档".to_string());
+    }
+    // 服务器算法：`num = clamp(PrestigeLevel - 1, 0, max - 1)`，所以只能准备「当前等级 + 1」
+    let current = current_prestige(raw);
+    let expected = current + 1;
+    if level != expected {
+        return Err(format!(
+            "只能准备下一档：当前 {} 级，目标必须是 {} 级",
+            current, expected
+        ));
+    }
+    if expected > max {
+        return Err(format!("已经到顶：上限 {} 档", max));
+    }
+    let spt = raw
+        .get_mut("spt")
+        .ok_or_else(|| "存档缺少 spt 段".to_string())?;
+    let obj = spt
+        .as_object_mut()
+        .ok_or_else(|| "存档的 spt 段不是对象".to_string())?;
+    // items 留空：玩家不指定转移清单时不带走任何仓库物品（服务器据此只发档位奖励）
+    obj.insert(
+        "pendingPrestige".to_string(),
+        json!({ "prestigeLevel": level, "items": [] }),
+    );
+    Ok(level)
+}
+
+/// 「准备转生」：只写 `spt.pendingPrestige`，把「清等级 / 清任务 / 清仓库 / 清藏身处 / 转移技能 /
+/// 发奖励 / 补成就 / 写 Prestige 记录」交给服务器在玩家「重置角色」时执行。
+///
+/// 为什么不在编辑器里直接复刻：真正的转生发生在 `CreateProfileService.CreateProfile`（372 行，
+/// 依赖 20+ 个服务与数据库），编辑器只读存档文件，复刻必然走样。写标记是唯一可靠且不改坏存档的路。
+pub fn prestige_prepare(app: &AppHandle, id: &str, level: i64) -> Result<PrestigePrep, String> {
+    if !is_safe_id(id) {
+        return Err(format!("Invalid profile id: {}", id));
+    }
+    let dir = profiles_dir(app).ok_or_else(|| "未选择 SPT 服务器".to_string())?;
+    let path = Path::new(&dir).join(format!("{}.json", id));
+    let txt = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut raw: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
+
+    let max = prestige_max(app);
+    apply_pending(&mut raw, level, max)?;
+
+    let backup_path = backup_before_write(app, &path)?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
+    fs::write(&path, out).map_err(|e| e.to_string())?;
+    Ok(PrestigePrep {
+        level,
+        backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
+    })
+}
+
+/// 取消已准备的转生：删掉 `spt.pendingPrestige`，其余一律不动
+pub fn prestige_cancel(app: &AppHandle, id: &str) -> Result<Option<String>, String> {
+    if !is_safe_id(id) {
+        return Err(format!("Invalid profile id: {}", id));
+    }
+    let dir = profiles_dir(app).ok_or_else(|| "未选择 SPT 服务器".to_string())?;
+    let path = Path::new(&dir).join(format!("{}.json", id));
+    let txt = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut raw: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
+    let Some(obj) = raw.get_mut("spt").and_then(|v| v.as_object_mut()) else {
+        return Ok(None);
+    };
+    if obj.remove("pendingPrestige").is_none() {
+        return Ok(None);
+    }
+    let backup_path = backup_before_write(app, &path)?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
+    fs::write(&path, out).map_err(|e| e.to_string())?;
+    Ok(backup_path.map(|p| p.to_string_lossy().to_string()))
 }
 
 #[cfg(test)]
@@ -678,5 +860,264 @@ mod tests {
         assert_eq!(table.len(), 79, "exp_table 档数不对");
         assert_eq!(table[1], 1000);
         assert_eq!(*table.last().unwrap(), 12_000_000);
+    }
+
+    // ———————— 转生 ————————
+
+    /// 上限取 `elements` 条数：4.1.6 的 `templates/prestige.json` 是 `{elements:[…]}`
+    #[test]
+    fn prestige_max_counts_elements() {
+        assert_eq!(parse_prestige_max(r#"{"elements":[{},{},{},{}]}"#), 4);
+        assert_eq!(parse_prestige_max(r#"{"elements":[]}"#), 0);
+        assert_eq!(parse_prestige_max(r#"{"elements":{}}"#), 0);
+        assert_eq!(parse_prestige_max("not json"), 0);
+        assert_eq!(parse_prestige_max("{}"), 0);
+    }
+
+    /// 读不到上限时只挡负数，绝不把玩家的转生等级压成 0
+    #[test]
+    fn prestige_clamp_never_silently_zeroes() {
+        assert_eq!(clamp_prestige(9, 4), 4);
+        assert_eq!(clamp_prestige(2, 4), 2);
+        assert_eq!(clamp_prestige(-3, 4), 0);
+        assert_eq!(clamp_prestige(3, 0), 3, "上限未知时必须保留原值");
+        assert_eq!(clamp_prestige(-1, 0), 0);
+    }
+
+    /// PMC 写 Info.PrestigeLevel；Scav 侧不写（Scav 没有转生）
+    #[test]
+    fn prestige_written_only_for_pmc() {
+        let mk = |is_pmc: bool| {
+            let mut side = json!({ "Info": { "Level": 10 } });
+            let data = CharSideData {
+                level: 10,
+                prestige: 2,
+                ..Default::default()
+            };
+            write_side(Some(&mut side), &data, is_pmc);
+            side
+        };
+        assert_eq!(mk(true).pointer("/Info/PrestigeLevel"), Some(&json!(2)));
+        assert!(mk(false).pointer("/Info/PrestigeLevel").is_none());
+    }
+
+    /// 本机真实库自检（默认忽略）：4.1.6 转生档位是 4 个
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_prestige_template_has_four_tiers() {
+        let txt = fs::read_to_string(r"E:\EFT\SPT_Runtime\SPT_Data\database\templates\prestige.json")
+            .expect("读 prestige.json 失败");
+        assert_eq!(parse_prestige_max(&txt), 4, "转生档位数不对");
+        let v: Value = serde_json::from_str(&txt).expect("解析失败");
+        let ids: Vec<&str> = v["elements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e.get("id").and_then(|x| x.as_str()).unwrap_or(""))
+            .collect();
+        assert_eq!(ids[0], "672df12f97f0469cea52f55e");
+        assert!(ids.iter().all(|s| s.len() == 24), "转生 id 不是 24 位");
+    }
+
+    /// 递归比对两份 JSON，只允许 `/characters/pmc/Info/PrestigeLevel` 这一条路径不同。
+    /// 返回实际发生差异的路径列表，用于断言「除转生等级外逐字不变」。
+    fn diff_paths(a: &Value, b: &Value, base: &str, out: &mut Vec<String>) {
+        match (a, b) {
+            (Value::Object(ma), Value::Object(mb)) => {
+                for (k, va) in ma {
+                    let path = format!("{}/{}", base, k);
+                    match mb.get(k) {
+                        Some(vb) => diff_paths(va, vb, &path, out),
+                        None => out.push(format!("{} (仅左侧存在)", path)),
+                    }
+                }
+                for k in mb.keys() {
+                    if !ma.contains_key(k) {
+                        out.push(format!("{}/{} (仅右侧存在)", base, k));
+                    }
+                }
+            }
+            (Value::Array(xa), Value::Array(xb)) => {
+                if xa.len() != xb.len() {
+                    out.push(format!("{} 长度 {}→{}", base, xa.len(), xb.len()));
+                    return;
+                }
+                for (i, (va, vb)) in xa.iter().zip(xb.iter()).enumerate() {
+                    diff_paths(va, vb, &format!("{}/{}", base, i), out);
+                }
+            }
+            _ => {
+                if a != b {
+                    out.push(base.to_string());
+                }
+            }
+        }
+    }
+
+    /// 本机真机自检（默认忽略）：只把转生等级从 0 改成 1，存档里除该字段外必须逐字不变。
+    /// 读 `E:\EFT` 的探针档（不存在则取任一真实档，只在内存里比对，不写盘）。
+    #[test]
+    #[ignore = "需要本机 SPT 存档 E:\\EFT"]
+    fn real_profile_prestige_write_touches_only_that_field() {
+        let dir = r"E:\EFT\SPT_Runtime\user\profiles";
+        let probe = Path::new(dir).join("0000000000000000000000a1.json");
+        let path = if probe.exists() {
+            probe
+        } else {
+            let mut picked = None;
+            for e in fs::read_dir(dir).expect("读 profiles 目录失败") {
+                let p = e.expect("遍历失败").path();
+                if p.extension().and_then(|x| x.to_str()) == Some("json") {
+                    picked = Some(p);
+                    break;
+                }
+            }
+            picked.expect("目录里没有 json")
+        };
+        let txt = fs::read_to_string(&path).expect("读存档失败");
+        let mut raw: Value = serde_json::from_str(&txt).expect("解析存档失败");
+        let before = raw.clone();
+
+        // 用档案自身的真实数据回填，只改转生等级 —— 这样才能断言「其它字段逐字不变」
+        let old = before
+            .pointer("/characters/pmc/Info/PrestigeLevel")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let mut data = read_side(before.pointer("/characters/pmc"));
+        // 目标值与现值不同，保证确实发生了写入
+        data.prestige = if old == 0 { 1 } else { 0 };
+        write_side(raw.pointer_mut("/characters/pmc"), &data, true);
+
+        let mut diffs = Vec::new();
+        diff_paths(&before, &raw, "", &mut diffs);
+        // 允许的差异：PrestigeLevel（本次目标）、Level/Experience（write_side 恒写，值相同则不算差异）、
+        // Nickname/LowerNickname/Side（data 为空串时 write_side 仍会写 nickname，这里只允许值相同的写入）
+        let unexpected: Vec<&String> = diffs
+            .iter()
+            .filter(|p| !p.ends_with("/Info/PrestigeLevel"))
+            .collect();
+        assert!(
+            unexpected.is_empty(),
+            "除转生等级外还有字段被改动: {:?}",
+            unexpected
+        );
+        assert_eq!(
+            raw.pointer("/characters/pmc/Info/PrestigeLevel"),
+            Some(&json!(data.prestige)),
+            "写入后的转生等级不对"
+        );
+        assert_eq!(
+            before.pointer("/characters/pmc/Info/PrestigeLevel"),
+            Some(&json!(old)),
+            "前置条件：原件转生等级应保持未变"
+        );
+    }
+
+    // —— 「准备转生」：只写 spt.pendingPrestige ——
+
+    #[test]
+    fn pending_refuses_when_tier_table_missing() {
+        let mut raw = json!({ "spt": {} });
+        assert!(apply_pending(&mut raw, 1, 0).is_err());
+        // 失败时不得留下任何写入
+        assert!(raw.pointer("/spt/pendingPrestige").is_none());
+    }
+
+    #[test]
+    fn pending_only_accepts_the_next_tier() {
+        let mut raw = json!({
+            "spt": {},
+            "characters": { "pmc": { "Info": { "PrestigeLevel": 1 } } }
+        });
+        // 当前 1 级 → 只能准备 2 级
+        assert!(apply_pending(&mut raw, 1, 4).is_err());
+        assert!(apply_pending(&mut raw, 3, 4).is_err());
+        assert!(apply_pending(&mut raw, 2, 4).is_ok());
+        assert_eq!(
+            raw.pointer("/spt/pendingPrestige/prestigeLevel"),
+            Some(&json!(2))
+        );
+        // 转移清单留空（不指定就不带走仓库物品）
+        assert_eq!(raw.pointer("/spt/pendingPrestige/items"), Some(&json!([])));
+    }
+
+    #[test]
+    fn pending_at_ceiling_is_refused() {
+        let mut raw = json!({
+            "spt": {},
+            "characters": { "pmc": { "Info": { "PrestigeLevel": 4 } } }
+        });
+        let err = apply_pending(&mut raw, 5, 4).expect_err("到顶后必须拒绝");
+        assert!(err.contains("已经到顶"), "错误信息不含预期内容: {}", err);
+        assert!(raw.pointer("/spt/pendingPrestige").is_none());
+    }
+
+    #[test]
+    fn pending_leaves_everything_else_untouched() {
+        let mut raw = json!({
+            "spt": { "version": "4.1.6 (40743)", "mods": [] },
+            "characters": { "pmc": { "Info": { "PrestigeLevel": 0, "Level": 42 } } }
+        });
+        let before = raw.clone();
+        apply_pending(&mut raw, 1, 4).expect("准备失败");
+        let mut diffs = Vec::new();
+        diff_paths(&before, &raw, "", &mut diffs);
+        let unexpected: Vec<&String> = diffs
+            .iter()
+            .filter(|p| !p.starts_with("/spt/pendingPrestige"))
+            .collect();
+        assert!(unexpected.is_empty(), "其它字段被改动: {:?}", unexpected);
+    }
+
+    /// 真机：真实档走一遍「准备转生」，除 `spt.pendingPrestige` 外逐字不变（只在内存里比，不写盘）
+    #[test]
+    #[ignore = "需要本机 SPT 安装 E:\\EFT"]
+    fn real_profile_pending_prepare_touches_only_that_key() {
+        let dir = r"E:\EFT\SPT_Runtime\user\profiles";
+        // 只挑「还没有待执行转生」的档：已经准备过的档再准备一次会被规则拒绝，不是缺陷
+        let picked = fs::read_dir(dir)
+            .expect("读 profiles 目录失败")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map(|x| x == "json").unwrap_or(false))
+            .find_map(|p| {
+                let txt = fs::read_to_string(&p).ok()?;
+                let v: Value = serde_json::from_str(&txt).ok()?;
+                if v.pointer("/spt/pendingPrestige").is_some() {
+                    return None;
+                }
+                Some((p, txt, v))
+            });
+        let Some((_path, _txt, before)) = picked else {
+            return; // 全都已准备过转生，跳过
+        };
+        let mut raw = before.clone();
+
+        let old = current_prestige(&before);
+        let max = parse_prestige_max(
+            &fs::read_to_string(r"E:\EFT\SPT_Runtime\SPT_Data\database\templates\prestige.json")
+                .expect("读 prestige.json 失败"),
+        );
+        // 已经到顶的档没法再准备，跳过（不是失败）
+        if old + 1 > max {
+            return;
+        }
+        apply_pending(&mut raw, old + 1, max).expect("准备转生失败");
+
+        let mut diffs = Vec::new();
+        diff_paths(&before, &raw, "", &mut diffs);
+        let unexpected: Vec<&String> = diffs
+            .iter()
+            .filter(|p| !p.starts_with("/spt/pendingPrestige"))
+            .collect();
+        assert!(unexpected.is_empty(), "其它字段被改动: {:?}", unexpected);
+        assert_eq!(
+            raw.pointer("/spt/pendingPrestige/prestigeLevel"),
+            Some(&json!(old + 1))
+        );
+        assert!(
+            before.pointer("/spt/pendingPrestige").is_none(),
+            "前置条件：原件不应本来就有 pendingPrestige"
+        );
     }
 }

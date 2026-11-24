@@ -368,7 +368,7 @@ pub fn save_skills(app: &AppHandle, id: &str, data: &SkillsSaveData) -> Result<S
         // 查无该 Id：跳过不新建（与口袋/商人写回同口径）
     }
 
-    let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, out).map_err(|e| e.to_string())?;
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),

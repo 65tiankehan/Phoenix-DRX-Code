@@ -24,6 +24,7 @@
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import PhxSwitch from '$lib/components/PhxSwitch.svelte'
+  import PhxDialog from '$lib/components/PhxDialog.svelte'
 
   type Mode = 'pmc' | 'scav'
   /** 页内分区：概览 / 形象服装（稿图 31；导航裁决 2026-10-24） */
@@ -33,12 +34,22 @@
   const skRows = (n: number) => [...Array(n).keys()]
 
   let currentId = $state('')
-  let meta = $state<{ side: string; aid: string; gameVersion: string } | null>(null)
+  let meta = $state<{
+    side: string
+    aid: string
+    gameVersion: string
+    prestigeMax: number
+    prestigeRecords: number
+    prestigePending: number | null
+  } | null>(null)
   let pmc = $state<PhxCharSide | null>(null)
   let scav = $state<PhxCharSide | null>(null)
   let opts = $state<PhxCharOptions | null>(null)
   let mode = $state<Mode>('pmc')
   let saving = $state(false)
+  /** 「准备转生」确认弹窗开关与进行中标记 */
+  let prepOpen = $state(false)
+  let prepBusy = $state(false)
   let booting = $state(true)
   // 26 稿装备速览：PMC 走仓库装备槽，Scav 走侦察兵装备槽
   let pmcStash = $state<PhxStashData | null>(null)
@@ -97,14 +108,24 @@
     return Math.max(0, Math.trunc(Number(n) || 0))
   }
 
+  /**
+   * 体征口径：保留小数、只挡负数。
+   * EFT 的血量是真小数（如 34.649），按整数截断会让每次保存都把玩家血量改小，
+   * 所以这里不做 trunc，显示与写回都按原值走。
+   */
+  function vitalNum(n: number): number {
+    const v = Number(n)
+    return Number.isFinite(v) ? Math.max(0, v) : 0
+  }
+
   /** 载入侧归一：0 级显示为 1 级（与稿图语义一致） */
   function normalizeSide(s: PhxCharSide): PhxCharSide {
     s.level = Math.max(1, s.level)
     s.experience = Math.max(0, s.experience)
     const h = s.health
     for (const k of Object.keys(h) as (keyof typeof h)[]) {
-      h[k].current = snap(h[k].current)
-      h[k].maximum = snap(h[k].maximum)
+      h[k].current = vitalNum(h[k].current)
+      h[k].maximum = vitalNum(h[k].maximum)
     }
     return s
   }
@@ -146,7 +167,14 @@
       booting = false
       return
     }
-    meta = { side: data.side, aid: data.aid, gameVersion: data.gameVersion }
+    meta = {
+      side: data.side,
+      aid: data.aid,
+      gameVersion: data.gameVersion,
+      prestigeMax: data.prestigeMax ?? 0,
+      prestigeRecords: data.prestigeRecords ?? 0,
+      prestigePending: data.prestigePending ?? null
+    }
     pmc = normalizeSide(data.pmc)
     scav = normalizeSide(data.scav)
     syncExpText(cur)
@@ -171,6 +199,15 @@
     cur.level = next
     cur.experience = expStart(next)
     syncExpText(cur)
+  }
+
+  /** 转生等级上限：服务端模板读不到（0）时整行不出现，不猜一个上限出来 */
+  const prestigeMax = $derived(meta?.prestigeMax ?? 0)
+
+  /** 转生步进：钳 0..上限；Scav 没有转生，只有 PMC 可改 */
+  function onPrestigeStep(delta: number): void {
+    if (!cur || mode !== 'pmc' || prestigeMax <= 0) return
+    cur.prestige = Math.min(prestigeMax, Math.max(0, cur.prestige + delta))
   }
 
   /** 经验滑条：映射当前等级区间 [expStart, expEnd) */
@@ -242,7 +279,7 @@
 
   function setVital(key: keyof PhxCharHealth, part: 'current' | 'maximum', raw: string): void {
     if (!cur) return
-    cur.health[key][part] = snap(Number(raw))
+    cur.health[key][part] = vitalNum(Number(raw))
   }
 
   const voiceOpts = $derived((opts?.voices ?? []).map((o) => ({ value: o.id, label: o.name })))
@@ -311,24 +348,61 @@
     if (!pmc || !scav || saving) return
     saving = true
     try {
-      const clean = (s: PhxCharSide): PhxCharSide => {
-        const h = { ...s.health }
-        for (const k of Object.keys(h) as (keyof typeof h)[]) {
-          h[k] = { current: snap(h[k].current), maximum: snap(h[k].maximum) }
-        }
-        return {
-          ...s,
-          level: Math.max(1, snap(s.level)),
-          experience: snap(s.experience),
-          health: h
-        }
-      }
-      await phxChar.save(currentId, { pmc: clean(pmc), scav: clean(scav) })
+      await phxChar.save(currentId, { pmc: cleanSide(pmc), scav: cleanSide(scav) })
       toast.success(t('char.toast.saved'))
     } catch {
       toast.error(t('char.toast.failed'))
     } finally {
       saving = false
+    }
+  }
+
+  /** 写回前的清洗：等级至少 1、经验取整、体征保留小数（不截断，否则每次保存都掉血） */
+  function cleanSide(s: PhxCharSide): PhxCharSide {
+    const h = { ...s.health }
+    for (const k of Object.keys(h) as (keyof typeof h)[]) {
+      h[k] = { current: vitalNum(h[k].current), maximum: vitalNum(h[k].maximum) }
+    }
+    return {
+      ...s,
+      level: Math.max(1, snap(s.level)),
+      experience: snap(s.experience),
+      health: h
+    }
+  }
+
+  /**
+   * 准备转生：先保存当前编辑（拿准当前转生等级），再写 `spt.pendingPrestige`。
+   * 真正的清档 / 技能转移 / 奖励发放由服务器在玩家进游戏「重置角色」时执行 —— 编辑器只写标记。
+   */
+  async function onPreparePrestige(): Promise<void> {
+    if (!pmc || !scav || prepBusy || !currentId) return
+    prepBusy = true
+    try {
+      await phxChar.save(currentId, { pmc: cleanSide(pmc), scav: cleanSide(scav) })
+      const res = await phxChar.prestigePrepare(currentId, pmc.prestige + 1)
+      toast.success(t('char.prestige.prepared', { n: res.level }))
+      await refresh()
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      prepBusy = false
+      prepOpen = false
+    }
+  }
+
+  /** 取消已准备的转生 */
+  async function onCancelPrestige(): Promise<void> {
+    if (prepBusy || !currentId) return
+    prepBusy = true
+    try {
+      await phxChar.prestigeCancel(currentId)
+      toast.success(t('char.prestige.cancelled'))
+      await refresh()
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      prepBusy = false
     }
   }
 
@@ -603,6 +677,44 @@
             </div>
             <span class="range">1 – {maxLevel}</span>
           </div>
+          {#if mode === 'pmc' && prestigeMax > 0}
+            <!-- 转生等级：上限取服务端 templates/prestige.json 的档位数，读不到整行不出现 -->
+            <div class="frow">
+              <span class="k">{t('char.f.prestige')}</span>
+              <span class="lvl">{cur.prestige}</span>
+              <div class="stepper">
+                <button type="button" aria-label="-1" onclick={() => onPrestigeStep(-1)}>−</button>
+                <button type="button" aria-label="+1" onclick={() => onPrestigeStep(1)}>+</button>
+              </div>
+              <span class="range">0 – {prestigeMax}</span>
+            </div>
+            <div class="hint">
+              {t('char.prestige.hint', { n: meta?.prestigeRecords ?? 0 })}
+            </div>
+            <!-- 真转生：只写存档标记，清档与转移由服务器在游戏内「重置角色」时执行 -->
+            <div class="prep">
+              {#if meta?.prestigePending}
+                <span class="prep-badge">
+                  {t('char.prestige.pendingBadge', { n: meta.prestigePending })}
+                </span>
+                <div class="hint strong">{t('char.prestige.pendingHint')}</div>
+                <button type="button" class="prep-btn ghost" disabled={prepBusy} onclick={onCancelPrestige}>
+                  {t('char.prestige.cancelBtn')}
+                </button>
+              {:else if cur.prestige < prestigeMax}
+                <button
+                  type="button"
+                  class="prep-btn"
+                  disabled={prepBusy}
+                  onclick={() => (prepOpen = true)}
+                >
+                  {t('char.prestige.prepareBtn', { n: cur.prestige + 1 })}
+                </button>
+              {:else}
+                <div class="hint strong">{t('char.prestige.atTop')}</div>
+              {/if}
+            </div>
+          {/if}
           <div class="frow exp">
             <span class="k">{t('char.f.exp')}</span>
             <input
@@ -702,12 +814,16 @@
                 <span class="hp">
                   <input
                     type="number"
+                    step="any"
+                    min="0"
                     value={v.current}
                     oninput={(e) => setVital(cell.key, 'current', e.currentTarget.value)}
                   />
                   <span class="sep">/</span>
                   <input
                     type="number"
+                    step="any"
+                    min="0"
                     value={v.maximum}
                     oninput={(e) => setVital(cell.key, 'maximum', e.currentTarget.value)}
                   />
@@ -726,6 +842,16 @@
       {/if}
 </div>
 </div>
+
+<PhxDialog
+  bind:open={prepOpen}
+  heading={t('char.prestige.dlgHead', { n: (cur?.prestige ?? 0) + 1 })}
+  text={t('char.prestige.dlgText')}
+  confirmText={t('char.prestige.dlgOk')}
+  cancelText={t('dlg.cancel')}
+  danger
+  onconfirm={onPreparePrestige}
+/>
 
 <style>
   /* 03 稿图原值：页头 + 5fr/7fr 仪表台四面板 */
@@ -1029,6 +1155,52 @@
     padding: 8px 0 4px;
     font-size: 11px;
     color: var(--phx-text-3);
+  }
+
+  /* 「准备转生」：真转生的入口（只写存档标记，清档由服务器执行） */
+  .prep {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 10px 0 2px;
+  }
+
+  .hint.strong {
+    padding: 0;
+    color: var(--phx-warn);
+  }
+
+  .prep-badge {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--phx-warn);
+    background: color-mix(in srgb, var(--phx-warn) 14%, transparent);
+  }
+
+  .prep-btn {
+    padding: 7px 14px;
+    border: 1px solid var(--phx-line);
+    border-radius: var(--phx-radius-btn);
+    font-size: 12px;
+    color: var(--phx-text);
+    background: var(--phx-surface-2);
+    cursor: pointer;
+  }
+
+  .prep-btn:hover:not(:disabled) {
+    border-color: var(--phx-accent);
+  }
+
+  .prep-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .prep-btn.ghost {
+    color: var(--phx-text-3);
+    background: transparent;
   }
   /* 经验脚注（26 稿）：本级区间 + 距下一级差额，实心 surface-2 底 */
   .exp-foot {

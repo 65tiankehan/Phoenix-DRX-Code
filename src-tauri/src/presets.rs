@@ -242,7 +242,7 @@ fn with_profile(
     let mut raw: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
     let backup_path = backup_before_write(app, &path)?;
     f(&mut raw)?;
-    let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, out).map_err(|e| e.to_string())?;
     Ok(SaveResult {
         backup_path: backup_path.map(|p| p.to_string_lossy().to_string()),
@@ -445,7 +445,7 @@ pub fn build_import(
     let backup_path = backup_before_write(app, &path)?;
     let imported_n = imported.len();
     builds_arr_mut(&mut raw, pointer)?.extend(imported);
-    let out = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+    let out = serde_json::to_string(&raw).map_err(|e| e.to_string())?;
     fs::write(&path, out).map_err(|e| e.to_string())?;
     Ok(ImportResult {
         imported: imported_n,
