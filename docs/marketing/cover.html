@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Phoenix DRX · 视频封面</title>
+<style>
+  :root {
+    --phx-surface: #0b0b0e;
+    --phx-surface-2: #141419;
+    --phx-panel: #17171d;
+    --phx-sep: rgba(255, 255, 255, .10);
+    --phx-sep-strong: rgba(255, 255, 255, .16);
+    --phx-text: rgba(255, 255, 255, .94);
+    --phx-text-2: rgba(235, 235, 245, .62);
+    --phx-text-3: rgba(235, 235, 245, .34);
+    --phx-accent: #0091ff;
+    --phx-accent-2: #57c7ff;
+    --phx-ok: #30d158;
+    --phx-warn: #ffd15c;
+    --phx-r: 18px;
+    --phx-font: -apple-system, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+    --phx-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #050506;
+    font-family: var(--phx-font);
+    color: var(--phx-text);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+
+  /* 只在页面上显示，截图时按 H 隐藏（或直接对 .cover 做「捕获节点截图」） */
+  .hint {
+    width: 1920px; max-width: 100%;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 14px; color: var(--phx-text-3);
+    padding: 10px 16px; border: 0.5px solid var(--phx-sep);
+    border-radius: 10px; background: var(--phx-surface-2);
+  }
+  .hint b { color: var(--phx-text-2); font-weight: 600; }
+  .hint kbd {
+    font-family: var(--phx-mono); font-size: 12px;
+    padding: 2px 7px; border-radius: 5px;
+    background: rgba(255,255,255,.08); border: 0.5px solid var(--phx-sep-strong);
+    color: var(--phx-text);
+  }
+  body.clean .hint { display: none; }
+  body.clean { padding: 0; gap: 0; }
+
+  /* ========== 封面画布：1920 × 1080 ========== */
+  .cover {
+    width: 1920px; height: 1080px;
+    position: relative; overflow: hidden;
+    background: var(--phx-surface);
+    flex: none;
+  }
+
+  /* 背景：径向光 + 细网格 + 顶部高光 */
+  .cover::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(1200px 780px at 76% 34%, rgba(0,145,255,.20), transparent 62%),
+      radial-gradient(900px 620px at 12% 88%, rgba(0,145,255,.10), transparent 60%),
+      linear-gradient(180deg, #101016 0%, #0a0a0d 58%, #08080a 100%);
+  }
+  .cover::after {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(1300px 900px at 50% 45%, #000 30%, transparent 78%);
+    -webkit-mask-image: radial-gradient(1300px 900px at 50% 45%, #000 30%, transparent 78%);
+  }
+  .grain {
+    position: absolute; inset: 0; opacity: .35; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,.10) .5px, transparent .6px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+  }
+
+  .stage { position: absolute; inset: 0; z-index: 2; }
+
+  /* ---------- 变体 A：左文右图 ---------- */
+  .a .lockup {
+    position: absolute; left: 120px; top: 96px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .a .mark {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: linear-gradient(160deg, #33a9ff, #0077e0);
+    display: grid; place-items: center;
+    font-size: 40px; font-weight: 800; color: #fff; letter-spacing: -.03em;
+    box-shadow: 0 10px 30px rgba(0,145,255,.35), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .a .brand { font-size: 30px; font-weight: 700; letter-spacing: .16em; }
+  .a .brand small {
+    display: block; margin-top: 6px;
+    font-size: 15px; font-weight: 500; letter-spacing: .06em; color: var(--phx-text-3);
+  }
+
+  .a h1 {
+    position: absolute; left: 120px; top: 232px;
+    font-size: 112px; line-height: 1.08; letter-spacing: -.045em; font-weight: 800;
+  }
+  .a h1 em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--phx-accent-2), var(--phx-accent) 62%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .a .sub {
+    position: absolute; left: 122px; top: 494px;
+    font-size: 33px; font-weight: 600; color: var(--phx-text-2); letter-spacing: .01em;
+  }
+  .a .facts { position: absolute; left: 120px; top: 560px; display: flex; gap: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    height: 54px; padding: 0 22px; border-radius: 27px;
+    background: rgba(255,255,255,.055); border: 0.5px solid var(--phx-sep-strong);
+    font-size: 25px; font-weight: 600; color: var(--phx-text);
+    backdrop-filter: blur(8px);
+  }
+  .chip i {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--phx-ok);
+    box-shadow: 0 0 0 4px rgba(48,209,88,.16);
+  }
+  .chip.gold i { background: var(--phx-warn); box-shadow: 0 0 0 4px rgba(255,209,92,.16); }
+
+  .a .langs {
+    position: absolute; left: 120px; top: 648px; width: 760px;
+    font-size: 23px; line-height: 1.7; color: var(--phx-text-3);
+  }
+  .a .langs b { color: var(--phx-text-2); font-weight: 600; }
+  .a .langs span { display: inline-block; }
+  .a .langs span::after { content: " · "; color: var(--phx-text-3); }
+  .a .langs span:last-child::after { content: ""; }
+
+  .a .foot {
+    position: absolute; left: 120px; top: 806px;
+    display: flex; align-items: center; gap: 18px;
+    font-size: 24px; color: var(--phx-text-3);
+  }
+  .a .foot .v {
+    font-family: var(--phx-mono); font-size: 22px; color: var(--phx-text-2);
+    padding: 7px 14px; border-radius: 8px;
+    background: rgba(255,255,255,.06); border: 0.5px solid var(--phx-sep-strong);
+  }
+
+  /* 右侧截图：倾斜卡片 + 阴影 */
+  .shot {
+    position: absolute; right: 56px; top: 168px;
+    width: 1030px; border-radius: 20px; overflow: hidden;
+    border: 0.5px solid var(--phx-sep-strong);
+    box-shadow: 0 50px 120px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06);
+    transform: perspective(1800px) rotateY(-9deg) rotateX(2.5deg) rotateZ(-.6deg);
+    transform-origin: right center;
+  }
+  .shot img { display: block; width: 100%; }
+  .shot .glare {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,.10) 0%, transparent 34%, transparent 66%, rgba(255,255,255,.05) 100%);
+  }
+
+  /* ---------- 变体 B：全幅截图 + 顶部信息条 ---------- */
+  .b .frame {
+    position: absolute; left: 88px; right: 88px; top: 196px; bottom: 372px;
+    border-radius: 22px; overflow: hidden;
+    border: 0.5px solid var(--phx-sep-strong);
+    box-shadow: 0 40px 110px rgba(0,0,0,.6);
+  }
+  .b .frame img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+  .b .frame::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 54%, rgba(8,8,10,.92) 100%);
+  }
+  .b .lockup { position: absolute; left: 88px; top: 74px; display: flex; align-items: center; gap: 16px; }
+  .b .mark {
+    width: 52px; height: 52px; border-radius: 13px;
+    background: linear-gradient(160deg, #33a9ff, #0077e0);
+    display: grid; place-items: center; font-size: 32px; font-weight: 800; color: #fff;
+    box-shadow: 0 8px 24px rgba(0,145,255,.35);
+  }
+  .b .brand { font-size: 24px; font-weight: 700; letter-spacing: .16em; }
+  .b .topright {
+    position: absolute; right: 88px; top: 78px; display: flex; gap: 10px; align-items: center;
+    font-size: 20px; color: var(--phx-text-3);
+  }
+  .b h2 {
+    position: absolute; left: 96px; top: 742px;
+    font-size: 74px; font-weight: 800; letter-spacing: -.035em; line-height: 1.12;
+  }
+  .b h2 em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--phx-accent-2), var(--phx-accent) 62%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .b .bar {
+    position: absolute; left: 88px; right: 88px; bottom: 64px;
+    display: flex; align-items: center; gap: 44px;
+    padding-top: 34px; border-top: 0.5px solid var(--phx-sep-strong);
+  }
+  .b .bar .item { display: flex; align-items: baseline; gap: 12px; }
+  .b .bar .num { font-size: 46px; font-weight: 800; letter-spacing: -.02em; }
+  .b .bar .lbl { font-size: 23px; color: var(--phx-text-3); }
+  .b .bar .spacer { margin-left: auto; }
+  .b .bar .cta {
+    font-size: 24px; font-weight: 600; color: #fff;
+    background: var(--phx-accent); padding: 14px 28px; border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(0,145,255,.35);
+  }
+</style>
+</head>
+<body>
+
+<div class="hint">
+  <b>导出方法</b>：按 <kbd>H</kbd> 隐藏本提示 → 在要用的封面元素上右键 → <b>检查</b> → 元素面板里右键该 <kbd>.cover</kbd> → <b>捕获节点屏幕截图</b>（Chromium/Edge 都有），得到精确 1920×1080 的 PNG。
+  或者直接把窗口宽高设成 1920×1080、缩放 100%，截图后裁掉边缘。
+</div>
+
+<!-- ============ 封面 A：主推 ============ -->
+<section class="cover a">
+  <div class="stage">
+    <div class="lockup">
+      <div class="mark">P</div>
+      <div class="brand">PHOENIX<small>SPT 存档编辑器</small></div>
+    </div>
+
+    <h1>改存档<br><em>不用怕坏档</em></h1>
+    <div class="sub">塔科夫 SPT · 等级货币技能装备任务藏身处</div>
+
+    <div class="facts">
+      <span class="chip"><i></i>写档前自动备份</span>
+      <span class="chip"><i></i>九种界面语言</span>
+      <span class="chip gold"><i></i>永久免费</span>
+    </div>
+
+    <div class="langs">
+      <span><b>简体中文</b></span><span>English</span><span>Русский</span><span>Deutsch</span><span>Français</span><span>Español</span><span>Polski</span><span>Português (BR)</span><span>Türkçe</span>
+    </div>
+
+    <div class="foot">
+      <span class="v">v0.2.9</span>
+      <span>Windows x64 · 离线运行 · 不联网</span>
+    </div>
+
+    <div class="shot">
+      <img src="../images/home-zh.png" alt="">
+      <div class="glare"></div>
+    </div>
+  </div>
+  <div class="grain"></div>
+</section>
+
+<!-- ============ 封面 B：信息条版 ============ -->
+<section class="cover b">
+  <div class="stage">
+    <div class="lockup">
+      <div class="mark">P</div>
+      <div class="brand">PHOENIX DRX</div>
+    </div>
+    <div class="topright">SPT 存档编辑器 · v0.2.9</div>
+
+    <div class="frame"><img src="../images/home-zh.png" alt=""></div>
+
+    <h2>一个窗口<br><em>把存档改明白</em></h2>
+
+    <div class="bar">
+      <div class="item"><span class="num">9</span><span class="lbl">种界面语言</span></div>
+      <div class="item"><span class="num">10</span><span class="lbl">份自动备份</span></div>
+      <div class="item"><span class="num">16</span><span class="lbl">个功能页面</span></div>
+      <div class="item"><span class="num">0</span><span class="lbl">元，无内购</span></div>
+      <div class="spacer"></div>
+      <div class="cta">SPT Forge 搜 Phoenix DRX</div>
+    </div>
+  </div>
+  <div class="grain"></div>
+</section>
+
+<script>
+  addEventListener('keydown', (e) => {
+    if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('clean');
+  });
+
+  /* ?only=a 或 ?only=b：只留一张封面、去掉提示与留白，便于命令行截图
+     msedge --headless --screenshot=cover.png --window-size=1920,1080 "文件路径?only=a" */
+  const only = new URLSearchParams(location.search).get('only');
+  if (only === 'a' || only === 'b') {
+    document.body.classList.add('clean');
+    document.querySelectorAll('.cover').forEach((el) => {
+      if (!el.classList.contains(only)) el.remove();
+    });
+  }
+</script>
+</body>
+</html>
