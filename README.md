@@ -4,6 +4,7 @@
 [![下载量](https://img.shields.io/github/downloads/65tiankehan/Phoenix-DRX-releases/total?label=downloads)](https://github.com/65tiankehan/Phoenix-DRX-releases)
 [![界面语言](https://img.shields.io/badge/languages-9-30d158)](#界面语言)
 [![永久免费](https://img.shields.io/badge/price-free%20forever-ffc860)](#永远免费)
+[![KOOK 社区](https://img.shields.io/badge/KOOK-社区-5865f2)](https://kook.vip/u8iES4)
 
 **SPT 存档编辑器** —— 一个 Windows 桌面程序，用来给《单机塔科夫（SPT）》的存档改数据：等级、钱、技能、商人好感、任务、藏身处、仓库物品。
 
@@ -18,6 +19,8 @@
 界面是暗色沉浸风，纯本机离线运行，不联网、不注入、不挂钩子。
 
 **下载**：[官网](https://65tiankehan.github.io/Phoenix-DRX/) · [Releases](https://github.com/65tiankehan/Phoenix-DRX-releases/releases/latest) · [SPT Forge](https://forge.sp-tarkov.com/) 搜索 `Phoenix DRX`
+
+**问题与建议**：[KOOK 社区](https://kook.vip/u8iES4)（中文，最快）· [GitHub Issues](https://github.com/65tiankehan/Phoenix-DRX-Code/issues)（英文/俄语都行）
 
 > 如果这个工具帮你省了时间，点个 star 能让更多塔科夫玩家搜到它 —— 这是唯一有效的推广方式。
 
