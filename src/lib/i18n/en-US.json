@@ -234,6 +234,7 @@
   "home.tile.skills": "Skills",
   "home.tile.health": "Health",
   "home.tile.qfin": "Ready {n}",
+  "home.tile.qtotal": "/ {total} completed",
   "home.tile.qnext": "Next is",
   "home.maxed": "Maxed",
   "home.hideout.next": "Next to upgrade",

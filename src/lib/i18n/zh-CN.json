@@ -234,6 +234,7 @@
   "home.tile.skills": "技能",
   "home.tile.health": "健康",
   "home.tile.qfin": "可交付 {n}",
+  "home.tile.qtotal": "/ {total} 已完成",
   "home.tile.qnext": "最近的是",
   "home.maxed": "已满级",
   "home.hideout.next": "下一处可升级",

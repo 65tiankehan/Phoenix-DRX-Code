@@ -6,6 +6,7 @@
   import { page } from '$app/state'
   import { resolve } from '$app/paths'
   import { t, i18n, setLocale, type Locale } from '$lib/i18n/i18n.svelte'
+  import { LOCALES, LOCALE_LABELS } from '$lib/i18n/locale'
   import { theme, setThemeMode, type ThemeMode } from '$lib/theme.svelte'
   import { isSoundEnabled, setSoundEnabled } from '$lib/sound'
   import { isReducedMotion, setReducedMotion } from '$lib/motion'
@@ -114,11 +115,8 @@
     }
   })
 
-  // 语言下拉：稿图原文固定两态，不随语言翻译
-  const langOptions = [
-    { value: 'zh-CN', label: '简体中文' },
-    { value: 'en-US', label: 'English' }
-  ]
+  // 语言下拉：由语种注册表生成，标签用各语种本族名，不随界面语言翻译
+  const langOptions = LOCALES.map((code) => ({ value: code, label: LOCALE_LABELS[code] }))
   const issueOptions = $derived([
     { value: 'ask', label: t('settings.issue.ask') },
     { value: 'fix', label: t('settings.issue.fix') },

@@ -83,6 +83,11 @@
     left: 50%;
     bottom: 18px;
     transform: translateX(-50%);
+    /* 宽度按内容撑开：绝对定位 left:50% 在 shrink-to-fit 时只按「剩余半宽」算可用宽度，
+       俄语长标签会把每个条目压窄（标签被 overflow:hidden 从词中截断，真机复现）；
+       max-content 让 dock 按内容生长，只有窗口窄到装不下时才退回整宽 + .lbl 省略号降级 */
+    width: max-content;
+    max-width: calc(100% - 32px);
     z-index: var(--phx-z-header);
     display: flex;
     align-items: center;
@@ -127,6 +132,8 @@
     justify-content: center;
     gap: 2px;
     min-width: 50px;
+    /* 左右留白：法/德/俄等长标签相邻时（如 Préréglages / Sauvegardes）不留白会连成一个词 */
+    padding: 0 6px;
     height: 42px;
     border-radius: 9px;
     text-decoration: none;
@@ -149,6 +156,11 @@
 
   .dock a .lbl {
     font-size: 10px;
+    /* 兜底：极窄窗口下 dock 已到 max-content 上限时，标签整词省略而不是从词中被切掉 */
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-weight: 500;
     color: var(--phx-text-2);
     letter-spacing: 0.02em;

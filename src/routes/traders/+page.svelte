@@ -288,7 +288,7 @@
     {#if loaded}
       <div class="grid phx-fade-in">
         {#each sorted as row (row.id)}
-          <section class="tcard" class:locked={!row.unlocked}>
+          <section class="tcard gridrows" class:locked={!row.unlocked}>
             <div class="tcard-head">
               <span class="tav">{avOf(row)}</span>
               <div class="tinfo">
@@ -331,7 +331,7 @@
           </section>
         {/each}
 
-        <section class="tcard">
+        <section class="tcard gridrows">
           <div class="tcard-head">
             <span class="tav">{t('traders.av.ragfair')}</span>
             <div class="tinfo">
@@ -502,11 +502,34 @@
   .trow + .trow {
     border-top: 0.5px solid var(--phx-sep);
   }
+  /* C 方案（2026-11-25 用户拍板，与角色页同口径）：卡片内行改 grid + subgrid。
+     标签列宽 = 本卡最长标签（不再写死 84px），值列起点对齐，长标签整词显示。 */
+  .tcard.gridrows {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    column-gap: 10px;
+  }
+  .tcard.gridrows > :not(.trow) {
+    grid-column: 1 / -1;
+  }
+  .tcard.gridrows > .trow {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+    min-height: 38px;
+  }
+  .tcard.gridrows > .trow > .k {
+    width: auto;
+    overflow-wrap: normal;
+  }
   .k {
+    /* 与角色页同口径：60px 装不下俄语标签，放宽到 84px 并允许断词 */
     flex: none;
-    width: 60px;
+    width: 84px;
     font-size: 13px;
     color: var(--phx-text-2);
+    overflow-wrap: anywhere;
   }
   .mval {
     flex: 1;

@@ -611,7 +611,7 @@
     {#if cur}
       <div class="dash phx-fade-in" class:scav={mode === 'scav'}>
         <!-- 基本信息 -->
-        <section class="panel">
+        <section class="panel gridrows">
           <div class="panel-head">
             <span class="t">{t('char.panel.basic')}</span>
             <span class="n">{t('char.panel.basicNote')}</span>
@@ -755,7 +755,7 @@
         </section>
 
         <!-- 外观与装备 -->
-        <section class="panel">
+        <section class="panel gridrows">
           <div class="panel-head">
             <span class="t">{t('char.panel.gear')}</span>
             <span class="n">{t('char.panel.gearNote')}</span>
@@ -1028,10 +1028,13 @@
     border-top: 0.5px solid var(--phx-sep);
   }
   .k {
-    width: 60px;
+    /* 60px 只够中文两三个字：俄语 Бронежилет / Разгрузка 会漫过边界压到右侧值上（真机见 2026-11-25）。
+       放宽到 84px + 允许断词，长词换行而不是溢出。 */
+    width: 84px;
     flex: none;
     font-size: 13px;
     color: var(--phx-text-2);
+    overflow-wrap: anywhere;
   }
   .field {
     flex: 1;
@@ -1068,6 +1071,36 @@
     border-radius: 5px;
     font-size: 11px;
     color: var(--phx-text-3);
+  }
+  /* C 方案（2026-11-25 用户拍板）：行容器改真 grid + subgrid。
+     标签列宽 = 本区最长标签（不再写死 84px），值列起点对齐，长标签整词显示不截断。
+     WebView2 内核是 Chromium 131，subgrid 可用。 */
+  .panel.gridrows {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    column-gap: 10px;
+  }
+  /* 标题、分隔标题、提示、脚注等非行元素横跨整行 */
+  .panel.gridrows > :not(.frow) {
+    grid-column: 1 / -1;
+  }
+  .panel.gridrows > .frow {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+    min-height: 44px;
+  }
+  /* 标签列交给内容撑开，长词换行也保持整词 */
+  .panel.gridrows > .frow > .k {
+    width: auto;
+    overflow-wrap: normal;
+  }
+  /* 装备名保持单行省略：窄窗下换行会把行高撑到三行并顶出面板底边 */
+  /* 下拉/分段控件跨到最右列，右边缘与只读角标对齐 */
+  .panel.gridrows > .frow > .fsel,
+  .panel.gridrows > .frow > .mini {
+    grid-column: 2 / -1;
   }
   /* 等级：数字 + 步进器 + 范围 */
   .lvl {
@@ -1331,7 +1364,9 @@
   }
 
   /* ===== 形象与服装（稿图 31） ===== */
-  .cloth-wrap { max-width: 1080px; }
+  /* 曾写 max-width: 1080px —— 宽窗时右侧整块留白（与仓库格子那次同病根：给内容容器设硬上限）。
+     服装墙按可用宽度铺满，列数交给 auto-fill 自适应。 */
+  .cloth-wrap { width: 100%; }
   .cloth-look {
     display: flex; align-items: center; gap: 16px; flex: none;
     background: var(--phx-surface); border-radius: var(--phx-r-card); padding: 18px;
@@ -1353,7 +1388,7 @@
   }
   .cloth-all { display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 400; color: var(--phx-text-2); }
   .cloth-empty { margin-top: 24px; font-size: 13px; color: var(--phx-text-3); }
-  .cloth-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .cloth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .cloth-card {
     background: var(--phx-surface); border-radius: var(--phx-r-card); overflow: hidden;
     position: relative; box-shadow: inset 0 0 0 0.5px var(--phx-sep-strong);

@@ -1,13 +1,32 @@
 import zhCN from './zh-CN.json'
 import enUS from './en-US.json'
-import { localeFromSystem, type Locale } from './locale'
+import ru from './ru.json'
+import de from './de.json'
+import fr from './fr.json'
+import es from './es.json'
+import pl from './pl.json'
+import ptBR from './pt-BR.json'
+import tr from './tr.json'
+import { FALLBACK_LOCALE, LOCALES, localeFromSystem, type Locale } from './locale'
 
 export type { Locale }
 export type MessageKey = keyof typeof zhCN
 
+/**
+ * 各语种词条。静态导入：t() 必须保持同步（首帧就要渲染导航与标题），
+ * Tauri 本地包不存在下载成本；语种数涨到 T2/T3（9～20 语）再改惰性装载 + 首帧等待。
+ * 新增语种 = locale.ts 的 LOCALES/LOCALE_LABELS 各加一项 + 这里加一行 + 补 JSON 全集。
+ */
 const dicts: Record<Locale, Record<string, string>> = {
   'zh-CN': zhCN as Record<string, string>,
-  'en-US': enUS as Record<string, string>
+  'en-US': enUS as Record<string, string>,
+  ru: ru as Record<string, string>,
+  de: de as Record<string, string>,
+  fr: fr as Record<string, string>,
+  es: es as Record<string, string>,
+  pl: pl as Record<string, string>,
+  'pt-BR': ptBR as Record<string, string>,
+  tr: tr as Record<string, string>
 }
 
 const LOCALE_KEY = 'phx.locale'
@@ -16,7 +35,7 @@ const LOCALE_KEY = 'phx.locale'
 function initialLocale(): Locale {
   try {
     const saved = localStorage.getItem(LOCALE_KEY)
-    if (saved === 'zh-CN' || saved === 'en-US') return saved
+    if (saved && (LOCALES as readonly string[]).includes(saved)) return saved as Locale
   } catch {
     /* 存储不可用时走系统判定 */
   }
@@ -50,11 +69,14 @@ export function setLocale(locale: Locale): void {
 }
 
 /**
- * 取文案。双语 key 强一致由 tests/i18n.test.ts 卡死；
- * 缺 key 时回退中文再回退 key 本身，开发期即暴露。
+ * 取文案。全语种 key 集合相等由 tests/i18n.test.ts 卡死；
+ * 缺 key 时按「当前语种 → 兜底英文 → 中文 → key 本身」逐级回退，开发期即暴露。
+ *
+ * 数量文案的复数处理：俄语不接 Intl.PluralRules，改用不可变缩写（`шт.` / `уров.` 等），
+ * 这样「5 шт.」「1 шт.」都成立；到 T2 语种变多再统一引入 tn() + 复数后缀键。
  */
 export function t(key: MessageKey, params?: Record<string, string | number>): string {
-  const raw = dicts[i18n.locale][key] ?? dicts['zh-CN'][key] ?? key
+  const raw = dicts[i18n.locale][key] ?? dicts[FALLBACK_LOCALE][key] ?? dicts['zh-CN'][key] ?? key
   if (!params) return raw
   return raw.replace(/\{(\w+)\}/g, (_, p: string) => (p in params ? String(params[p]) : `{${p}}`))
 }

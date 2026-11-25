@@ -659,7 +659,7 @@
         {#if qData.total > 0}
           <div class="q-big">
             <span class="n">{qData.done}</span>
-            <span class="d">/ {qData.total} {t('quests.st.Success')}</span>
+            <span class="d">{t('home.tile.qtotal', { total: qData.total })}</span>
           </div>
           <div class="q-bar">
             {#each qData.segs as s (s.cls)}

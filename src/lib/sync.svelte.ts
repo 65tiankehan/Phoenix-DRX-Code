@@ -25,6 +25,7 @@ import { isSoundEnabled, onSoundChange, setSoundEnabled } from './sound'
 import { isReducedMotion, onMotionChange, setReducedMotion } from './motion'
 import { i18n, onLocaleChange, setLocale, t } from './i18n/i18n.svelte'
 import type { Locale, MessageKey } from './i18n/i18n.svelte'
+import { LOCALES } from './i18n/locale'
 import { announcements, importReadIds, onReadIdsChange } from './announcements.svelte'
 import { toast } from './toast.svelte'
 
@@ -107,12 +108,13 @@ function applyRemote(s: PhxSyncSettings): void {
       setReducedMotion(s.motionEnabled)
     }
     if (
-      (s.locale === 'zh-CN' || s.locale === 'en-US') &&
+      typeof s.locale === 'string' &&
+      (LOCALES as readonly string[]).includes(s.locale) &&
       s.locale !== mirror.locale &&
       !DIRTY.has('locale')
     ) {
-      mirror.locale = s.locale
-      setLocale(s.locale)
+      mirror.locale = s.locale as Locale
+      setLocale(s.locale as Locale)
     }
     // 并集有新增 → 回推远端补齐（只增不减）
     if (s.readAnnouncements && importReadIds(s.readAnnouncements)) {
