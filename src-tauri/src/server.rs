@@ -218,9 +218,24 @@ fn locale_exists(app: &AppHandle, lang: &str) -> bool {
         .exists()
 }
 
+/// 数据名查找表（`locales/global/<lang>.json`），语言跟随游戏（`Game.ini`），
+/// 取不到时回落 `en.json`。character / clothing / assistant 三处数据名共用这一条口径，
+/// 避免各自写死 `en.json` 导致「界面九语但数据名全英文」。
+pub(crate) fn locale_names(app: &AppHandle, profile: Option<&serde_json::Value>) -> serde_json::Value {
+    let Some(db) = crate::character::database_dir(app) else {
+        return serde_json::Value::Null;
+    };
+    let dir = Path::new(&db).join("locales").join("global");
+    let lang = data_language(app, profile);
+    let read = |name: &str| fs::read_to_string(dir.join(name)).ok();
+    read(&format!("{}.json", lang))
+        .or_else(|| read("en.json"))
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or(serde_json::Value::Null)
+}
+
 /// 校验服务器根目录并采集实时状态
-pub fn check_server(root_path: &str) -> ServerStatus {
-    let dir = spt_dir(root_path);
+pub fn check_server(root_path: &str) -> ServerStatus {    let dir = spt_dir(root_path);
     let exe_ok = dir.join("SPT.Server.exe").exists();
     let profiles_dir = dir.join("user").join("profiles");
     let profiles_ok = profiles_dir.exists();

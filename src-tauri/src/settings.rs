@@ -55,6 +55,8 @@ pub struct Settings {
     pub check_updates: bool,
     /// 首页动态条是否展示赞助推荐（关闭后槽位回退公告/小贴士）
     pub show_sponsor: bool,
+    /// 是否显示真实物品图标（关闭后一律用首字色块，也不联网下载）
+    pub item_icons: bool,
     /// AI 助手配置（密钥存系统凭据库，不入本文件）
     pub ai: AiSettings,
 }
@@ -67,6 +69,7 @@ impl Default for Settings {
             issue_handling: ISSUE_ASK.to_string(),
             check_updates: true,
             show_sponsor: true,
+            item_icons: true,
             ai: AiSettings::default(),
         }
     }

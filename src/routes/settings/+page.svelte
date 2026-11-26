@@ -16,6 +16,8 @@
     phxProfile,
     phxUpdate,
     phxAi,
+    phxModClean,
+    type PhxModCleanData,
     type PhxAiConfigView,
     type PhxIssueHandling,
     type PhxProfileMeta,
@@ -25,6 +27,7 @@
   import PhxSwitch from '$lib/components/PhxSwitch.svelte'
   import PhxDropdown from '$lib/components/PhxDropdown.svelte'
   import PhxDialog from '$lib/components/PhxDialog.svelte'
+  import { setIconsEnabled } from '$lib/icons.svelte'
 
   let booting = $state(true)
   let loaded = $state(false)
@@ -44,7 +47,10 @@
   let autoAddMasterings = $state(false)
   let autoAddScavSkills = $state(false)
   let showSponsor = $state(true)
+  let itemIcons = $state(true)
   let issueHandling = $state<PhxIssueHandling>('ask')
+  // 物品图标开关：即时生效，关掉后页面里的图位立刻回落成首字色块
+  $effect(() => setIconsEnabled(itemIcons))
 
   // armed 门：onMount 回填触发的 $effect 静默跑过，用户交互后才真正保存+提示。
   // armed 刻意不用 $state —— 回填后置 true 不应反过来再触发本 effect。
@@ -54,6 +60,7 @@
     const a = autoAddMasterings
     const s = autoAddScavSkills
     const sp = showSponsor
+    const ic = itemIcons
     const h = issueHandling
     const aiCfg = ai
     if (!armed || !aiCfg) return
@@ -63,6 +70,7 @@
         autoAddMasterings: a,
         autoAddScavSkills: s,
         showSponsor: sp,
+        itemIcons: ic,
         issueHandling: h,
         ai: {
           enabled: aiCfg.enabled,
@@ -100,6 +108,7 @@
       autoAddMasterings = settings.autoAddMasterings
       autoAddScavSkills = settings.autoAddScavSkills
       showSponsor = settings.showSponsor
+      itemIcons = settings.itemIcons
       issueHandling = settings.issueHandling
       if (aiCfg) ai = aiCfg
       // 兜底：AI 视图加载失败也不能卡死整页保存链（settings.ai 自带同值字段）
@@ -112,6 +121,8 @@
       armed = true
       loaded = true
       booting = false
+      // mod 物品扫描是只读、可能扫大库，放后台跑，失败就静默留 null（按钮置灰）
+      loadModClean()
     }
   })
 
@@ -265,6 +276,40 @@
       .catch(() => toast.error(t('settings.toast.resetFailed')))
   }
 
+  // —— 清理 mod 物品（存档引用了数据库里已不存在的 id）——
+  let mc = $state<PhxModCleanData | null>(null)
+  let mcOpen = $state(false)
+  let mcBusy = $state(false)
+
+  function loadModClean(): void {
+    void phxModClean
+      .scan()
+      .then((d) => (mc = d))
+      .catch(() => (mc = null))
+  }
+
+  function openModClean(): void {
+    if (!mc || mc.total === 0) {
+      toast.info(t('settings.modclean.none'))
+      return
+    }
+    mcOpen = true
+  }
+
+  function doModClean(): void {
+    if (mcBusy) return
+    mcBusy = true
+    void phxModClean
+      .clean()
+      .then((r) => {
+        toast.success(t('settings.modclean.done', { n: r.removed }))
+        if (r.backup) toast.info(t('settings.modclean.backup'))
+        loadModClean()
+      })
+      .catch((e: unknown) => toast.error(String(e)))
+      .finally(() => (mcBusy = false))
+  }
+
 </script>
 
 <main class="page">
@@ -401,6 +446,13 @@
                 <div class="sdesc">{t('settings.showSponsor.desc')}</div>
               </div>
               <PhxSwitch bind:checked={showSponsor} label={t('settings.showSponsor')} />
+            </div>
+            <div class="srow">
+              <div class="stext">
+                <div class="slabel">{t('settings.itemIcons')}</div>
+                <div class="sdesc">{t('settings.itemIcons.desc')}</div>
+              </div>
+              <PhxSwitch bind:checked={itemIcons} label={t('settings.itemIcons')} />
             </div>
             <div class="srow">
               <div class="stext">
@@ -621,6 +673,27 @@
                 {t('settings.btnReset')}
               </button>
             </div>
+            <!-- 清理 mod 物品：存档引用了数据库里已不存在的 id（参考编辑器同功能） -->
+            <div class="srow">
+              <div class="stext">
+                <div class="slabel">{t('settings.modclean')}</div>
+                <div class="sdesc">
+                  {#if mc}
+                    {t('settings.modclean.desc', { n: mc.total })}
+                  {:else}
+                    {t('settings.modclean.scanning')}
+                  {/if}
+                </div>
+              </div>
+              <button
+                class="mbtn ghost"
+                type="button"
+                onclick={() => void openModClean()}
+                disabled={!mc || mc.total === 0}
+              >
+                {t('settings.modclean.btn')}
+              </button>
+            </div>
           </section>
 
         </div>
@@ -637,6 +710,15 @@
   confirmText={t('settings.reset.confirm')}
   danger
   onconfirm={doReset}
+/>
+
+<PhxDialog
+  bind:open={mcOpen}
+  heading={t('settings.modclean.dlgTitle')}
+  text={t('settings.modclean.dlgText', { n: mc?.total ?? 0 })}
+  confirmText={t('settings.modclean.confirm')}
+  danger
+  onconfirm={doModClean}
 />
 
 <style>

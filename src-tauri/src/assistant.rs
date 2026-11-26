@@ -91,21 +91,19 @@ pub async fn assistant_context(app: AppHandle) -> Result<AssistantContext, Strin
             .map(|d| d.traders.iter().map(|r| r.id.clone()).collect())
             .unwrap_or_default();
 
-        // 任务名表：档案已有 + 缺失（模板全集减事件任务），名称取 locales（quests.rs 同口径）
+        // 任务名表：档案已有 + 缺失（模板全集减事件任务），名称取 locales（跟随游戏语言，en 兜底）
         let mut quests: Vec<(String, String)> = Vec::new();
         if let Some(db) = database_dir(&app) {
-            if let Ok(txt) = fs::read_to_string(std::path::Path::new(&db).join("locales").join("global").join("en.json")) {
-                let names: Value = serde_json::from_str(&txt).unwrap_or(Value::Null);
-                if let Ok(txt2) = fs::read_to_string(std::path::Path::new(&db).join("quests.json")) {
-                    if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt2) {
-                        for qid in map.keys() {
-                            let name = names
-                                .get(format!("{} name", qid))
-                                .or_else(|| names.get(format!("{} Name", qid)))
-                                .and_then(|v| v.as_str())
-                                .unwrap_or(qid);
-                            quests.push((qid.clone(), name.to_string()));
-                        }
+            let names = crate::server::locale_names(&app, None);
+            if let Ok(txt2) = fs::read_to_string(std::path::Path::new(&db).join("quests.json")) {
+                if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&txt2) {
+                    for qid in map.keys() {
+                        let name = names
+                            .get(format!("{} name", qid))
+                            .or_else(|| names.get(format!("{} Name", qid)))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(qid);
+                        quests.push((qid.clone(), name.to_string()));
                     }
                 }
             }

@@ -24,6 +24,7 @@ use tauri::AppHandle;
 
 use crate::backup::backup_before_write;
 use crate::character::database_dir;
+use crate::character::spt_data_dir;
 use crate::profile::{is_safe_id, profiles_dir, SaveResult};
 
 /// Fence 商人 ID（SPT 源码 Traders 枚举实证）
@@ -46,6 +47,9 @@ pub struct TraderRow {
     pub id: String,
     /// 商人原名（base.json.nickname）；缺失为空串，前端回退本地名
     pub nickname: String,
+    /// 头像：`images/trader/avatar/<avatarId>.png` 的 data URL；无图时为 None
+    /// （真档实测 12 个商人 11 个有图，Storyteller 在 4.1.6 里没有头像文件）
+    pub avatar: Option<String>,
     pub loyalty_level: i64,
     pub sales_sum: i64,
     pub standing: f64,
@@ -97,27 +101,81 @@ fn round2(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
 }
 
+/// 手写 base64（标准表 + 补位）—— 只为一个 128×128 PNG 引入 crate 不值当
+pub(crate) fn base64_encode(bytes: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = *chunk.get(1).unwrap_or(&0) as u32;
+        let b2 = *chunk.get(2).unwrap_or(&0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(T[((n >> 18) & 63) as usize] as char);
+        out.push(T[((n >> 12) & 63) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(T[((n >> 6) & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(T[(n & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+/// 头像 data URL：`<SPT_Data>/images/trader/avatar/<avatarId>.png`
+/// 注意文件名来自 base.json 的 `avatar` 字段（形如 `/files/trader/avatar/59b91ca0….jpg`），
+/// **不是商人 `_id`**；磁盘上同名文件是 PNG，所以取 stem 后拼 `.png`。
+fn avatar_data_url(app: &AppHandle, avatar_field: Option<&str>) -> Option<String> {
+    let field = avatar_field?.trim();
+    if field.is_empty() {
+        return None;
+    }
+    let stem = Path::new(field)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())?;
+    if !stem.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return None;
+    }
+    let root = spt_data_dir(app)?;
+    let path = Path::new(&root)
+        .join("images")
+        .join("trader")
+        .join("avatar")
+        .join(format!("{}.png", stem));
+    let bytes = fs::read(path).ok()?;
+    Some(format!("data:image/png;base64,{}", base64_encode(&bytes)))
+}
+
 /// 商人基础信息：<database>/traders/<id>/base.json 的 nickname、等级段数
 /// 与各段下限（前端联动口径）；缺失回退空名 + 当前等级 + 空段表。
-fn base_info(app: &AppHandle, trader_id: &str, current_level: i64) -> (String, i64, Vec<TraderLevel>) {
+fn base_info(
+    app: &AppHandle,
+    trader_id: &str,
+    current_level: i64,
+) -> (String, i64, Vec<TraderLevel>, Option<String>) {
     let Some(dir) = database_dir(app) else {
-        return (String::new(), current_level.max(1), Vec::new());
+        return (String::new(), current_level.max(1), Vec::new(), None);
     };
     let path = Path::new(&dir)
         .join("traders")
         .join(trader_id)
         .join("base.json");
     let Ok(txt) = fs::read_to_string(path) else {
-        return (String::new(), current_level.max(1), Vec::new());
+        return (String::new(), current_level.max(1), Vec::new(), None);
     };
     let Ok(base) = serde_json::from_str::<Value>(&txt) else {
-        return (String::new(), current_level.max(1), Vec::new());
+        return (String::new(), current_level.max(1), Vec::new(), None);
     };
     let nickname = base
         .get("nickname")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
+    let avatar = avatar_data_url(app, base.get("avatar").and_then(|v| v.as_str()));
     let segs = base
         .get("loyaltyLevels")
         .and_then(|v| v.as_array())
@@ -137,7 +195,7 @@ fn base_info(app: &AppHandle, trader_id: &str, current_level: i64) -> (String, i
                 .unwrap_or(0.0),
         })
         .collect();
-    (nickname, max_level, levels)
+    (nickname, max_level, levels, avatar)
 }
 
 // ———————— 读 / 写 ————————
@@ -160,10 +218,11 @@ pub fn load_traders(app: &AppHandle, id: &str) -> Option<TradersData> {
                 .get("loyaltyLevel")
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.0) as i64;
-            let (nickname, max_level, levels) = base_info(app, trader_id, level);
+            let (nickname, max_level, levels, avatar) = base_info(app, trader_id, level);
             traders.push(TraderRow {
                 id: trader_id.clone(),
                 nickname,
+                avatar,
                 loyalty_level: level,
                 sales_sum: info
                     .get("salesSum")

@@ -107,12 +107,9 @@ fn clothing_load_sync(app: &AppHandle) -> Result<ClothingData, String> {
         .unwrap_or_default();
 
     let db = database_dir(app).ok_or("未找到服务器数据库目录")?;
-    let names: Map<String, Value> = fs::read_to_string(
-        std::path::Path::new(&db).join("locales").join("global").join("en.json"),
-    )
-    .ok()
-    .and_then(|t| serde_json::from_str(&t).ok())
-    .unwrap_or_default();
+    // 名字表：跟随游戏语言（Game.ini），en 兜底 —— 与 character / assistant 同一口径
+    let names: Map<String, Value> =
+        crate::server::locale_names(app, Some(&root)).as_object().cloned().unwrap_or_default();
 
     // 套装目录：traders/*/suits.json，按 suiteId 去重（后写跳过，对齐参考实现）
     let mut suits: Vec<PhxSuit> = Vec::new();

@@ -13,6 +13,7 @@
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
   import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxItemIcon from '$lib/components/PhxItemIcon.svelte'
   import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
 
@@ -244,7 +245,7 @@
               <div class="srow">
                 <span class="slotname">{slotName(s.slot)}</span>
                 {#if s.item}
-                  <span class="icon-b">{s.item.name.charAt(0)}</span>
+                  <PhxItemIcon tpl={s.item.tpl} name={s.item.name} square />
                   <div class="iname">{s.item.name}</div>
                   <span class="mmod" class:show={s.item.modded}><PhxIcon markup={ICON.warn} /></span>
                   <span class="iid">{s.item.tpl}</span>
@@ -285,7 +286,7 @@
               <div class="phead">{t('stash.slot.Pockets')}</div>
               {#each pockets as p (p.id)}
                 <div class="pitem">
-                  <span class="icon-b small">{p.name.charAt(0)}</span>
+                  <PhxItemIcon tpl={p.tpl} name={p.name} size="sm" square />
                   <div class="iname">{p.name}{p.count > 1 ? ` ×${p.count}` : ''}</div>
                   <span class="iid">{p.tpl}</span>
                   <PhxTooltip label={t('scav.aria.delPocket')}>
@@ -318,7 +319,7 @@
           <div class="qcard">
             {#each visPockets as p (p.id)}
               <div class="mrow">
-                <span class="icon-b">{p.name.charAt(0)}</span>
+                <PhxItemIcon tpl={p.tpl} name={p.name} square />
                 <div class="iname">{p.name}{p.count > 1 ? ` ×${p.count}` : ''}</div>
                 <span class="mmod" class:show={p.modded}><PhxIcon markup={ICON.warn} /></span>
                 <span class="iid">{p.tpl}</span>
@@ -572,12 +573,6 @@
     font-size: 12px;
     font-weight: 700;
     flex: none;
-  }
-  .icon-b.small {
-    width: 26px;
-    height: 26px;
-    font-size: 11px;
-    border-radius: 6px;
   }
   .icon-b.empty-ico {
     background: var(--phx-fill-tertiary);

@@ -113,3 +113,11 @@ export function navIndex(pathname: string): number {
   if (STASH_SECTION.includes(pathname)) return NAV.findIndex((n) => n.path === '/stash')
   return NAV.findIndex((n) => n.path === pathname)
 }
+
+/**
+ * 跨页跳转意图（一次性）：首页「口袋管理」要落到仓库页的「装备」栏，
+ * 但 goto 只接受 resolve() 出来的纯路径（lint svelte/no-navigation-without-resolve，
+ * 带 query 的字符串会被当成路由本身），所以用这个短生命周期变量传「打开哪个分栏」，
+ * 目标页读一次就清空。
+ */
+export const navIntent: { stashTab: '' | 'equip' } = { stashTab: '' }

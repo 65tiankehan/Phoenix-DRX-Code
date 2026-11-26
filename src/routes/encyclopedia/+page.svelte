@@ -6,8 +6,10 @@
   import { SvelteMap, SvelteSet } from 'svelte/reactivity'
   import { t } from '$lib/i18n/i18n.svelte'
   import { toast } from '$lib/toast.svelte'
-  import { phxProfile, phxStash, phxEncyclopedia, type PhxCatalog, type PhxCatalogItem } from '$lib/ipc'
+  import { phxProfile, phxStash, phxEncyclopedia, phxExamine, type PhxCatalog, type PhxCatalogItem, type PhxExamineData } from '$lib/ipc'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
+import PhxDialog from '$lib/components/PhxDialog.svelte'
+  import PhxItemIcon from '$lib/components/PhxItemIcon.svelte'
   import { playSound } from '$lib/sound'
 
   const ICON = {
@@ -33,6 +35,11 @@
   let active = $state<PhxCatalogItem | null>(null)
   let amount = $state(1)
   let adding = $state(false)
+
+  /** 全部检视：数据库物品总数 / 已检视 / 剩余 */
+  let exam = $state<PhxExamineData | null>(null)
+  let examDlg = $state(false)
+  let examining = $state(false)
 
   /** 分类 id → 子分类 */
   const kids = $derived.by(() => {
@@ -170,6 +177,7 @@
         currentId = (await phxProfile.current()) ?? ''
         catalog = await phxEncyclopedia.catalog()
         if (!catalog) failed = t('enc.noServer')
+        if (currentId) exam = await phxExamine.status().catch(() => null)
       } catch (e) {
         failed = String(e)
       } finally {
@@ -180,6 +188,33 @@
   })
 
   const fmt = (n: number) => n.toLocaleString('zh-CN')
+
+  /** 一键全部检视（写档前提示，成功后刷新计数） */
+  async function doExamine() {
+    if (examining) return
+    if (!currentId) {
+      toast.warning(t('enc.noProfile'))
+      return
+    }
+    if ((exam?.remaining ?? 0) <= 0) {
+      toast.info(t('enc.examine.allDone'))
+      return
+    }
+    examining = true
+    try {
+      const backup = await phxExamine.all()
+      toast.success(backup ? t('enc.examine.done') : t('enc.examine.allDone'))
+      if (backup) toast.info(t('enc.backup'))
+      exam = await phxExamine.status().catch(() => exam)
+      playSound('success')
+    } catch (e) {
+      toast.error(t('enc.addFail'))
+      console.error(e)
+    } finally {
+      examining = false
+      examDlg = false
+    }
+  }
 </script>
 
 <div class="page">
@@ -194,19 +229,40 @@
         {/if}
       </p>
     </div>
-    <div class="search">
-      <PhxIcon markup={ICON.search} size={16} />
-      <input
-        type="text"
-        bind:value={query}
-        placeholder={t('enc.searchPlaceholder')}
-        aria-label={t('enc.searchPlaceholder')}
-      />
-      {#if query}
-        <button class="clear" onclick={() => (query = '')} aria-label={t('enc.clear')}>
-          <PhxIcon markup={ICON.close} size={13} />
-        </button>
-      {/if}
+    <div class="head-actions">
+      <button
+        class="examine"
+        type="button"
+        disabled={examining || (exam?.remaining ?? 0) <= 0}
+        onclick={() => {
+          if ((exam?.remaining ?? 0) <= 0) {
+            toast.info(t('enc.examine.allDone'))
+            return
+          }
+          playSound('ui')
+          examDlg = true
+        }}
+      >
+        <PhxIcon markup={ICON.box} size={15} />
+        {t('enc.examine.btn')}
+        {#if exam && exam.remaining > 0}
+          <span class="left">{exam.remaining}</span>
+        {/if}
+      </button>
+      <div class="search">
+        <PhxIcon markup={ICON.search} size={16} />
+        <input
+          type="text"
+          bind:value={query}
+          placeholder={t('enc.searchPlaceholder')}
+          aria-label={t('enc.searchPlaceholder')}
+        />
+        {#if query}
+          <button class="clear" onclick={() => (query = '')} aria-label={t('enc.clear')}>
+            <PhxIcon markup={ICON.close} size={13} />
+          </button>
+        {/if}
+      </div>
     </div>
   </header>
 
@@ -267,7 +323,7 @@
                   style:height="{ROW_H}px"
                   onclick={() => openDetail(it)}
                 >
-                  <span class="icon"><PhxIcon markup={ICON.box} size={16} /></span>
+                  <span class="icon"><PhxItemIcon tpl={it.tpl} name={it.name} size="sm" square /></span>
                   <span class="main">
                     <span class="nm">{it.name}</span>
                     <span class="meta">
@@ -334,6 +390,14 @@
   {/if}
 </div>
 
+<PhxDialog
+  bind:open={examDlg}
+  heading={t('enc.examine.dlgTitle')}
+  text={t('enc.examine.dlgText', { n: fmt(exam?.remaining ?? 0) })}
+  confirmText={t('enc.examine.btn')}
+  onconfirm={doExamine}
+/>
+
 <style>
   .page {
     display: flex;
@@ -360,6 +424,42 @@
     font: 400 13px/1.4 var(--phx-font-sans);
     color: var(--phx-text-3);
   }
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* 全部检视：与页头按钮同族，剩余件数作尾部小徽章 */
+  .examine {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: var(--phx-r-btn);
+    border: 1px solid var(--phx-sep);
+    background: var(--phx-surface-2);
+    color: var(--phx-text-1);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .examine:hover:not(:disabled) {
+    background: var(--phx-surface-3);
+  }
+  .examine:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .examine .left {
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    color: var(--phx-accent);
+  }
+
   .search {
     display: flex;
     align-items: center;

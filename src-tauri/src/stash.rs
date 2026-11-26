@@ -105,6 +105,9 @@ pub struct StashItemRow {
     pub y: i64,
     /// location.r == "Vertical"（旋转 90°）
     pub rot: bool,
+    /// 口袋物品专用的格名（pocket1..pocket4）；其他行不序列化
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slot_id: Option<String>,
 }
 
 /// 装备槽行（item 为 None 即空槽）
@@ -134,6 +137,9 @@ pub struct AddItemRow {
     pub short_name: String,
     pub desc: String,
     pub category_id: String,
+    /// 模板占格（1×1 才放得进口袋）
+    pub w: i64,
+    pub h: i64,
 }
 
 /// 仓库页全量数据（仅 PMC）
@@ -188,6 +194,20 @@ pub enum StashOp {
         y: i64,
         #[serde(default)]
         rot: bool,
+    },
+    /// 往口袋（Pockets 容器）放一件物品：占用第一个空口袋格。
+    /// 口袋格是 1×1，只有 1×1 的物品放得进去；四个口袋都满时报错，不静默丢弃。
+    AddToPocket {
+        tpl: String,
+    },
+    /// 口袋内换位：把 `id` 挪到 `slot`（pocket1..pocket4）；目标格有物品时两者互换。
+    MoveInPocket {
+        id: String,
+        slot: String,
+    },
+    /// 口袋取出到仓库：根走仓库放置引擎，取出后留在仓库顶层。
+    PocketTakeOut {
+        id: String,
     },
 }
 
@@ -342,6 +362,7 @@ pub(crate) fn item_row(id: &str, tpl: &str, it: Option<&Value>, db: &ItemsDb) ->
         x: coord("x"),
         y: coord("y"),
         rot,
+        slot_id: None,
     }
 }
 
@@ -437,11 +458,20 @@ pub fn load_stash(app: &AppHandle, id: &str) -> Option<StashData> {
         .collect();
 
     // 口袋：parentId == Pockets 物品 id 的条目
-    let pockets: Vec<StashItemRow> = items
+    let mut pockets: Vec<StashItemRow> = items
         .iter()
         .filter(|it| it.get("parentId").and_then(|v| v.as_str()) == Some(pockets_id.as_str()))
         .filter_map(row_of)
         .collect();
+    // 口袋物品带格名（pocket1..pocket4），前端按它画四个口袋格并支持换格
+    for row in pockets.iter_mut() {
+        row.slot_id = items
+            .iter()
+            .find(|it| it.get("_id").and_then(|v| v.as_str()) == Some(row.id.as_str()))
+            .and_then(|it| it.get("slotId"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+    }
 
     // 分类树 + 可添加物品：handbook.json（缺文件时空集，不阻塞页面）
     let (categories, addable) = load_addable(app, &db);
@@ -539,6 +569,8 @@ fn load_addable(app: &AppHandle, db: &ItemsDb) -> (Vec<AddCategoryRow>, Vec<AddI
                             .unwrap_or("")
                             .to_string(),
                         category_id: i.get("ParentId")?.as_str()?.to_string(),
+                        w: db.entries.get(tpl).map(|p| p.width.max(1)).unwrap_or(1),
+                        h: db.entries.get(tpl).map(|p| p.height.max(1)).unwrap_or(1),
                     })
                 })
                 .collect()
@@ -592,6 +624,9 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
         .unwrap_or("")
         .to_string();
 
+    // 口袋容器 id（equipment 下 slotId == Pockets 的那件）；没有口袋的档案按空处理
+    let pockets_id = pockets_of(&raw).map(|(id, _)| id).unwrap_or_default();
+
     for (seq, op) in data.ops.iter().enumerate() {
         match op {
             StashOp::AddMoney { tpl, amount } => {
@@ -639,7 +674,7 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
                         "_tpl": tpl,
                         "parentId": stash_id,
                         "slotId": "hideout",
-                        "location": { "x": place_x, "y": place_y, "r": if rotated { 1 } else { 0 } },
+                        "location": { "x": place_x, "y": place_y, "r": if rotated { "Vertical" } else { "Horizontal" } },
                         "upd": { "StackObjectsCount": count }
                     }));
                 }
@@ -722,6 +757,27 @@ pub fn save_stash(app: &AppHandle, id: &str, data: &StashSaveData) -> Result<Sav
             StashOp::MoveItem { id, x, y, rot } => {
                 let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
                 move_item_in_stash(&mut raw, &stash_id, id, *x, *y, *rot, &db_dir, &db)?;
+            }
+            StashOp::AddToPocket { tpl } => {
+                if pockets_id.is_empty() {
+                    return Err("当前档案没有口袋".into());
+                }
+                let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
+                add_item_to_pockets(&mut raw, &pockets_id, tpl, &db_dir, &db, seq as u32)?;
+            }
+            StashOp::MoveInPocket { id, slot } => {
+                if pockets_id.is_empty() {
+                    return Err("当前档案没有口袋".into());
+                }
+                let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
+                move_in_pocket(&mut raw, &pockets_id, id, slot, &db_dir)?;
+            }
+            StashOp::PocketTakeOut { id } => {
+                if pockets_id.is_empty() {
+                    return Err("当前档案没有口袋".into());
+                }
+                let db_dir = database_dir(app).ok_or("未选择 SPT 服务器")?;
+                pocket_take_out(&mut raw, &stash_id, &pockets_id, id, &db_dir, &db)?;
             }
         }
     }
@@ -811,7 +867,7 @@ pub(crate) fn add_item_to_stash(
             "_tpl": tpl,
             "parentId": stash_id,
             "slotId": "hideout",
-            "location": { "x": place_x, "y": place_y, "r": if rotated { 1 } else { 0 } }
+            "location": { "x": place_x, "y": place_y, "r": if rotated { "Vertical" } else { "Horizontal" } }
         });
         if stack_max > 1 {
             new_it["upd"] = json!({ "StackObjectsCount": count });
@@ -895,7 +951,7 @@ pub(crate) fn move_item_in_stash(
                 .get(t)
                 .map(|p| (p.width.max(1), p.height.max(1)))
                 .unwrap_or((1, 1));
-            let r = loc.get("r").and_then(|v| v.as_bool()).unwrap_or(false);
+            let r = is_vertical(loc);
             occ.push(if r { (ox, oy, oh, ow) } else { (ox, oy, ow, oh) });
         }
         (stash_tpl, bw, bh, occ)
@@ -933,22 +989,51 @@ pub(crate) fn move_item_in_stash(
     let obj = target.as_object_mut().ok_or("物品结构异常")?;
     let loc = obj
         .entry("location")
-        .or_insert_with(|| json!({ "x": 0, "y": 0, "r": false }));
+        .or_insert_with(|| json!({ "x": 0, "y": 0, "r": "Horizontal" }));
     if let Some(l) = loc.as_object_mut() {
         // 只写真正变化的值：真实档里很多物品的 location 只有 x/y（没有 r），
-        // 无条件 insert 会凭空多出 `"r": false`，存档就被改脏了
+        // 无条件 insert 会凭空多出 r，存档就被改脏了
         if l.get("x").and_then(|v| v.as_i64()) != Some(x) {
             l.insert("x".into(), json!(x));
         }
         if l.get("y").and_then(|v| v.as_i64()) != Some(y) {
             l.insert("y".into(), json!(y));
         }
-        let old_r = l.get("r").and_then(|v| v.as_bool());
-        if old_r != Some(rot) && (old_r.is_some() || rot) {
-            l.insert("r".into(), json!(rot));
-        }
+    }
+    if is_vertical(loc) != rot {
+        set_vertical(loc, rot);
     }
     Ok(())
+}
+
+/// 物品是否竖放：真实存档里 `location.r` 是字符串 `"Vertical"` / `"Horizontal"`，
+/// 旧代码按布尔读写，导致 ① 竖放物品在放置引擎里被当成横放（占位算错）
+/// ② 旋转后把 `"r": true` 写进档里，与游戏约定不一致。两种写法都认。
+pub(crate) fn is_vertical(loc: &Value) -> bool {
+    match loc.get("r") {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::String(s)) => s.eq_ignore_ascii_case("vertical"),
+        _ => false,
+    }
+}
+
+/// 按存档已有写法落 `r`：字符串就用 `"Vertical"` / `"Horizontal"`，布尔就写 bool，
+/// 原来没有 r 的一律写字符串（与真实存档一致）。
+pub(crate) fn set_vertical(loc: &mut Value, vertical: bool) {
+    let Some(obj) = loc.as_object_mut() else {
+        return;
+    };
+    match obj.get("r") {
+        Some(Value::Bool(_)) => {
+            obj.insert("r".into(), json!(vertical));
+        }
+        _ => {
+            obj.insert(
+                "r".into(),
+                json!(if vertical { "Vertical" } else { "Horizontal" }),
+            );
+        }
+    }
 }
 
 pub(crate) fn find_free_slot(
@@ -1002,12 +1087,12 @@ pub(crate) fn find_free_slot(
         ) else {
             continue;
         };
-        let r = loc.get("r").and_then(|v| v.as_f64()).unwrap_or(0.0) as i64;
+        let r = is_vertical(loc);
         let (iw, ih) = db
             .entries
             .get(itpl)
             .map(|p| {
-                if r == 1 {
+                if r {
                     (p.height, p.width)
                 } else {
                     (p.width, p.height)
@@ -1039,6 +1124,176 @@ pub(crate) fn find_free_slot(
                 .find_map(|(y, x)| fits(y, x, h, w).then_some((x, y, true)))
         })
         .ok_or("仓库已满，没有空位放置该物品".to_string())
+}
+
+/// 口袋容器：(物品 id, 模板 tpl)。即 equipment 下 `slotId == "Pockets"` 的那件。
+pub(crate) fn pockets_of(raw: &Value) -> Option<(String, String)> {
+    let equip = raw
+        .pointer("/characters/pmc/Inventory/equipment")
+        .and_then(Value::as_str)?;
+    let items = raw
+        .pointer("/characters/pmc/Inventory/items")
+        .and_then(Value::as_array)?;
+    let it = items.iter().find(|i| {
+        i.get("parentId").and_then(Value::as_str) == Some(equip)
+            && i.get("slotId").and_then(Value::as_str) == Some("Pockets")
+    })?;
+    Some((
+        it.get("_id")?.as_str()?.to_string(),
+        it.get("_tpl")?.as_str()?.to_string(),
+    ))
+}
+
+/// 口袋格名：口袋模板 `Grids` 逐个 1×1，按 SPT 存盘约定命名 `pocket1..pocketN`
+/// （真实档里口袋物品的 `slotId` 正是 `pocket1` / `pocket4`）。
+pub(crate) fn pocket_cell_names(db_dir: &str, pockets_tpl: &str) -> Result<Vec<String>, String> {
+    let txt = fs::read_to_string(Path::new(db_dir).join("templates").join("items.json"))
+        .map_err(|e| e.to_string())?;
+    let v: Value = serde_json::from_str(&txt).map_err(|e| e.to_string())?;
+    let grids = v
+        .get(pockets_tpl)
+        .and_then(|t| t.pointer("/_props/Grids"))
+        .and_then(|g| g.as_array())
+        .ok_or("口袋模板没有网格")?;
+    Ok((0..grids.len()).map(|i| format!("pocket{}", i + 1)).collect())
+}
+
+/// 往口袋放一件物品：占第一个空格；口袋格是 1×1，只接受 1×1 物品，满了报错不静默丢弃
+pub(crate) fn add_item_to_pockets(
+    raw: &mut Value,
+    pocket_id: &str,
+    tpl: &str,
+    db_dir: &str,
+    db: &ItemsDb,
+    seq: u32,
+) -> Result<(), String> {
+    let props = db
+        .entries
+        .get(tpl)
+        .ok_or_else(|| format!("未知物品模板: {}", tpl))?;
+    if props.width.max(1) != 1 || props.height.max(1) != 1 {
+        return Err("这件物品占多个格，口袋放不进去".into());
+    }
+    let (_, pockets_tpl) = pockets_of(raw).ok_or("当前档案没有口袋")?;
+    let cells = pocket_cell_names(db_dir, &pockets_tpl)?;
+    let used: Vec<String> = raw
+        .pointer("/characters/pmc/Inventory/items")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter(|i| i.get("parentId").and_then(Value::as_str) == Some(pocket_id))
+                .filter_map(|i| i.get("slotId").and_then(Value::as_str).map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let free = cells
+        .iter()
+        .find(|c| !used.contains(c))
+        .cloned()
+        .ok_or("四个口袋都装满了")?;
+    let stack_max = props.stack_max.max(1);
+    let items = raw
+        .pointer_mut("/characters/pmc/Inventory/items")
+        .and_then(|v| v.as_array_mut())
+        .ok_or("Inventory.items 缺失")?;
+    let mut new_it = json!({
+        "_id": new_item_id(seq.wrapping_add(items.len() as u32)),
+        "_tpl": tpl,
+        "parentId": pocket_id,
+        "slotId": free,
+        "location": { "x": 0, "y": 0, "r": "Horizontal" }
+    });
+    if stack_max > 1 {
+        new_it["upd"] = json!({ "StackObjectsCount": 1 });
+    }
+    items.push(new_it);
+    Ok(())
+}
+
+/// 口袋内换位：目标格空着就挪过去，有物品就两者换格（只换 slotId / location）
+pub(crate) fn move_in_pocket(
+    raw: &mut Value,
+    pocket_id: &str,
+    id: &str,
+    slot: &str,
+    db_dir: &str,
+) -> Result<(), String> {
+    let (_, pockets_tpl) = pockets_of(raw).ok_or("当前档案没有口袋")?;
+    let cells = pocket_cell_names(db_dir, &pockets_tpl)?;
+    if !cells.iter().any(|c| c == slot) {
+        return Err("没有这个口袋格".into());
+    }
+    let items = raw
+        .pointer_mut("/characters/pmc/Inventory/items")
+        .and_then(|v| v.as_array_mut())
+        .ok_or("Inventory.items 缺失")?;
+    let in_pocket = |it: &Value| it.get("parentId").and_then(Value::as_str) == Some(pocket_id);
+    let from = items
+        .iter()
+        .position(|i| in_pocket(i) && i.get("_id").and_then(Value::as_str) == Some(id))
+        .ok_or("物品不在口袋里")?;
+    let src_slot = items[from]
+        .get("slotId")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    if src_slot == slot {
+        return Ok(());
+    }
+    let to = items.iter().position(|i| {
+        in_pocket(i) && i.get("slotId").and_then(Value::as_str) == Some(slot)
+    });
+    match to {
+        Some(to) => {
+            items[to]["slotId"] = json!(src_slot);
+            items[from]["slotId"] = json!(slot);
+        }
+        None => {
+            items[from]["slotId"] = json!(slot);
+            items[from]["location"] = json!({ "x": 0, "y": 0, "r": "Horizontal" });
+        }
+    }
+    Ok(())
+}
+
+/// 口袋取出到仓库：走仓库放置引擎定位，取出后 parentId=仓库、slotId=hideout
+pub(crate) fn pocket_take_out(
+    raw: &mut Value,
+    stash_id: &str,
+    pocket_id: &str,
+    id: &str,
+    db_dir: &str,
+    db: &ItemsDb,
+) -> Result<(), String> {
+    let tpl = raw
+        .pointer("/characters/pmc/Inventory/items")
+        .and_then(Value::as_array)
+        .and_then(|arr| {
+            arr.iter().find(|i| {
+                i.get("parentId").and_then(Value::as_str) == Some(pocket_id)
+                    && i.get("_id").and_then(Value::as_str) == Some(id)
+            })
+        })
+        .and_then(|i| i.get("_tpl").and_then(Value::as_str))
+        .ok_or("物品不在口袋里")?
+        .to_string();
+    let (x, y, rot) = find_free_slot(raw, stash_id, &tpl, db_dir, db)?;
+    let items = raw
+        .pointer_mut("/characters/pmc/Inventory/items")
+        .and_then(|v| v.as_array_mut())
+        .ok_or("Inventory.items 缺失")?;
+    let it = items
+        .iter_mut()
+        .find(|i| i.get("_id").and_then(Value::as_str) == Some(id))
+        .ok_or("找不到要取出的物品")?;
+    it["parentId"] = json!(stash_id);
+    it["slotId"] = json!("hideout");
+    it["location"] = json!({
+        "x": x,
+        "y": y,
+        "r": if rot { "Vertical" } else { "Horizontal" }
+    });
+    Ok(())
 }
 
 /// 把预设物品树整树复制进仓库：根走放置引擎，零件挂根下原 slotId（无 location），
@@ -1097,7 +1352,7 @@ pub(crate) fn place_build_tree(
         });
         if is_root {
             obj["slotId"] = json!("hideout");
-            obj["location"] = json!({ "x": place_x, "y": place_y, "r": if rotated { 1 } else { 0 } });
+            obj["location"] = json!({ "x": place_x, "y": place_y, "r": if rotated { "Vertical" } else { "Horizontal" } });
         }
         items.push(obj);
     }

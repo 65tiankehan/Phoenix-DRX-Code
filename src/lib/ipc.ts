@@ -125,6 +125,8 @@ export interface PhxSettings {
   autoAddScavSkills: boolean
   /** 首页动态条是否展示赞助推荐（关闭后槽位回退公告/小贴士；对齐 Rust Settings showSponsor） */
   showSponsor: boolean
+  /** 是否显示真实物品图标（关闭后一律用首字色块；对齐 Rust Settings itemIcons） */
+  itemIcons: boolean
   issueHandling: PhxIssueHandling
   /** AI 助手配置（对齐 Rust Settings ai；密钥不在其中，存系统凭据库） */
   ai: PhxAiSettings
@@ -271,6 +273,8 @@ export interface PhxTraderRow {
   id: string
   /** 商人原名（base.json），缺失为空串 */
   nickname: string
+  /** 头像 data URL（images/trader/avatar/<avatarId>.png）；服务端无图时为 null */
+  avatar: string | null
   loyaltyLevel: number
   salesSum: number
   standing: number
@@ -490,6 +494,8 @@ export interface PhxStashItemRow {
   x: number // 格位 X；容器内子件无 location 时为 -1
   y: number // 格位 Y；同上
   rot: boolean // location.r === 'Vertical'
+  /** 口袋物品的格名（pocket1..pocket4）；其他行没有这个字段 */
+  slotId?: string
 }
 
 export interface PhxEquipSlotRow {
@@ -509,6 +515,9 @@ export interface PhxAddItemRow {
   shortName: string
   desc: string
   categoryId: string
+  /** 模板占格：只有 1×1 的物品放得进口袋 */
+  w: number
+  h: number
 }
 
 export interface PhxStashData {
@@ -534,6 +543,10 @@ export type PhxStashOp =
   | { op: 'addBuild'; presetId: string }
   /** 仓库顶层物品拖动摆放：只改存档里的 location.x / y / r */
   | { op: 'moveItem'; id: string; x: number; y: number; rot: boolean }
+  /** 口袋（四个 1×1 格）：放一件物品 / 换格 / 取出到仓库 */
+  | { op: 'addToPocket'; tpl: string }
+  | { op: 'moveInPocket'; id: string; slot: string }
+  | { op: 'pocketTakeOut'; id: string }
 
 export interface PhxStashSaveData {
   ops: PhxStashOp[]
@@ -577,6 +590,52 @@ export interface PhxCatalog {
 
 export const phxEncyclopedia = {
   catalog: (): Promise<PhxCatalog | null> => invoke('encyclopedia_catalog')
+}
+
+/** 一键全部检视：数据库物品总数 / 已检视 / 剩余（写档走 examine_all，失败即抛） */
+export interface PhxExamineData {
+  total: number
+  examined: number
+  remaining: number
+}
+
+export const phxExamine = {
+  status: (): Promise<PhxExamineData> => invoke('examine_status'),
+  all: (): Promise<string | null> => invoke('examine_all')
+}
+
+/** 清理 mod 物品：四类计数 + 样本（存档引用了数据库里已不存在的 id） */
+export interface PhxModCleanData {
+  items: number
+  encyclopedia: number
+  quests: number
+  builds: number
+  total: number
+  samples: string[]
+}
+
+export interface PhxModCleanResult {
+  removed: number
+  backup: string | null
+}
+
+export const phxModClean = {
+  scan: (): Promise<PhxModCleanData> => invoke('mods_scan'),
+  clean: (): Promise<PhxModCleanResult> => invoke('mods_clean')
+}
+
+/** 物品图标缓存（磁盘在 `%APPDATA%\com.phoenix.drx\icons`，来源 assets.tarkov.dev） */
+export interface PhxIconStat {
+  files: number
+  bytes: number
+}
+
+export const phxIcons = {
+  /** 只查本地缓存，不联网 */
+  cached: (tpls: string[]): Promise<Record<string, string>> => invoke('icons_cached', { tpls }),
+  /** 缺的按需下载后一并返回（404 属正常：容器类与新物品没有图标） */
+  ensure: (tpls: string[]): Promise<Record<string, string>> => invoke('icons_ensure', { tpls }),
+  stat: (): Promise<PhxIconStat> => invoke('icons_stat')
 }
 
 /** Scav 装备 / 口袋页数据（装备槽 + 口袋物品 + 口袋容器名；与 PMC 仓库装备同构） */

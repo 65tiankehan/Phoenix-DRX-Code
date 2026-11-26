@@ -414,10 +414,9 @@ pub fn load_options(app: &AppHandle) -> CharOptions {
         }
     }
 
-    // 名字查找表：locales/global/en.json
-    let names = fs::read_to_string(db.join("locales").join("global").join("en.json"))
-        .ok()
-        .and_then(|t| serde_json::from_str::<Value>(&t).ok());
+    // 名字查找表：跟随游戏语言（locals/global/<lang>.json，en 兜底）
+    let names = crate::server::locale_names(app, None);
+    let names = if names.is_null() { None } else { Some(names) };
 
     // 语音 / 头部候选：按当前人物阵营取 bots/types/{usec|bear}.json 的 appearance，
     // 只保留有本地化名的项（4.1.6 实测 USEC = 9 头型 / 7 语音）；

@@ -8,6 +8,9 @@
 mod announcement;
 mod ai;
 mod clothing;
+mod examine;
+mod icons;
+mod modclean;
 mod arsenal;
 mod assistant;
 mod auth;
@@ -671,6 +674,9 @@ pub fn run() {
             ai::ai_get_config, ai::ai_set_config, ai::ai_set_key, ai::ai_clear_key, ai::ai_detect_ollama,
             ai::ai_test_connection, ai::ai_chat,
             clothing::clothing_load, clothing::clothing_save,
+    examine::examine_status, examine::examine_all,
+    modclean::mods_scan, modclean::mods_clean,
+    icons::icons_cached, icons::icons_ensure, icons::icons_stat,
             arsenal::arsenal_load, arsenal::arsenal_apply,
             assistant::assistant_context, assistant::assistant_execute,
             app_show_main, app_quit, tray_open_profiles_dir, tray_hide, tray_report_height,

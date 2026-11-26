@@ -290,7 +290,11 @@
         {#each sorted as row (row.id)}
           <section class="tcard gridrows" class:locked={!row.unlocked}>
             <div class="tcard-head">
-              <span class="tav">{avOf(row)}</span>
+              {#if row.avatar}
+                <img class="tav tav-img" src={row.avatar} alt="" />
+              {:else}
+                <span class="tav">{avOf(row)}</span>
+              {/if}
               <div class="tinfo">
                 <div class="nm">{displayName(row)}</div>
                 <div class="en">{subName(row)}</div>
@@ -477,6 +481,11 @@
     justify-content: center;
     font-size: 15px;
     font-weight: 700;
+  }
+  /* 有头像文件时直接铺满圆位；无图退回上面的首字母色块 */
+  .tav-img {
+    object-fit: cover;
+    background: var(--phx-surface-3);
   }
   .tinfo {
     flex: 1;

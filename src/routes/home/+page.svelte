@@ -6,6 +6,7 @@
   import { listen } from '@tauri-apps/api/event'
   import { t, type MessageKey } from '$lib/i18n/i18n.svelte'
   import { toast } from '$lib/toast.svelte'
+  import { navIntent } from '$lib/nav'
   import {
     phxProfile,
     phxIssues,
@@ -82,6 +83,8 @@
     | '/hideout'
     | '/presets'
     | '/encyclopedia'
+    /** 仓库页带分栏参数：口袋在「装备」栏 */
+    | '/stash?tab=equip'
 
   interface DashEntry {
     key: keyof typeof ICON
@@ -108,7 +111,7 @@
       items: [
         { key: 'traders', to: '/traders' },
         { key: 'stash', to: '/stash' },
-        { key: 'pockets', soon: true },
+        { key: 'pockets', to: '/stash' },
         { key: 'encyclopedia', to: '/encyclopedia' },
         { key: 'inspect', to: '/inspect' },
         { key: 'dataDir' }
@@ -438,6 +441,9 @@
       void phxSettings.openDataDir().then(() => toast.success(t('settings.toast.opened')))
       return
     }
+    // 口袋在仓库页的「装备」栏：记一次性跳转意图，由仓库页读走
+    // （goto 只接受 resolve() 出来的纯路径，lint svelte/no-navigation-without-resolve）
+    if (entry.key === 'pockets') navIntent.stashTab = 'equip'
     if (entry.to) void goto(resolve(entry.to))
   }
 

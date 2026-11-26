@@ -20,8 +20,10 @@
   import PhxDialog from '$lib/components/PhxDialog.svelte'
   import PhxIcon from '$lib/components/PhxIcon.svelte'
   import PhxTooltip from '$lib/components/PhxTooltip.svelte'
+  import PhxItemIcon from '$lib/components/PhxItemIcon.svelte'
   import PhxSegmented from '$lib/components/PhxSegmented.svelte'
   import { playSound } from '$lib/sound'
+  import { navIntent } from '$lib/nav'
 
   /** 骨架屏行序号生成 */
   const skRows = (n: number) => [...Array(n).keys()]
@@ -30,7 +32,9 @@
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/>',
     warn: '<path d="M12 3.5 22 20H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".4" fill="currentColor"/>',
     plus: '<path d="M5 12h14M12 5v14"/>',
-    trash: '<path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/>'
+    trash: '<path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13"/>',
+    // 取出到仓库：纸箱出口（向上离开容器）
+    out: '<path d="M12 4v9m0-9-3 3m3-3 3 3"/><path d="M5 14v5h14v-5"/>'
   }
 
   /** 三货币（tpl 与 Rust 侧常量对应；稿图胶囊序 ₽ / € / $） */
@@ -48,8 +52,20 @@
   let pockets = $state<PhxStashItemRow[]>([])
   let categories = $state<{ id: string; name: string; parentId: string | null }[]>([])
   let addable = $state<
-    { tpl: string; name: string; shortName: string; desc: string; categoryId: string }[]
+    {
+      tpl: string
+      name: string
+      shortName: string
+      desc: string
+      categoryId: string
+      w: number
+      h: number
+    }[]
   >([])
+  /** 添加物品的目标：仓库网格 / 口袋（口袋格是 1×1，只列 1×1 物品） */
+  let addTarget = $state<'stash' | 'pocket'>('stash')
+  /** 口袋格名：口袋模板的四个 1×1 格（pocket1..pocket4） */
+  const POCKET_CELLS = ['pocket1', 'pocket2', 'pocket3', 'pocket4']
   let rubles = $state(0)
   let dollars = $state(0)
   let euros = $state(0)
@@ -90,6 +106,8 @@
   const visAddable = $derived.by(() => {
     const q = aName.trim().toLowerCase()
     return addable.filter((a) => {
+      // 加到口袋时只列 1×1 的物品：口袋格就是 1×1，多格物品后端会直接拒绝
+      if (addTarget === 'pocket' && (a.w !== 1 || a.h !== 1)) return false
       if (curCat !== rootId && a.categoryId !== curCat) return false
       if (!q) return true
       // 名称 / 短名（M4A1）/ 模板 id 三者都命中，中文名与英文缩写都能搜
@@ -320,7 +338,22 @@
 
   function addItem(tpl: string): void {
     playSound('gain')
+    if (addTarget === 'pocket') {
+      void runOps([{ op: 'addToPocket', tpl }], true)
+      return
+    }
     void runOps([{ op: 'addItem', tpl }], true)
+  }
+
+  /** 口袋内换格（pocket1..pocket4）；目标格有物品时后端两者互换 */
+  function moveInPocket(id: string, slot: string): void {
+    void runOps([{ op: 'moveInPocket', id, slot }], true)
+  }
+
+  /** 口袋取出到仓库（走仓库放置引擎找空位） */
+  function takeOutOfPocket(id: string): void {
+    playSound('gain')
+    void runOps([{ op: 'pocketTakeOut', id }], true)
   }
 
   /** 全量刷新：当前档案 → 仓库页数据（仅 PMC） */
@@ -378,7 +411,12 @@
   }
 
   onMount(() => {
-    void refresh()
+    // 首页「口袋管理」直达装备栏：refresh() 内部会把 seg 重置回「仓库」，所以等它落地后再切
+    const wantEquip = navIntent.stashTab === 'equip'
+    if (wantEquip) navIntent.stashTab = ''
+    void refresh().then(() => {
+      if (wantEquip) seg = 'equip'
+    })
     // 托盘「切换存档」后刷新仓库页（Rust 侧 emit）
     const off = listen('tray:profile-switched', () => void refresh())
     return () => {
@@ -517,6 +555,8 @@
             </div>
             {#if viewMode === 'grid' && canGrid}
               <div class="gridwrap">
+                <!-- 选中条常驻占位：只在选中时插入会把格子整体往下顶，鼠标一移就「跳一下」 -->
+                <div class="gselslot">
                 {#if selItem}
                   <div class="gsel">
                     <span class="gsname">{selItem.name}{selItem.count > 1 ? ` ×${selItem.count}` : ''}</span>
@@ -531,7 +571,10 @@
                       {t('stash.aria.del')}
                     </button>
                   </div>
+                {:else}
+                  <div class="gsel idle">{t('stash.grid.hint')}</div>
                 {/if}
+                </div>
                 <div class="gstage" bind:this={gstageEl} style="grid-template-columns:repeat({stashCols}, minmax(0, 1fr))">
                   <!-- 单层 CSS Grid：底格与物品共用同一套网格线。格子边长由 aspect-ratio 撑出，
                        物品用 grid-column / grid-row 占位，尺寸自动跟随容器，不再手算像素。 -->
@@ -550,6 +593,7 @@
                       onpointermove={moveDrag}
                       onpointerup={(ev) => endDrag(ev, it)}
                     >
+                      <PhxItemIcon tpl={it.tpl} name={it.name} size={it.w * it.h > 1 ? 'lg' : 'md'} square />
                       <span class="gname" class:wide={it.w * it.h > 1}>
                         {it.w * it.h > 1 ? it.name : shortOf(it.name)}
                       </span>
@@ -576,7 +620,7 @@
               <div class="qcard">
                 {#each visItems as it (it.id)}
                   <div class="mrow">
-                    <span class="icon-b">{it.name.charAt(0)}</span>
+                    <PhxItemIcon tpl={it.tpl} name={it.name} square />
                     <div class="iname">{it.name}{it.count > 1 ? ` ×${it.count}` : ''}</div>
                     <span class="mmod" class:show={it.modded}><PhxIcon markup={ICON.warn} /></span>
                     <span class="iid">{it.tpl}</span>
@@ -688,10 +732,29 @@
               <span class="gtitle">{t('stash.g.addable')}</span>
               <span class="gcount">{visAddable.length}</span>
             </div>
+            <!-- 目标：仓库网格 / 口袋（口袋四个 1×1 格，满了要先去取出） -->
+            <div class="atarget">
+              <span class="atlabel">{t('stash.add.target')}</span>
+              <button
+                class="atchip"
+                type="button"
+                class:on={addTarget === 'stash'}
+                onclick={() => { playSound('ui'); addTarget = 'stash' }}
+              >{t('stash.add.target.stash')}</button>
+              <button
+                class="atchip"
+                type="button"
+                class:on={addTarget === 'pocket'}
+                onclick={() => { playSound('ui'); addTarget = 'pocket' }}
+              >{t('stash.add.target.pocket')}</button>
+              {#if addTarget === 'pocket'}
+                <span class="atnote">{pockets.length} / 4</span>
+              {/if}
+            </div>
             <div class="qcard">
               {#each visAddable as a (a.tpl)}
                 <div class="arow">
-                  <span class="icon-b">{a.name.charAt(0)}</span>
+                  <PhxItemIcon tpl={a.tpl} name={a.name} square />
                   <div class="iname">{a.name}</div>
                   <span class="iid">{a.tpl}</span>
                   <button class="addbtn" type="button" disabled={saving} onclick={() => addItem(a.tpl)}>
@@ -714,7 +777,7 @@
               <div class="srow">
                 <span class="slotname">{slotName(s.slot)}</span>
                 {#if s.item}
-                  <span class="icon-b">{s.item.name.charAt(0)}</span>
+                  <PhxItemIcon tpl={s.item.tpl} name={s.item.name} square />
                   <div class="iname">{s.item.name}</div>
                   <span class="mmod" class:show={s.item.modded}><PhxIcon markup={ICON.warn} /></span>
                   <span class="iid">{s.item.tpl}</span>
@@ -734,22 +797,45 @@
                 {/if}
               </div>
             {/each}
-            <!-- 口袋：特殊槽，内嵌物品列表（稿图注 6） -->
+            <!-- 口袋：四个 1×1 格（pocket1..pocket4），可换格 / 取出 / 删除 -->
             <div class="pwrap">
-              <div class="phead">{t('stash.slot.Pockets')}</div>
-              {#each pockets as p (p.id)}
-                <div class="pitem">
-                  <span class="icon-b small">{p.name.charAt(0)}</span>
-                  <div class="iname">{p.name}{p.count > 1 ? ` ×${p.count}` : ''}</div>
-                  <span class="iid">{p.tpl}</span>
-                  <PhxTooltip label={t('stash.aria.del')}>
-                    <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(p.id)}>
-                      <PhxIcon markup={ICON.trash} />
-                    </button>
-                  </PhxTooltip>
+              <div class="phead">
+                {t('stash.slot.Pockets')}
+                <span class="pcount">{pockets.length} / 4</span>
+              </div>
+              {#each POCKET_CELLS as cell, ci (cell)}
+                {@const p = pockets.find((x) => (x.slotId ?? '') === cell)}
+                <div class="pitem" class:vacant={!p}>
+                  <span class="pno">{ci + 1}</span>
+                  {#if p}
+                    <PhxItemIcon tpl={p.tpl} name={p.name} size="sm" square />
+                    <div class="iname">{p.name}{p.count > 1 ? ` ×${p.count}` : ''}</div>
+                    <div class="pmove">
+                      {#each POCKET_CELLS as target, ti (target)}
+                        <button
+                          class="pcell"
+                          type="button"
+                          class:on={target === cell}
+                          aria-label={`${t('stash.slot.Pockets')} ${ti + 1}`}
+                          onclick={() => moveInPocket(p.id, target)}
+                        >{ti + 1}</button>
+                      {/each}
+                    </div>
+                    <PhxTooltip label={t('stash.pocket.takeout')}>
+                      <button class="abtn" type="button" aria-label={t('stash.pocket.takeout')} disabled={saving} onclick={() => takeOutOfPocket(p.id)}>
+                        <PhxIcon markup={ICON.out} />
+                      </button>
+                    </PhxTooltip>
+                    <PhxTooltip label={t('stash.aria.del')}>
+                      <button class="abtn del" type="button" aria-label={t('stash.aria.del')} onclick={() => askRemove(p.id)}>
+                        <PhxIcon markup={ICON.trash} />
+                      </button>
+                    </PhxTooltip>
+                  {:else}
+                    <div class="pempty">{t('stash.pocket.empty')}</div>
+                  {/if}
                 </div>
               {/each}
-              {#if !pockets.length}<div class="pempty">{t('stash.row.empty')}</div>{/if}
             </div>
           </div>
         </section>
@@ -1131,25 +1217,6 @@
   .mrow + .mrow {
     border-top: 0.5px solid var(--phx-sep);
   }
-  .icon-b {
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
-    background: var(--phx-accent-dim);
-    color: var(--phx-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    flex: none;
-  }
-  .icon-b.small {
-    width: 26px;
-    height: 26px;
-    font-size: 11px;
-    border-radius: 6px;
-  }
   .icon-b.empty-ico {
     background: var(--phx-fill-tertiary);
     color: var(--phx-text-3);
@@ -1342,18 +1409,88 @@
     font-weight: 600;
     color: var(--phx-text-2);
     padding: 9px 14px 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pcount {
+    color: var(--phx-text-3);
+    font-weight: 400;
   }
   .pitem {
     display: grid;
-    grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: 18px 26px minmax(0, 1fr) auto auto auto;
     align-items: center;
     gap: 10px;
     padding: 7px 14px 7px 26px;
   }
+  .pitem.vacant {
+    opacity: 0.75;
+  }
+  .pno {
+    font-size: 11px;
+    color: var(--phx-text-3);
+    text-align: right;
+  }
+  .pmove {
+    display: flex;
+    gap: 2px;
+  }
+  .pcell {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 0.5px solid var(--phx-sep);
+    background: transparent;
+    color: var(--phx-text-3);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .pcell.on {
+    border-color: var(--phx-accent);
+    color: var(--phx-accent);
+    background: color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  }
+  .pcell:hover {
+    border-color: var(--phx-accent);
+  }
   .pempty {
     font-size: 12px;
     color: var(--phx-text-3);
-    padding: 7px 14px 7px 26px;
+    padding: 0;
+    grid-column: 2 / -1;
+  }
+  /* 添加物品目标选择（仓库 / 口袋） */
+  .atarget {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 2px 8px;
+  }
+  .atlabel {
+    font-size: 12px;
+    color: var(--phx-text-3);
+  }
+  .atchip {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 0.5px solid var(--phx-sep);
+    background: transparent;
+    color: var(--phx-text-2);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .atchip.on {
+    border-color: var(--phx-accent);
+    color: var(--phx-accent);
+    background: color-mix(in srgb, var(--phx-accent) 12%, transparent);
+  }
+  .atnote {
+    font-size: 12px;
+    color: var(--phx-text-3);
+    margin-left: 2px;
   }
 
   /* ———————— 格子视图（稿图 09 屏） ———————— */
@@ -1432,8 +1569,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1px;
-    padding: 4px;
+    gap: 3px;
+    padding: 3px;
     border: 1px solid var(--phx-sep-strong);
     border-radius: 5px;
     background: var(--phx-surface);
@@ -1444,11 +1581,27 @@
     transition: background 0.15s ease, border-color 0.15s ease;
   }
   .gitem:hover { background: var(--phx-surface-3); }
+  /* 格子里物品图直接浮在格子底上，别再套一层灰方块（稿图里也是纯图标） */
+  .gitem :global(.ico) {
+    background: transparent;
+  }
   .gitem.on {
-    background: var(--phx-accent-soft);
+    /* 选中态做成「标签页」：实心底 + 外圈描边 + 顶边指示条；
+       不用 accent-soft（半透明会把格子中间透出来，看着像「变透明了」），
+       也不动 font-weight（字重一变名字会重排，鼠标移进去就跳一下）。 */
+    background: var(--phx-surface-3);
     border-color: var(--phx-accent);
-    color: var(--phx-accent);
-    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--phx-accent);
+    color: var(--phx-text);
+  }
+  .gitem.on::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--phx-accent);
+    border-radius: 5px 5px 0 0;
+    pointer-events: none;
   }
   /* 单格只给两三个字（稿图那样 AK / 甲 / 弹），多格才铺全名 */
   .gitem {
@@ -1529,6 +1682,10 @@
     height: 10px;
     color: var(--phx-warn);
   }
+  /* 选中条占位槽：高度＝选中条本身（29px）+ 下边距 8px，出现/消失都不改布局 */
+  .gselslot {
+    min-height: 37px;
+  }
   .gsel {
     display: flex;
     align-items: center;
@@ -1536,8 +1693,17 @@
     margin-bottom: 8px;
     padding: 6px 9px;
     border-radius: 8px;
-    background: var(--phx-accent-soft);
+    /* 实心底，不用半透明的 accent-soft，避免透出下面的格子 */
+    background: var(--phx-surface-3);
+    border: 1px solid var(--phx-accent-dim);
     font-size: 12px;
+  }
+  /* 没选中时占位槽里放一句操作提示，既有用又不会留下空白带 */
+  .gsel.idle {
+    background: transparent;
+    border-color: transparent;
+    color: var(--phx-text-3);
+    font-size: 11.5px;
   }
   .gsname { font-weight: 600; color: var(--phx-text); }
   .gsid { color: var(--phx-text-3); font-size: 10.5px; font-family: var(--phx-mono, ui-monospace); }
