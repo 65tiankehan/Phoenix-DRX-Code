@@ -10,10 +10,13 @@
 
 **Free SPT profile editor for Windows.** Edit level, money, skills, trader loyalty, quests, hideout and stash items — offline, with an automatic backup before every write, in **9 interface languages**.
 
+<img src="docs/images/stash-icons.png" alt="Phoenix DRX 仓库：真实物品图标" width="900">
+
 <img src="docs/images/home-zh.png" alt="Phoenix DRX 首页" width="900">
 
 - **不会弄坏档**：任何一次写入存档之前先落备份，自动保留最近 10 份，备份页可一键回滚。
 - **九种界面语言**：简体中文 / English / Русский / Deutsch / Français / Español / Polski / Português (BR) / Türkçe，词条按游戏内官方译法，不是机翻。
+- **看得见东西**：仓库、装备栏、口袋、Scav 页和图鉴显示真实物品图标，按需取图并本地缓存，离线也能看。
 - **改得动真东西**：从等级货币到藏身处配方、从任务状态到仓库物品，改动前都拿真实存档验证过。
 
 界面是暗色沉浸风，纯本机离线运行，不联网、不注入、不挂钩子。
